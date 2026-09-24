@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { STATUSES } from "@/lib/city";
-import { getStore } from "@/lib/store";
+import { getStore, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { isStaff, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
@@ -80,6 +80,18 @@ export default async function AdminPage({
             <li>תמונות שממתינות לאישור: {pendingPhotos.length}</li>
           </ul>
         </Card>
+        <div className="mt-2">
+          {storeIsDurable() ? (
+            <p className="rounded-[12px] border border-line bg-accent-soft px-3 py-2 text-[13px] text-accent">
+              הנתונים נשמרים במסד הנתונים (Supabase) ואינם נמחקים בפריסה מחדש.
+            </p>
+          ) : (
+            <Notice>
+              אחסון זמני: הנתונים נשמרים בקבצים מקומיים ועלולים להימחק בפריסה מחדש.
+              יש להגדיר SUPABASE_URL ו־SUPABASE_SERVICE_ROLE_KEY.
+            </Notice>
+          )}
+        </div>
       </Section>
 
       <Section title="אישור תמונות" note="תמונה מתפרסמת רק אחרי אישור. בדקו פנים ולוחיות רישוי.">

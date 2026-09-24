@@ -10,6 +10,7 @@ interface QuarterFeature {
   name: string;
   polygon: [number, number][];
   center: [number, number];
+  schematic: boolean;
   votes: number;
   avgScore: number | null;
 }
@@ -30,15 +31,18 @@ interface Props {
   streets: StreetFeature[];
 }
 
+/**
+ * Keyless OpenStreetMap vector basemap. Override with NEXT_PUBLIC_MAP_STYLE to
+ * point at the municipal basemap (any MapLibre style.json URL).
+ */
+const DEFAULT_STYLE_URL = "https://tiles.openfreemap.org/styles/liberty";
+
+/** Used when no basemap is reachable: the data layers still render. */
 const BLANK_STYLE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {},
   layers: [
-    {
-      id: "background",
-      type: "background",
-      paint: { "background-color": "#f6f4ef" },
-    },
+    { id: "background", type: "background", paint: { "background-color": "#f6f4ef" } },
   ],
 };
 
@@ -46,7 +50,7 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const map = useRef<MapLibreMap | null>(null);
   const [selected, setSelected] = useState<string | null>(null);
-  const [failed, setFailed] = useState(false);
+  const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
 
   const maxQuarterVotes = useMemo(
     () => Math.max(1, ...quarters.map((q) => q.votes)),
@@ -56,29 +60,48 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
     () => Math.max(1, ...streets.map((s) => s.votes)),
     [streets],
   );
+  const schematicGeometry = useMemo(
+    () => quarters.some((q) => q.schematic),
+    [quarters],
+  );
 
   useEffect(() => {
     if (!container.current || map.current) return;
 
-    const styleUrl = process.env.NEXT_PUBLIC_MAP_STYLE;
-    let instance: MapLibreMap;
-    try {
-      instance = new maplibregl.Map({
-        container: container.current,
-        style: styleUrl ?? BLANK_STYLE,
-        center,
-        zoom,
-        attributionControl: styleUrl ? undefined : false,
-      });
-    } catch {
-      setFailed(true);
-      return;
-    }
+    const styleUrl = process.env.NEXT_PUBLIC_MAP_STYLE ?? DEFAULT_STYLE_URL;
+    const instance = new maplibregl.Map({
+      container: container.current,
+      style: styleUrl,
+      center,
+      zoom,
+      attributionControl: { compact: true },
+    });
     map.current = instance;
     instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
-    instance.on("error", () => setFailed(true));
 
-    instance.on("load", () => {
+    let usedFallback = false;
+
+    /** Prefer Hebrew place labels where the basemap carries them. */
+    function hebrewLabels() {
+      for (const layer of instance.getStyle().layers ?? []) {
+        if (layer.type !== "symbol") continue;
+        const field = instance.getLayoutProperty(layer.id, "text-field");
+        if (!field) continue;
+        try {
+          instance.setLayoutProperty(layer.id, "text-field", [
+            "coalesce",
+            ["get", "name:he"],
+            ["get", "name"],
+          ]);
+        } catch {
+          // A layer whose label is not a plain name field; leave it as it is.
+        }
+      }
+    }
+
+    function addDataLayers() {
+      if (instance.getSource("quarters")) return;
+
       instance.addSource("quarters", {
         type: "geojson",
         data: {
@@ -106,16 +129,13 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
             "interpolate",
             ["linear"],
             ["get", "heat"],
-            0,
-            "#e9e6df",
-            0.35,
-            "#bcd8cd",
-            0.7,
-            "#6fae97",
-            1,
-            "#1f6f5c",
+            0, "#e9e6df",
+            0.35, "#bcd8cd",
+            0.7, "#6fae97",
+            1, "#1f6f5c",
           ],
-          "fill-opacity": 0.75,
+          // Translucent over a basemap so streets below stay readable.
+          "fill-opacity": 0.45,
         },
       });
 
@@ -153,12 +173,9 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
             "interpolate",
             ["linear"],
             ["get", "heat"],
-            0,
-            "#9aa7b1",
-            0.5,
-            "#b8742a",
-            1,
-            "#8a4a10",
+            0, "#9aa7b1",
+            0.5, "#b8742a",
+            1, "#8a4a10",
           ],
           "line-width": ["interpolate", ["linear"], ["get", "heat"], 0, 2, 1, 7],
           "line-opacity": 0.95,
@@ -170,17 +187,38 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
         if (id) setSelected(id);
       });
       instance.on("click", "streets-line", (event) => {
-        const quarterId = streets.find(
-          (s) => s.id === (event.features?.[0]?.properties?.id as string),
-        )?.quarterId;
+        const id = event.features?.[0]?.properties?.id as string | undefined;
+        const quarterId = streets.find((s) => s.id === id)?.quarterId;
         if (quarterId) setSelected(quarterId);
       });
-      instance.on("mouseenter", "quarters-fill", () => {
-        instance.getCanvas().style.cursor = "pointer";
-      });
-      instance.on("mouseleave", "quarters-fill", () => {
-        instance.getCanvas().style.cursor = "";
-      });
+      for (const layer of ["quarters-fill", "streets-line"]) {
+        instance.on("mouseenter", layer, () => {
+          instance.getCanvas().style.cursor = "pointer";
+        });
+        instance.on("mouseleave", layer, () => {
+          instance.getCanvas().style.cursor = "";
+        });
+      }
+    }
+
+    instance.on("load", () => {
+      if (!usedFallback) {
+        hebrewLabels();
+        setBasemap("ready");
+      }
+      addDataLayers();
+    });
+
+    // A basemap that cannot be reached must not take the data layers with it.
+    instance.on("error", (event) => {
+      const message = String(event?.error?.message ?? "");
+      const styleFailed = !instance.isStyleLoaded() || message.includes("style");
+      if (styleFailed && !usedFallback) {
+        usedFallback = true;
+        setBasemap("none");
+        instance.setStyle(BLANK_STYLE);
+        instance.once("styledata", addDataLayers);
+      }
     });
 
     return () => {
@@ -202,9 +240,16 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
         aria-label="מפת הרחובות והרובעים"
         className="h-[380px] w-full overflow-hidden rounded-[14px] border border-line"
       />
-      {failed ? (
+
+      {basemap === "none" ? (
         <p className="mt-2 text-[13px] text-ink-soft">
-          טעינת המפה נכשלה בדפדפן הזה. הנתונים המלאים זמינים במסך רחובות.
+          מפת הרקע לא נטענה. שכבות הקולות מוצגות על רקע ריק.
+        </p>
+      ) : null}
+      {schematicGeometry && basemap === "ready" ? (
+        <p className="mt-2 text-[13px] text-ink-soft">
+          שימו לב: מיקומי הרובעים והרחובות סכמטיים ואינם תואמים את הרקע האמיתי, עד
+          לטעינת שכבות ה־GIS העירוניות.
         </p>
       ) : null}
 
@@ -219,9 +264,7 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
           <div className="card p-4">
             <div className="mb-2 flex items-baseline justify-between">
               <h2 className="text-[18px] font-semibold text-ink">{selectedQuarter.name}</h2>
-              <span className="text-[14px] text-ink-faint">
-                {selectedQuarter.votes} קולות
-              </span>
+              <span className="text-[14px] text-ink-faint">{selectedQuarter.votes} קולות</span>
             </div>
             {selectedStreets.length === 0 ? (
               <p className="text-[14px] text-ink-soft">אין עדיין רחובות מדורגים ברובע הזה.</p>

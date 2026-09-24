@@ -28,6 +28,7 @@ export default async function MapPage() {
             name: q.name,
             polygon: q.polygon,
             center: q.center,
+            schematic: q.schematic,
             votes: stats?.votes ?? 0,
             avgScore: stats?.avgScore ?? null,
           };
@@ -45,8 +46,8 @@ export default async function MapPage() {
       />
       <div className="mt-4">
         <Notice>
-          הגבולות וקווי הרחובות במפה הם סכמטיים ונועדו להדגמה בלבד, עד לטעינת שכבות
-          ה־GIS העירוניות. להוספת מפת רקע עירונית: משתנה הסביבה NEXT_PUBLIC_MAP_STYLE.
+          מפת הרקע מבוססת OpenStreetMap. גבולות הרובעים וקווי הרחובות שמוצגים מעליה
+          הם סכמטיים ונועדו להדגמה בלבד, עד לטעינת שכבות ה־GIS העירוניות.
         </Notice>
       </div>
     </>

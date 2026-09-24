@@ -1,4 +1,4 @@
--- Good Streets Ashdod — Supabase schema, RLS and storage policies.
+-- Good Streets Ashdod — Supabase schema and RLS.
 -- Apply with: supabase db push, or paste into the SQL editor.
 --
 -- Model: the browser never talks to Supabase directly. Next.js route handlers
@@ -62,7 +62,7 @@ create table if not exists photos (
   id            uuid primary key default gen_random_uuid(),
   vote_id       uuid references votes(id) on delete cascade,
   street_id     uuid not null references streets(id) on delete cascade,
-  storage_path  text not null,
+  storage_path  text not null,   -- stable name for the image; bytes in photo_blobs
   status        text not null default 'pending'
                   check (status in ('pending','approved','rejected')),
   created_at    timestamptz not null default now(),
@@ -70,6 +70,17 @@ create table if not exists photos (
 );
 
 create index if not exists photos_street_idx on photos (street_id, status);
+
+-- The image bytes, base64-encoded, so the entire dataset is one database to
+-- back up, restore and move between projects. Nothing reads this table with an
+-- anon key: the app serves images through its own route, which checks the
+-- moderation status first.
+create table if not exists photo_blobs (
+  photo_id     uuid primary key references photos(id) on delete cascade,
+  content_type text not null default 'image/jpeg',
+  data_base64  text not null,
+  created_at   timestamptz not null default now()
+);
 
 alter table votes
   add constraint votes_photo_fk
@@ -106,6 +117,7 @@ alter table quarters      enable row level security;
 alter table streets       enable row level security;
 alter table votes         enable row level security;
 alter table photos        enable row level security;
+alter table photo_blobs   enable row level security;
 alter table street_status enable row level security;
 alter table staff         enable row level security;
 
@@ -156,6 +168,9 @@ create policy photos_staff_write on photos for update using (is_staff());
 drop policy if exists photos_staff_delete on photos;
 create policy photos_staff_delete on photos for delete using (is_staff());
 
+drop policy if exists photo_blobs_staff_read on photo_blobs;
+create policy photo_blobs_staff_read on photo_blobs for select using (is_staff());
+
 -- Municipal status: public reads, staff alone writes.
 drop policy if exists status_read on street_status;
 create policy status_read on street_status for select using (true);
@@ -168,17 +183,3 @@ create policy status_staff_write on street_status for all
 -- add members with the service-role key or from the Supabase dashboard.
 drop policy if exists staff_read on staff;
 create policy staff_read on staff for select using (is_staff());
-
--- ------------------------------------------------------------------ storage
-
-insert into storage.buckets (id, name, public)
-values ('street-photos', 'street-photos', false)
-on conflict (id) do nothing;
-
-drop policy if exists photos_upload on storage.objects;
-create policy photos_upload on storage.objects for insert
-  with check (bucket_id = 'street-photos' and auth.uid() is not null);
-
-drop policy if exists photos_staff_read on storage.objects;
-create policy photos_staff_read on storage.objects for select
-  using (bucket_id = 'street-photos' and is_staff());

@@ -10,8 +10,8 @@ import type {
   VoteInput,
 } from "../types";
 import type { DataStore } from "./types";
+import { buildDemoVotes } from "./demo";
 
-const PHOTO_BUCKET = process.env.SUPABASE_PHOTO_BUCKET ?? "street-photos";
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -153,10 +153,6 @@ export class SupabaseStore implements DataStore {
       if (!decoded) throw new Error("PHOTO_FORMAT");
       if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
       const storagePath = `${input.streetId}/${crypto.randomUUID()}.${decoded.ext}`;
-      const upload = await this.db.storage
-        .from(PHOTO_BUCKET)
-        .upload(storagePath, decoded.body, { contentType: decoded.mime, upsert: false });
-      if (upload.error) throw new Error(upload.error.message);
       const { data, error } = await this.db
         .from("photos")
         .insert({
@@ -169,6 +165,17 @@ export class SupabaseStore implements DataStore {
         .select("*")
         .single();
       if (error) throw new Error(error.message);
+      // The image lives in photo_blobs as base64 text, so the whole dataset is
+      // one database to back up, restore and move between projects.
+      const blob = await this.db.from("photo_blobs").insert({
+        photo_id: data.id,
+        content_type: decoded.mime,
+        data_base64: decoded.body.toString("base64"),
+      });
+      if (blob.error) {
+        await this.db.from("photos").delete().eq("id", data.id);
+        throw new Error(blob.error.message);
+      }
       photoId = data.id;
     }
 
@@ -222,16 +229,15 @@ export class SupabaseStore implements DataStore {
   }
 
   async readPhoto(photoId: string): Promise<{ body: Buffer; contentType: string } | null> {
-    const rows = await this.rows("photos", (q) => q.eq("id", photoId).limit(1));
-    if (!rows[0]) return null;
-    const photo = toPhoto(rows[0]);
-    const { data, error } = await this.db.storage.from(PHOTO_BUCKET).download(photo.storagePath);
-    if (error || !data) return null;
-    const body = Buffer.from(await data.arrayBuffer());
-    const ext = photo.storagePath.split(".").pop();
+    const { data, error } = await this.db
+      .from("photo_blobs")
+      .select("content_type, data_base64")
+      .eq("photo_id", photoId)
+      .maybeSingle();
+    if (error || !data?.data_base64) return null;
     return {
-      body,
-      contentType: ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg",
+      body: Buffer.from(data.data_base64, "base64"),
+      contentType: data.content_type ?? "image/jpeg",
     };
   }
 
@@ -269,9 +275,46 @@ export class SupabaseStore implements DataStore {
   }
 
   async seedDemo(): Promise<number> {
-    // Demo data is a development aid; seed it with `npm run seed` against the
-    // local store, or with supabase/seed.sql against a Supabase project.
-    throw new Error("DEMO_SEED_NOT_SUPPORTED_ON_SUPABASE");
+    const existing = await this.rows("votes", (q) => q.eq("is_demo", true).limit(1));
+    if (existing.length > 0) return 0;
+
+    const streets = await this.listStreets();
+    if (streets.length === 0) throw new Error("NO_STREETS_TO_SEED");
+
+    const votes = buildDemoVotes(streets).map((vote) => ({
+      street_id: vote.streetId,
+      quarter_id: vote.quarterId,
+      typology: vote.typology,
+      scores: vote.scores,
+      reason: vote.reason,
+      user_id: vote.userId,
+      created_at: vote.createdAt,
+      updated_at: vote.updatedAt,
+      is_demo: true,
+    }));
+
+    const { data, error } = await this.db.from("votes").insert(votes).select("id");
+    if (error) throw new Error(error.message);
+
+    const statusKeys: StatusKey[] = [
+      "received",
+      "under_review",
+      "planned",
+      "in_progress",
+      "done",
+    ];
+    await this.db.from("street_status").upsert(
+      streets.slice(0, 8).map((street, index) => ({
+        street_id: street.id,
+        status: statusKeys[index % statusKeys.length],
+        public_note: "נתוני הדגמה — לא עדכון עירוני אמיתי.",
+        updated_by: "demo",
+        updated_at: new Date().toISOString(),
+      })),
+      { onConflict: "street_id" },
+    );
+
+    return data?.length ?? 0;
   }
 
   async clearDemo(): Promise<number> {

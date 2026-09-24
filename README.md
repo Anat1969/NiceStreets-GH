@@ -22,23 +22,31 @@ npm run dev                    # http://localhost:3000
 היכנסו ל‑`/admin` עם ה‑STAFF_CODE ולחצו "הוספת נתוני הדגמה". הנתונים מסומנים
 `is_demo` בנפרד מקולות אמיתיים, וניתן למחוק אותם בלחיצה אחת לפני פתיחה לציבור.
 
-## פריסה לכתובת ציבורית (Vercel)
+## הכתובת הציבורית והפריסה
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAnat1969%2FNiceStreets-GH&env=STAFF_CODE&envDescription=%D7%A7%D7%95%D7%93%20%D7%94%D7%9B%D7%A0%D7%99%D7%A1%D7%94%20%D7%9C%D7%9C%D7%95%D7%97%20%D7%94%D7%91%D7%A7%D7%A8%D7%94%20%D7%A9%D7%9C%20%D7%94%D7%A6%D7%95%D7%95%D7%AA&project-name=good-streets-ashdod&repository-name=NiceStreets-GH)
+האפליקציה פרוסה ב-Vercel. הפריסה מושכת אוטומטית מענף `main` במאגר.
 
-לחיצה על הכפתור פותחת ייבוא של המאגר ב-Vercel. בשדה `STAFF_CODE` קבעי סיסמה לכניסת
-הצוות ל-`/admin`, ולחצי Deploy. תוך כדקה מתקבלת כתובת ציבורית מסוג
-`https://good-streets-ashdod.vercel.app`.
+### משתני הסביבה שצריך להגדיר ב-Vercel
 
-**שימי לב לאחסון בפריסה הראשונה:** בלי משתני Supabase האפליקציה משתמשת במאגר
-JSON מקומי. ב-Vercel מערכת הקבצים אינה קבועה, ולכן קולות ותמונות עלולים להימחק
-בכל פריסה או בהפעלה מחדש של הפונקציה. זה מספיק להדגמה ולסבב משוב פנימי; לפני
-פתיחה לציבור יש לחבר Supabase:
+| משתנה | ערך | למה |
+|---|---|---|
+| `STAFF_CODE` | סיסמה שתבחרי | כניסת הצוות ל-`/admin` |
+| `SUPABASE_URL` | `https://cbhexpybdggwzyakgagd.supabase.co` | מאגר הנתונים הקבוע |
+| `SUPABASE_SERVICE_ROLE_KEY` | מפתח `service_role` מלוח הבקרה של Supabase | כתיבה לשרת |
 
-1. ליצור פרויקט Supabase ולהריץ את `supabase/schema.sql`.
-2. להוסיף ב-Vercel את משתני הסביבה `NEXT_PUBLIC_SUPABASE_URL`,
-   `NEXT_PUBLIC_SUPABASE_ANON_KEY` ו-`SUPABASE_SERVICE_ROLE_KEY`.
-3. לפרוס מחדש. האפליקציה עוברת אוטומטית לאחסון Supabase.
+את מפתח ה-`service_role` מעתיקים מ-Supabase: Project Settings → API keys →
+service_role. **המפתח הזה סודי** — הוא נשמר רק כמשתנה סביבה ב-Vercel, אף פעם לא
+בקוד ולא בדפדפן. לכן שמו אינו מתחיל ב-`NEXT_PUBLIC_`.
+
+אחרי הגדרת המשתנים צריך Redeploy כדי שייכנסו לתוקף.
+
+### למה Supabase ולא אחסון ב-Vercel
+
+ב-Vercel מערכת הקבצים אינה קבועה: כל פריסה מחדש או הפעלה מחדש של הפונקציה מוחקת
+קבצים. לכן מאגר ה-JSON המקומי מתאים רק לפיתוח. כשמוגדרים משתני Supabase
+האפליקציה עוברת אוטומטית ל-Postgres, והנתונים נשמרים — כולל תמונות, שנשמרות
+בטבלה `photo_blobs` כטקסט base64, כך שכל מסד הנתונים הוא יחידה אחת לגיבוי
+ולשחזור.
 
 ## מסכים
 
@@ -55,12 +63,14 @@ JSON מקומי. ב-Vercel מערכת הקבצים אינה קבועה, ולכן
 ## ארכיטקטורה
 
 - **ממשק:** Next.js 15 (App Router) + TypeScript + Tailwind 4, RTL מלא, PWA.
-- **מפה:** MapLibre GL. ברירת המחדל היא סגנון ריק בלי שרת אריחים חיצוני; להוספת
-  מפת רקע עירונית הגדירו `NEXT_PUBLIC_MAP_STYLE` לכתובת style.json.
+- **מפה:** MapLibre GL עם מפת רקע OpenStreetMap ללא מפתח API
+  (`tiles.openfreemap.org`), תוויות בעברית היכן שקיימות, ונפילה אוטומטית לרקע
+  ריק אם מפת הרקע אינה זמינה — שכבות הקולות ממשיכות להיות מוצגות. להחלפה במפת
+  רקע עירונית: `NEXT_PUBLIC_MAP_STYLE` לכתובת style.json.
 - **נתונים:** שכבת אחסון מופשטת ב‑`lib/store/`. שני מימושים לאותו ממשק:
-  - `LocalStore` — קובץ JSON ב‑`.data/`, לפיתוח ולהדגמה.
-  - `SupabaseStore` — Postgres + Storage, נכנס לפעולה כשמוגדרים
-    `NEXT_PUBLIC_SUPABASE_URL` ו‑`SUPABASE_SERVICE_ROLE_KEY`.
+  - `LocalStore` — קובץ JSON ב‑`.data/`, לפיתוח בלבד.
+  - `SupabaseStore` — Postgres, נכנס לפעולה כשמוגדרים `SUPABASE_URL` ו‑
+    `SUPABASE_SERVICE_ROLE_KEY`. זהו האחסון הקבוע בייצור.
 - **הרשאות:** הדפדפן אינו פונה ל‑Supabase ישירות; כל בקשה עוברת דרך route handler
   ב‑Next.js שמאמת הרשאה. ה‑RLS ב‑`supabase/schema.sql` הוא קו הגנה שני.
 - **קונפיגורציית עיר:** הכול מרוכז ב‑`lib/city.ts` — רובעים, רשימת רחובות,
@@ -81,13 +91,18 @@ JSON מקומי. ב-Vercel מערכת הקבצים אינה קבועה, ולכן
 
 ## Supabase
 
+הפרויקט בשימוש: `ASHDODMAP` (ref `cbhexpybdggwzyakgagd`), אזור ap-southeast-1.
+הסכמה, ה-RLS ונתוני הייחוס (18 רובעים, 14 רחובות) כבר הוחלו עליו.
+
+להקמה מחדש או למעבר לפרויקט אחר:
+
 ```bash
 psql "$DATABASE_URL" -f supabase/schema.sql
 ```
 
-הסכמה כוללת PostGIS, אילוצים, RLS לכל הטבלאות ומדיניות אחסון לתמונות. חברי צוות
-נוספים לטבלת `staff` דרך ה‑service role או מלוח הבקרה של Supabase; אי אפשר להוסיף
-את עצמך דרך ה‑API.
+הסכמה כוללת PostGIS, אילוצים, RLS לכל הטבלאות ואחסון תמונות בטבלה. חברי צוות
+נוספים נרשמים בטבלת `staff` דרך ה-service role או מלוח הבקרה של Supabase; אי
+אפשר להוסיף את עצמך דרך ה-API.
 
 ## אימות נתוני GIS — לפני עלייה לאוויר
 
@@ -122,6 +137,17 @@ npm run import:gis -- quarters.geojson streets.geojson > city-data.json
 
 ## בדיקות שבוצעו
 
-`npm run build` ו‑`npm run typecheck` עוברים. זרימת ההצבעה המלאה, העלאת תמונה,
-אישור/דחייה, עדכון סטטוס, הייצוא והרשאות הצוות נבדקו מקצה לקצה מול השרת הבנוי
-(כולל דפדפן אמיתי). אין עדיין בדיקות אוטומטיות בריפו.
+`npm run build` ו‑`npm run typecheck` עוברים.
+
+**נבדק מקצה לקצה** מול המאגר המקומי בדפדפן אמיתי: זרימת ההצבעה בשלושה שלבים,
+עדכון קול קיים, העלאת תמונה, אישור ודחייה, עדכון סטטוס, ייצוא CSV ו‑GeoJSON,
+והרשאות הצוות (403 לגולש רגיל).
+
+**נבדק ברמת מסד הנתונים** מול Supabase: הסכמה, האילוצים, ה‑RLS וטעינת נתוני
+הייחוס.
+
+**לא נבדק עדיין:** מסלול ה‑Supabase של האפליקציה עצמה (PostgREST) ומפת הרקע —
+סביבת הפיתוח שבה נכתב הקוד חוסמת גישת רשת ל‑`*.supabase.co` ול‑
+`tiles.openfreemap.org`. שניהם נבדקים בפועל בפריסה ב‑Vercel.
+
+אין עדיין בדיקות אוטומטיות בריפו.
