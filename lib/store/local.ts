@@ -1,6 +1,7 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
+import os from "node:os";
 import { QUARTERS, QUESTIONS, SEED_STREETS } from "../city";
 import type { StatusKey, TypologyKey } from "../city";
 import type {
@@ -23,9 +24,16 @@ interface Snapshot {
   statuses: StreetStatus[];
 }
 
+/**
+ * Where the JSON store lives. On a serverless host the project directory is
+ * read-only, so fall back to the writable temp directory there. That storage
+ * is ephemeral — connect Supabase before opening the app to the public.
+ */
 const DATA_DIR = process.env.LOCAL_DATA_DIR
   ? path.resolve(process.env.LOCAL_DATA_DIR)
-  : path.join(process.cwd(), ".data");
+  : process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME
+    ? path.join(os.tmpdir(), "good-streets")
+    : path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "store.json");
 const PHOTO_DIR = path.join(DATA_DIR, "photos");
 

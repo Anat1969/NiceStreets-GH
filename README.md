@@ -22,6 +22,24 @@ npm run dev                    # http://localhost:3000
 היכנסו ל‑`/admin` עם ה‑STAFF_CODE ולחצו "הוספת נתוני הדגמה". הנתונים מסומנים
 `is_demo` בנפרד מקולות אמיתיים, וניתן למחוק אותם בלחיצה אחת לפני פתיחה לציבור.
 
+## פריסה לכתובת ציבורית (Vercel)
+
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2FAnat1969%2FNiceStreets-GH&env=STAFF_CODE&envDescription=%D7%A7%D7%95%D7%93%20%D7%94%D7%9B%D7%A0%D7%99%D7%A1%D7%94%20%D7%9C%D7%9C%D7%95%D7%97%20%D7%94%D7%91%D7%A7%D7%A8%D7%94%20%D7%A9%D7%9C%20%D7%94%D7%A6%D7%95%D7%95%D7%AA&project-name=good-streets-ashdod&repository-name=NiceStreets-GH)
+
+לחיצה על הכפתור פותחת ייבוא של המאגר ב-Vercel. בשדה `STAFF_CODE` קבעי סיסמה לכניסת
+הצוות ל-`/admin`, ולחצי Deploy. תוך כדקה מתקבלת כתובת ציבורית מסוג
+`https://good-streets-ashdod.vercel.app`.
+
+**שימי לב לאחסון בפריסה הראשונה:** בלי משתני Supabase האפליקציה משתמשת במאגר
+JSON מקומי. ב-Vercel מערכת הקבצים אינה קבועה, ולכן קולות ותמונות עלולים להימחק
+בכל פריסה או בהפעלה מחדש של הפונקציה. זה מספיק להדגמה ולסבב משוב פנימי; לפני
+פתיחה לציבור יש לחבר Supabase:
+
+1. ליצור פרויקט Supabase ולהריץ את `supabase/schema.sql`.
+2. להוסיף ב-Vercel את משתני הסביבה `NEXT_PUBLIC_SUPABASE_URL`,
+   `NEXT_PUBLIC_SUPABASE_ANON_KEY` ו-`SUPABASE_SERVICE_ROLE_KEY`.
+3. לפרוס מחדש. האפליקציה עוברת אוטומטית לאחסון Supabase.
+
 ## מסכים
 
 | מסך | נתיב | מה יש בו |
