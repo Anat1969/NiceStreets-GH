@@ -28,17 +28,27 @@ npm run dev                    # http://localhost:3000
 
 ### משתני הסביבה שצריך להגדיר ב-Vercel
 
-| משתנה | ערך | למה |
-|---|---|---|
-| `STAFF_CODE` | סיסמה שתבחרי | כניסת הצוות ל-`/admin` |
-| `SUPABASE_URL` | `https://cbhexpybdggwzyakgagd.supabase.co` | מאגר הנתונים הקבוע |
-| `SUPABASE_SERVICE_ROLE_KEY` | מפתח `service_role` מלוח הבקרה של Supabase | כתיבה לשרת |
-
-את מפתח ה-`service_role` מעתיקים מ-Supabase: Project Settings → API keys →
-service_role. **המפתח הזה סודי** — הוא נשמר רק כמשתנה סביבה ב-Vercel, אף פעם לא
-בקוד ולא בדפדפן. לכן שמו אינו מתחיל ב-`NEXT_PUBLIC_`.
+| משתנה | ערך |
+|---|---|
+| `STAFF_CODE` | סיסמה לבחירתך, לכניסת הצוות ל-`/admin` |
+| `SUPABASE_URL` | `https://cbhexpybdggwzyakgagd.supabase.co` |
+| `SUPABASE_SERVICE_ROLE_KEY` | מפתח הגישה למסד הנתונים |
 
 אחרי הגדרת המשתנים צריך Redeploy כדי שייכנסו לתוקף.
+
+לגבי המפתח יש שתי אפשרויות:
+
+1. **מפתח anon** — מפתח שאינו סודי מעצם הגדרתו. הוא עובד כי הוגדרו ב-RLS
+   הרשאות כתיבה מדויקות לתפקיד `anon` (ראו את סוף `supabase/schema.sql`).
+   פעולות הצוות מוגנות ב-`STAFF_CODE` ברמת האפליקציה. מתאים ל-MVP ולשיתוף
+   עם מכרים.
+2. **מפתח service_role** — הדרך המקובלת לייצור. מעתיקים אותו מ-Supabase:
+   Project Settings → API keys → service_role. **מפתח סודי**: רק כמשתנה סביבה
+   ב-Vercel, אף פעם לא בקוד. אחרי המעבר אליו אפשר למחוק את מדיניות ה-`anon`
+   שבסוף הסכמה.
+
+בשני המקרים שם המשתנה זהה, והמפתח נקרא בשרת בלבד ואינו נשלח לדפדפן — ולכן שמו
+אינו מתחיל ב-`NEXT_PUBLIC_`.
 
 ### למה Supabase ולא אחסון ב-Vercel
 

@@ -183,3 +183,34 @@ create policy status_staff_write on street_status for all
 -- add members with the service-role key or from the Supabase dashboard.
 drop policy if exists staff_read on staff;
 create policy staff_read on staff for select using (is_staff());
+
+-- ------------------------------------------------- key used by the app server
+
+-- The app's server is the only client of this database; the browser never
+-- talks to it. With the service_role key the policies above are enough,
+-- because that key bypasses RLS.
+--
+-- To run the app with the anon key instead (no secret key to handle), add the
+-- policies below. Staff actions stay protected by STAFF_CODE in the app, and
+-- the staff table remains unreachable either way. Drop these policies when
+-- moving to the service_role key.
+
+drop policy if exists app_votes_write on votes;
+create policy app_votes_write on votes for all to anon
+  using (true) with check (true);
+
+drop policy if exists app_streets_insert on streets;
+create policy app_streets_insert on streets for insert to anon
+  with check (verified = false);
+
+drop policy if exists app_photos_write on photos;
+create policy app_photos_write on photos for all to anon
+  using (true) with check (true);
+
+drop policy if exists app_photo_blobs_write on photo_blobs;
+create policy app_photo_blobs_write on photo_blobs for all to anon
+  using (true) with check (true);
+
+drop policy if exists app_status_write on street_status;
+create policy app_status_write on street_status for all to anon
+  using (true) with check (true);
