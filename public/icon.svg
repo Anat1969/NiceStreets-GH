@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 192 192" role="img" aria-label="רחובות טובים">
+  <rect width="192" height="192" rx="36" fill="#1f6f5c"/>
+  <path d="M48 160 L80 32 M144 160 L112 32" stroke="#f6f4ef" stroke-width="10" stroke-linecap="round"/>
+  <circle cx="96" cy="96" r="18" fill="#b8742a"/>
+</svg>
