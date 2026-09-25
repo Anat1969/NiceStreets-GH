@@ -160,12 +160,19 @@ table {
   flex: 1;
 }
 
+/*
+ * Six tabs share the width, so the longest label ("דוגמאות") sets the limit.
+ * Measured at 360px: 60px per tab against a 49px label. The labels never wrap
+ * and never shrink the 56px target.
+ */
 .app-nav a {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 56px;
   gap: 4px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .app-header {
@@ -216,6 +223,8 @@ table {
 
 :root[data-view="desktop"] .app-nav a {
   justify-content: flex-start;
+  /* The side column has room, so the label goes back to body size. */
+  font-size: 15px;
   height: 48px;
   padding-inline: 12px;
   border-radius: 10px;
@@ -280,6 +289,8 @@ table {
 
   :root[data-view="auto"] .app-nav a {
     justify-content: flex-start;
+    /* The side column has room, so the label goes back to body size. */
+    font-size: 15px;
     height: 48px;
     padding-inline: 12px;
     border-radius: 10px;

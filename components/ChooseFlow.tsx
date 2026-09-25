@@ -18,7 +18,13 @@ interface Props {
   streets: StreetOption[];
   typologies: { key: string; label: string; description: string }[];
   typologyLabels: Record<string, string>;
-  questions: { key: string; label: string; help: string }[];
+  questions: {
+    key: string;
+    label: string;
+    help: string;
+    /** The criteria this question stands for, shown under "מה זה?". */
+    criteria: { key: string; name: string; text: string }[];
+  }[];
   registrySource: string;
 }
 
@@ -272,7 +278,33 @@ export default function ChooseFlow({
                   <legend className="px-0 text-[16px] font-medium text-ink">
                     {question.label}
                   </legend>
-                  <p className="mb-2 text-[13px] text-ink-soft">{question.help}</p>
+                  <p className="mb-1 text-[13px] text-ink-soft">{question.help}</p>
+                  {/*
+                    Back into the hierarchy. It opens in place rather than
+                    navigating, so the answers already given are not lost.
+                  */}
+                  {question.criteria.length > 0 ? (
+                    <details className="mb-2">
+                      <summary className="cursor-pointer list-none text-[13px] text-accent underline underline-offset-2">
+                        מה זה?
+                      </summary>
+                      <div className="mt-1 border-e-2 border-line pe-2">
+                        {question.criteria.map((criterion) => (
+                          <p key={criterion.key} className="text-[13px] text-ink-soft">
+                            <span className="font-medium text-ink">{criterion.name}</span>
+                            {" — "}
+                            {criterion.text}
+                          </p>
+                        ))}
+                        <a
+                          href={`/learn?question=${question.key}`}
+                          className="inline-link text-[13px] text-accent underline underline-offset-2"
+                        >
+                          לעמוד הלימוד
+                        </a>
+                      </div>
+                    </details>
+                  ) : null}
                   <ScaleInput
                     name={question.label}
                     value={scores[question.key]}
