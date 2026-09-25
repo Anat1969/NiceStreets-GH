@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getStore, getStoreConfigError } from "@/lib/store";
+import { BUILD_SHA } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export async function GET() {
 
     const config = {
       backend: store.kind,
+      build: BUILD_SHA || "לא ידוע (הרצה מקומית)",
       SUPABASE_URL: describe(rawUrl),
       SUPABASE_URL_looksLikeUrl: (rawUrl ?? "").trim().startsWith("https://"),
       SUPABASE_SERVICE_ROLE_KEY: describe(rawKey),

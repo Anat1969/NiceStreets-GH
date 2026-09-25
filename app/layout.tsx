@@ -5,6 +5,7 @@ import TabBar from "@/components/TabBar";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import { getViewMode, isStaff } from "@/lib/session";
 import { getStore } from "@/lib/store";
+import { BUILD_LABEL } from "@/lib/version";
 
 export const metadata: Metadata = {
   title: CITY.appTitle,
@@ -69,6 +70,8 @@ export default async function RootLayout({
             </header>
             <main id="main" className="app-main">
               {children}
+              {/* Which build is on screen, so "I do not see the change" is checkable. */}
+              <p className="mt-8 text-[12px] text-ink-faint">{BUILD_LABEL}</p>
             </main>
           </div>
         </div>
