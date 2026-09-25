@@ -2,7 +2,8 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CITY } from "@/lib/city";
 import TabBar from "@/components/TabBar";
-import { isStaff } from "@/lib/session";
+import ViewModeToggle from "@/components/ViewModeToggle";
+import { getViewMode, isStaff } from "@/lib/session";
 import { getStore } from "@/lib/store";
 
 export const metadata: Metadata = {
@@ -24,7 +25,7 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const staff = await isStaff();
+  const [staff, viewMode] = await Promise.all([isStaff(), getViewMode()]);
   // Read the queue only for staff; the public pages must not pay for it.
   const pendingPhotos = staff
     ? await getStore()
@@ -32,8 +33,9 @@ export default async function RootLayout({
         .then((rows) => rows.length)
         .catch(() => 0)
     : 0;
+
   return (
-    <html lang="he" dir="rtl">
+    <html lang="he" dir="rtl" data-view={viewMode}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -46,15 +48,22 @@ export default async function RootLayout({
         <a className="skip-link" href="#main">
           דילוג לתוכן הראשי
         </a>
-        <div className="mx-auto flex min-h-dvh w-full max-w-[560px] flex-col bg-paper">
-          <header className="border-b border-line bg-surface px-4 py-3">
-            <p className="text-[17px] font-semibold text-ink">{CITY.appTitle}</p>
-            <p className="text-[13px] text-ink-faint">{CITY.authority}</p>
-          </header>
-          <main id="main" className="flex-1 px-4 pb-28 pt-4">
-            {children}
-          </main>
+        <div className="app-shell">
           <TabBar staff={staff} pendingPhotos={pendingPhotos} />
+          <div className="app-body">
+            <header className="app-header">
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p className="text-[17px] font-semibold text-ink">{CITY.appTitle}</p>
+                  <p className="text-[13px] text-ink-faint">{CITY.authority}</p>
+                </div>
+                <ViewModeToggle current={viewMode} />
+              </div>
+            </header>
+            <main id="main" className="app-main">
+              {children}
+            </main>
+          </div>
         </div>
       </body>
     </html>

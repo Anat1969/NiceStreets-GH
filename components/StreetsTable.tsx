@@ -248,16 +248,17 @@ export default function StreetsTable({
                 <tbody>
                   {results.map((row) => (
                     <tr key={row.id} className="border-b border-line last:border-0">
-                      <th scope="row" className="px-2 py-2 text-right font-normal">
+                      <th scope="row" className="text-right font-normal">
+                        {/* The whole cell is the target, not just the name. */}
                         <Link
                           href={`/street/${row.id}`}
-                          className="text-[15px] text-ink underline-offset-2 hover:underline"
+                          className="block px-2 py-2 underline-offset-2 hover:underline"
                         >
-                          {row.name}
+                          <span className="block text-[15px] text-ink">{row.name}</span>
+                          <span className="block text-[12px] text-ink-faint">
+                            {row.quarterName} · {row.typologyLabel}
+                          </span>
                         </Link>
-                        <span className="block text-[12px] text-ink-faint">
-                          {row.quarterName} · {row.typologyLabel}
-                        </span>
                       </th>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.votes}</td>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">

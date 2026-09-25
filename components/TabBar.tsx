@@ -25,30 +25,29 @@ export default function TabBar({
     : TABS;
 
   return (
-    <nav
-      aria-label="ניווט ראשי"
-      className="fixed bottom-0 left-1/2 z-40 w-full max-w-[560px] -translate-x-1/2 border-t border-line bg-surface"
-      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
-    >
-      <ul className="flex">
+    <nav aria-label="ניווט ראשי" className="app-nav">
+      <p className="desktop-only px-3 pb-2 pt-1 text-[13px] font-medium text-ink-faint">
+        ניווט
+      </p>
+      <ul>
         {tabs.map((tab) => {
           const active =
             tab.href === "/" ? pathname === "/" : pathname.startsWith(tab.href);
           return (
-            <li key={tab.href} className="flex-1">
+            <li key={tab.href}>
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`flex h-14 items-center justify-center text-[15px] ${
+                className={`text-[15px] ${
                   active
-                    ? "font-semibold text-accent border-t-2 border-accent -mt-px"
+                    ? "bg-accent-soft font-semibold text-accent"
                     : "text-ink-soft"
                 }`}
               >
                 {tab.label}
                 {"badge" in tab && tab.badge ? (
                   <span
-                    className="mr-1 rounded-full bg-warm px-[7px] py-[1px] text-[12px] font-semibold text-white"
+                    className="rounded-full bg-warm px-[7px] py-[1px] text-[12px] font-semibold text-white"
                     aria-label={`${tab.badge} תמונות ממתינות לאישור`}
                   >
                     {tab.badge}

@@ -302,12 +302,14 @@ export default function MapView({
         </div>
       ) : null}
 
-      <div
-        ref={container}
-        role="application"
-        aria-label="מפת הרובעים"
-        className="h-[380px] w-full overflow-hidden rounded-[14px] border border-line"
-      />
+      <div className="map-shell">
+        <div>
+          <div
+            ref={container}
+            role="application"
+            aria-label="מפת הרובעים"
+            className="map-canvas h-[380px] w-full overflow-hidden rounded-[14px] border border-line"
+          />
 
       {basemap === "none" ? (
         <p className="mt-2 text-[13px] text-ink-soft">
@@ -320,11 +322,12 @@ export default function MapView({
         </p>
       ) : null}
 
-      <div className="mt-3 flex items-center gap-2 text-[13px] text-ink-soft">
-        <span>מעט קולות</span>
-        <span className="h-2 flex-1 rounded-full bg-[linear-gradient(to_left,#e9e6df,#bcd8cd,#6fae97,#1f6f5c)]" />
-        <span>הרבה קולות</span>
-      </div>
+          <div className="mt-3 flex items-center gap-2 text-[13px] text-ink-soft">
+            <span>מעט קולות</span>
+            <span className="h-2 flex-1 rounded-full bg-[linear-gradient(to_left,#e9e6df,#bcd8cd,#6fae97,#1f6f5c)]" />
+            <span>הרבה קולות</span>
+          </div>
+        </div>
 
       <div className="mt-4">
         {selectedQuarter ? (
@@ -363,6 +366,7 @@ export default function MapView({
             בחרו רובע במפה כדי לראות את רחובותיו, מהמדורג ביותר ומטה.
           </p>
         )}
+      </div>
       </div>
     </div>
   );

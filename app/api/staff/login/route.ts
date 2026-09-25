@@ -12,10 +12,21 @@ export async function POST(request: Request) {
   }
   const form = await request.formData();
   const token = verifyStaffCode(String(form.get("code") ?? ""));
+
+  // A relative Location keeps the visitor on the host they came from. An
+  // absolute URL built from request.url can carry the server's own hostname,
+  // and the cookie set here would then belong to a different origin.
   if (!token) {
-    return NextResponse.redirect(new URL("/admin?error=1", request.url), 303);
+    return new NextResponse(null, {
+      status: 303,
+      headers: { Location: "/admin?error=1" },
+    });
   }
-  const response = NextResponse.redirect(new URL("/admin", request.url), 303);
+
+  const response = new NextResponse(null, {
+    status: 303,
+    headers: { Location: "/admin" },
+  });
   response.cookies.set(STAFF_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",

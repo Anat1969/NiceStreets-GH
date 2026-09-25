@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { VIEW_MODE_COOKIE, parseViewMode, type ViewMode } from "./view-mode";
 
 export const RESIDENT_COOKIE = "gs_uid";
 export const STAFF_COOKIE = "gs_staff";
@@ -39,4 +40,10 @@ export async function isStaff(): Promise<boolean> {
   if (!token) return false;
   const want = staffToken(expected);
   return token.length === want.length && crypto.timingSafeEqual(Buffer.from(token), Buffer.from(want));
+}
+
+/** The layout the visitor chose, if any. */
+export async function getViewMode(): Promise<ViewMode> {
+  const jar = await cookies();
+  return parseViewMode(jar.get(VIEW_MODE_COOKIE)?.value);
 }
