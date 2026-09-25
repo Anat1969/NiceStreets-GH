@@ -51,11 +51,18 @@ export default async function RootLayout({
         <div className="app-shell">
           <TabBar staff={staff} pendingPhotos={pendingPhotos} />
           <div className="app-body">
+            <div className="brand-rule" aria-hidden="true" />
             <header className="app-header">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div>
-                  <p className="text-[17px] font-semibold text-ink">{CITY.appTitle}</p>
-                  <p className="text-[13px] text-ink-faint">{CITY.authority}</p>
+                <div className="flex items-center gap-3">
+                  {CITY.logo ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img src={CITY.logo} alt={CITY.authority} className="brand-logo" />
+                  ) : null}
+                  <div>
+                    <p className="text-[17px] font-semibold text-ink">{CITY.appTitle}</p>
+                    <p className="text-[13px] text-ink-faint">{CITY.authority}</p>
+                  </div>
                 </div>
                 <ViewModeToggle current={viewMode} />
               </div>

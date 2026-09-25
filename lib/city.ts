@@ -165,6 +165,12 @@ export const CITY = {
   tagline: "מה הופך רחוב לטוב — ואיך אנחנו עושים את זה יחד",
   homeQuestion: "איזה רחוב באשדוד גורם לכם לרצות ללכת ברגל?",
   authority: "אגף אדריכלות העיר, עיריית אשדוד",
+  /*
+   * The municipal logo, as a file under public/. Left null until the official
+   * file is in the repository: an app must not draw a city's mark from memory.
+   * Set it to e.g. "/logo-ashdod.svg" once the file is there.
+   */
+  logo: null as string | null,
   center: [34.6553, 31.7963] as [number, number],
   zoom: 12.4,
   bounds: [

@@ -2,14 +2,29 @@ import StreetsTable from "@/components/StreetsTable";
 import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { isStaff } from "@/lib/session";
+import { parseStreetFilter } from "@/lib/street-filter";
 
 export const dynamic = "force-dynamic";
 
-export default async function StreetsPage() {
+export default async function StreetsPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
   const [{ streetStats, quarterStats }, staff] = await Promise.all([
     loadCityData(),
     isStaff(),
   ]);
+
+  // Arriving from a street card or a map quarter, the table opens already
+  // narrowed to what the previous screen was about.
+  const query = new URLSearchParams(
+    Object.entries(params).flatMap(([k, v]) =>
+      typeof v === "string" ? [[k, v] as [string, string]] : [],
+    ),
+  );
+  const initialFilter = parseStreetFilter(query);
 
   return (
     <>
@@ -19,6 +34,7 @@ export default async function StreetsPage() {
       </p>
       <StreetsTable
         staff={staff}
+        initialFilter={initialFilter}
         quarters={QUARTERS.map((q) => ({ id: q.id, name: q.name }))}
         typologies={TYPOLOGIES.map((t) => ({ key: t.key, label: t.label }))}
         statuses={STATUSES.map((s) => ({ key: s.key, label: s.label }))}

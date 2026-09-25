@@ -133,6 +133,7 @@ const assignments = new Map(); // code -> { quarterId, name }
 const unknownStreets = [];
 const unknownQuarters = new Set();
 const conflicts = [];
+const resolved = [];
 const seenNames = new Set();
 
 for (const [rawName, rawQuarter] of body) {
@@ -155,7 +156,28 @@ for (const [rawName, rawQuarter] of body) {
 
   const existing = assignments.get(street.code);
   if (existing && existing.quarterId !== quarterId) {
-    conflicts.push(`${street.name}: ${existing.source} ↔ ${rawName}`);
+    /*
+     * Two spellings of one street with different quarters. The registry knows
+     * them as the same street, so one quarter has to win — and the row whose
+     * name is the registry's own name is the one that wins. When neither row
+     * matches it, nothing is chosen and the pair is reported instead.
+     */
+    const officialKey = key(street.name);
+    const existingIsOfficial = key(existing.source) === officialKey;
+    const currentIsOfficial = key(rawName) === officialKey;
+
+    if (currentIsOfficial && !existingIsOfficial) {
+      resolved.push(
+        `${street.name}: נבחר "${rawName}" (השם במרשם) ולא "${existing.source}"`,
+      );
+      assignments.set(street.code, { quarterId, source: rawName, name: street.name });
+    } else if (existingIsOfficial && !currentIsOfficial) {
+      resolved.push(
+        `${street.name}: נבחר "${existing.source}" (השם במרשם) ולא "${rawName}"`,
+      );
+    } else {
+      conflicts.push(`${street.name}: ${existing.source} ↔ ${rawName}`);
+    }
     continue;
   }
   assignments.set(street.code, { quarterId, source: rawName, name: street.name });
@@ -209,6 +231,10 @@ console.log(`שויכו לקוד רשמי:   ${entries.length}`);
 if (unknownQuarters.size > 0) {
   console.log(`\nשמות רובע שאינם מוכרים (${unknownQuarters.size}):`);
   for (const q of unknownQuarters) console.log(`  ${q}`);
+}
+if (resolved.length > 0) {
+  console.log(`\nשני שמות לאותו רחוב — נבחר השם שבמרשם (${resolved.length}):`);
+  for (const r of resolved) console.log(`  ${r}`);
 }
 if (conflicts.length > 0) {
   console.log(`\nסתירות — אותו רחוב לשני רובעים (${conflicts.length}):`);

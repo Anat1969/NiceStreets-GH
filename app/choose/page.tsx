@@ -5,7 +5,12 @@ import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
-export default async function ChoosePage() {
+export default async function ChoosePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ street?: string }>;
+}) {
+  const { street: streetCode } = await searchParams;
   // Street types are staff knowledge; the flow shows them read-only, so the
   // page carries the assignments already made.
   const known = await getStore()
@@ -17,14 +22,22 @@ export default async function ChoosePage() {
       .map((s) => [s.code as string, s.typology as string]),
   );
 
+  const options = CANONICAL_STREETS.map((s) => ({
+    code: s.code,
+    name: s.name,
+    synonyms: s.synonyms,
+    typology: typologyByCode[s.code] ?? null,
+  }));
+
+  // A code that no longer exists simply opens the normal search, never an error.
+  const initialStreet = streetCode
+    ? (options.find((s) => s.code === streetCode) ?? null)
+    : null;
+
   return (
     <ChooseFlow
-      streets={CANONICAL_STREETS.map((s) => ({
-        code: s.code,
-        name: s.name,
-        synonyms: s.synonyms,
-        typology: typologyByCode[s.code] ?? null,
-      }))}
+      streets={options}
+      initialStreet={initialStreet}
       typologies={TYPOLOGIES.map((t) => ({
         key: t.key,
         label: t.label,
