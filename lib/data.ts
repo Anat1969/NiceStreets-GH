@@ -32,8 +32,8 @@ function emptyTotals(): Totals {
  * message for diagnosis.
  */
 export async function loadCityData(): Promise<CityData> {
-  const store = getStore();
   try {
+    const store = getStore();
     const [streets, votes, photos, statuses, quarters] = await Promise.all([
       store.listStreets(),
       store.listVotes(),

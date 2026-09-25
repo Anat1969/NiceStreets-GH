@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { STATUSES } from "@/lib/city";
-import { getStore, storeIsDurable } from "@/lib/store";
+import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { isStaff, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
@@ -83,6 +83,11 @@ export default async function AdminPage({
         {dataError ? (
           <p role="alert" className="mt-2 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[13px] text-ink">
             תקלה בקריאה ממסד הנתונים: {dataError}
+          </p>
+        ) : null}
+        {getStoreConfigError() ? (
+          <p role="alert" className="mt-2 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[13px] text-ink">
+            הגדרת Supabase שגויה: {getStoreConfigError()}
           </p>
         ) : null}
         <div className="mt-2">
