@@ -19,6 +19,24 @@
 
 :root {
   color-scheme: light;
+
+  /*
+   * The 1–5 scale, red to green. Translucent so the scale reads as one band,
+   * and light enough that the ink label on top stays well above the WCAG AA
+   * contrast ratio — the colour is never the only signal, each step is also
+   * labelled in words.
+   */
+  --color-scale-1: #f4d9d4;
+  --color-scale-2: #f7e6d2;
+  --color-scale-3: #f3efd3;
+  --color-scale-4: #e0edd4;
+  --color-scale-5: #d2e7da;
+
+  --color-scale-1-on: #e0a99c;
+  --color-scale-2-on: #eec79a;
+  --color-scale-3-on: #e3d98f;
+  --color-scale-4-on: #b3d596;
+  --color-scale-5-on: #8ec7a4;
 }
 
 html,

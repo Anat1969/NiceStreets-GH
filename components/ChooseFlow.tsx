@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { resizeImage } from "@/lib/image";
 import { normalizeStreetName } from "@/lib/street-name";
+import ScaleInput, { SCALE_STEPS } from "@/components/ScaleInput";
 
 interface StreetOption {
   code: string;
@@ -20,8 +21,6 @@ interface Props {
   questions: { key: string; label: string; help: string }[];
   registrySource: string;
 }
-
-const SCALE_LABELS = ["גרוע", "חלש", "בינוני", "טוב", "מצוין"];
 
 export default function ChooseFlow({
   streets,
@@ -259,33 +258,37 @@ export default function ChooseFlow({
         <section className="grid gap-4">
           {questions.map((question) => (
             <fieldset key={question.key} className="card p-3">
-              <legend className="px-1 text-[16px] font-medium text-ink">
-                {question.label}
-              </legend>
-              <p className="mb-2 text-[13px] text-ink-soft">{question.help}</p>
-              <div className="flex gap-1" role="group" aria-label={question.label}>
-                {[1, 2, 3, 4, 5].map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={scores[question.key] === value}
-                    aria-label={`${question.label}: ${value} — ${SCALE_LABELS[value - 1]}`}
-                    onClick={() => setScores((s) => ({ ...s, [question.key]: value }))}
-                    className={`min-h-11 flex-1 rounded-[10px] border text-[15px] tabular-nums ${
-                      scores[question.key] === value
-                        ? "border-accent bg-accent text-white"
-                        : "border-line bg-surface text-ink"
-                    }`}
-                  >
-                    {value}
-                  </button>
-                ))}
+              <div className="flex items-start gap-3">
+                {/* Decorative: the question text carries the meaning. */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={`/criteria/${question.key}.svg`}
+                  alt=""
+                  width={44}
+                  height={44}
+                  className="mt-[2px] h-11 w-11 shrink-0 rounded-[10px]"
+                />
+                <div className="min-w-0 flex-1">
+                  <legend className="px-0 text-[16px] font-medium text-ink">
+                    {question.label}
+                  </legend>
+                  <p className="mb-2 text-[13px] text-ink-soft">{question.help}</p>
+                  <ScaleInput
+                    name={question.label}
+                    value={scores[question.key]}
+                    onChange={(value) =>
+                      setScores((s) => ({ ...s, [question.key]: value }))
+                    }
+                  />
+                </div>
               </div>
-              <p className="mt-1 text-[12px] text-ink-faint">
-                1 = {SCALE_LABELS[0]} · 5 = {SCALE_LABELS[4]}
-              </p>
             </fieldset>
           ))}
+
+          <p className="text-[12px] text-ink-faint">
+            הסולם: {SCALE_STEPS.map((s) => `${s.value} ${s.label}`).join(" · ")}
+          </p>
+
           <div className="flex gap-2">
             <button
               type="button"

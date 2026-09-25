@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" role="img" aria-label="חזית מבנה פתוחה">
+  <title>חזית מבנה פתוחה</title>
+  <rect width="44" height="44" rx="10" fill="#f0ece3"/>
+  <path d="M4 40 V14 h34 v26 M12 40 V28 h8 v12 M26 20 h6 v6 h-6 Z M12 20 h6 v4 h-6 Z" fill="none" stroke="#5c6b57" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

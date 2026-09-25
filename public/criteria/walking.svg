@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44" role="img" aria-label="מעבר חצייה ומדרכה רציפה">
+  <title>מעבר חצייה ומדרכה רציפה</title>
+  <rect width="44" height="44" rx="10" fill="#f0ece3"/>
+  <path d="M5 12h34M5 32h34" fill="none" stroke="#5c6b57" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M12 15v14M20 15v14M28 15v14M36 15v14" fill="none" stroke="#5c6b57" stroke-width="2.2" stroke-linecap="round"/>
+</svg>
