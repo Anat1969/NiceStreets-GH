@@ -59,9 +59,9 @@ export default async function AdminPage({
   }
 
   const store = getStore();
-  const [{ streetStats, totals }, pendingPhotos] = await Promise.all([
+  const [{ streetStats, totals, error: dataError }, pendingPhotos] = await Promise.all([
     loadCityData(),
-    store.listPhotos({ status: "pending" }),
+    store.listPhotos({ status: "pending" }).catch(() => []),
   ]);
   const streetName = new Map(streetStats.map((s) => [s.street.id, s.street.name]));
   const unverified = streetStats.filter((s) => !s.street.verified && s.votes > 0);
@@ -80,6 +80,11 @@ export default async function AdminPage({
             <li>תמונות שממתינות לאישור: {pendingPhotos.length}</li>
           </ul>
         </Card>
+        {dataError ? (
+          <p role="alert" className="mt-2 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[13px] text-ink">
+            תקלה בקריאה ממסד הנתונים: {dataError}
+          </p>
+        ) : null}
         <div className="mt-2">
           {storeIsDurable() ? (
             <p className="rounded-[12px] border border-line bg-accent-soft px-3 py-2 text-[13px] text-accent">

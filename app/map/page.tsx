@@ -1,5 +1,5 @@
 import MapView from "@/components/MapView";
-import { CITY } from "@/lib/city";
+import { CITY, QUARTERS } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { getStore } from "@/lib/store";
 import { Notice } from "@/components/ui";
@@ -9,7 +9,11 @@ export const dynamic = "force-dynamic";
 export default async function MapPage() {
   const [{ streetStats, quarterStats }, quarters] = await Promise.all([
     loadCityData(),
-    getStore().listQuarters(),
+    // Fall back to the configured quarters so the map still draws when the
+    // database is unreachable.
+    getStore()
+      .listQuarters()
+      .catch(() => QUARTERS),
   ]);
 
   return (

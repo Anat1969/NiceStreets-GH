@@ -20,12 +20,13 @@ export default async function StreetPage({
   const { saved } = await searchParams;
   const store = getStore();
 
+  // Each read degrades on its own, so one failing table cannot blank the card.
   const [street, votes, photos, statuses, quarters, staff] = await Promise.all([
-    store.getStreet(id),
-    store.listVotes({ streetId: id }),
-    store.listPhotos({ streetId: id }),
-    store.listStreetStatuses(),
-    store.listQuarters(),
+    store.getStreet(id).catch(() => null),
+    store.listVotes({ streetId: id }).catch(() => []),
+    store.listPhotos({ streetId: id }).catch(() => []),
+    store.listStreetStatuses().catch(() => []),
+    store.listQuarters().catch(() => []),
     isStaff(),
   ]);
   if (!street) notFound();

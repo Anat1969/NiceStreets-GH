@@ -5,7 +5,11 @@ import { getStore } from "@/lib/store";
 export const dynamic = "force-dynamic";
 
 export default async function ChoosePage() {
-  const streets = await getStore().listStreets();
+  // A data-layer failure must not blank the screen: residents can still type a
+  // street name, which is stored for the staff to match against the GIS layer.
+  const streets = await getStore()
+    .listStreets()
+    .catch(() => []);
   return (
     <ChooseFlow
       streets={streets.map((s) => ({

@@ -7,11 +7,20 @@ import { ButtonLink, Card, Counter, Notice, Section, StatusBadge } from "@/compo
 export const dynamic = "force-dynamic";
 
 export default async function HomePage() {
-  const { streetStats, totals } = await loadCityData();
+  const { streetStats, totals, error } = await loadCityData();
   const leaders = topStreets(streetStats, 5);
 
   return (
     <>
+      {error ? (
+        <p role="alert" className="mb-4 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink">
+          יש תקלה בחיבור למסד הנתונים, ולכן המספרים ריקים. פרטים בעמוד{" "}
+          <a href="/api/health" className="underline">
+            בדיקת מצב המערכת
+          </a>
+          .
+        </p>
+      ) : null}
       <section className="mb-6">
         <h1 className="mb-2 text-[26px] font-bold leading-tight text-ink">
           {CITY.homeQuestion}
