@@ -12,3 +12,10 @@ export function photosLabel(count: number): string {
   if (count === 2) return "שתי תמונות";
   return `${count.toLocaleString("he-IL")} תמונות`;
 }
+
+export function streetsFoundLabel(count: number): string {
+  if (count === 0) return "לא נמצאו רחובות";
+  if (count === 1) return "נמצא רחוב אחד";
+  if (count === 2) return "נמצאו שני רחובות";
+  return `נמצאו ${count.toLocaleString("he-IL")} רחובות`;
+}

@@ -1,16 +1,33 @@
 import { NextResponse } from "next/server";
 import { QUESTIONS, TYPOLOGY_MAP } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
+import { applyStreetFilter, parseStreetFilter } from "@/lib/street-filter";
 import { isStaff } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
-export async function GET() {
+export async function GET(request: Request) {
   if (!(await isStaff())) {
     return new NextResponse("אין הרשאה", { status: 403 });
   }
   const { streetStats } = await loadCityData();
-  const features = streetStats
+
+  // The export must describe exactly the rows the screen is showing.
+  const filter = parseStreetFilter(new URL(request.url).searchParams);
+  const rows = applyStreetFilter(
+    streetStats.map((s) => ({
+      name: s.street.name,
+      quarterId: s.street.quarterId,
+      typology: s.street.typology,
+      status: s.status?.status ?? null,
+      votes: s.votes,
+      avgScore: s.avgScore,
+      photos: s.photos,
+      source: s,
+    })),
+    filter,
+  ).map((row) => row.source);
+  const features = rows
     .filter((s) => s.street.line && s.street.line.length > 1)
     .map((s) => ({
       type: "Feature" as const,
