@@ -18,8 +18,16 @@ interface Props {
   streets: StreetOption[];
   typologies: { key: string; label: string; description: string }[];
   typologyLabels: Record<string, string>;
-  questions: { key: string; label: string; help: string }[];
+  questions: {
+    key: string;
+    label: string;
+    help: string;
+    /** The criteria this question stands for, shown under "מה זה?". */
+    criteria: { key: string; name: string; text: string }[];
+  }[];
   registrySource: string;
+  /** Set when the visitor came from a street card, so the street is known. */
+  initialStreet?: StreetOption | null;
 }
 
 export default function ChooseFlow({
@@ -28,11 +36,14 @@ export default function ChooseFlow({
   typologyLabels,
   questions,
   registrySource,
+  initialStreet = null,
 }: Props) {
   const router = useRouter();
-  const [step, setStep] = useState(1);
-  const [query, setQuery] = useState("");
-  const [selected, setSelected] = useState<StreetOption | null>(null);
+  // Arriving from a street card, the street is already known: the flow opens on
+  // the questions instead of asking again for what the previous screen showed.
+  const [step, setStep] = useState(initialStreet ? 2 : 1);
+  const [query, setQuery] = useState(initialStreet?.name ?? "");
+  const [selected, setSelected] = useState<StreetOption | null>(initialStreet);
   const [suggestType, setSuggestType] = useState(false);
   const [typologySuggestion, setTypologySuggestion] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -115,8 +126,14 @@ export default function ChooseFlow({
 
   return (
     <div>
-      <h1 className="mb-1 text-[24px] font-bold text-ink">לבחור רחוב</h1>
-      <p className="mb-4 text-[14px] text-ink-soft">שלושה שלבים, פחות משתי דקות.</p>
+      <h1 className="mb-1 text-[24px] font-bold text-ink">
+        {selected ? `לדרג את ${selected.name}` : "לבחור רחוב"}
+      </h1>
+      <p className="mb-4 text-[14px] text-ink-soft">
+        {selected && step > 1
+          ? "שבע שאלות, ואז נימוק ותמונה — לא חובה."
+          : "שלושה שלבים, פחות משתי דקות."}
+      </p>
 
       <ol className="mb-5 flex gap-2" aria-label="שלבים">
         {[1, 2, 3].map((n) => (
@@ -256,6 +273,21 @@ export default function ChooseFlow({
 
       {step === 2 ? (
         <section className="grid gap-4">
+          {/* Which street is being rated stays visible, and stays changeable. */}
+          <p className="flex items-baseline justify-between gap-2 text-[14px] text-ink-soft">
+            <span>
+              מדרגים את <span className="font-medium text-ink">{selected?.name}</span>
+              {selected?.typology ? ` · ${typologyLabels[selected.typology]}` : ""}
+            </span>
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="min-h-0 shrink-0 text-[13px] text-accent underline underline-offset-2"
+            >
+              לשנות רחוב
+            </button>
+          </p>
+
           {questions.map((question) => (
             <fieldset key={question.key} className="card p-3">
               <div className="flex items-start gap-3">
@@ -272,7 +304,33 @@ export default function ChooseFlow({
                   <legend className="px-0 text-[16px] font-medium text-ink">
                     {question.label}
                   </legend>
-                  <p className="mb-2 text-[13px] text-ink-soft">{question.help}</p>
+                  <p className="mb-1 text-[13px] text-ink-soft">{question.help}</p>
+                  {/*
+                    Back into the hierarchy. It opens in place rather than
+                    navigating, so the answers already given are not lost.
+                  */}
+                  {question.criteria.length > 0 ? (
+                    <details className="mb-2">
+                      <summary className="cursor-pointer list-none text-[13px] text-accent underline underline-offset-2">
+                        מה זה?
+                      </summary>
+                      <div className="mt-1 border-e-2 border-line pe-2">
+                        {question.criteria.map((criterion) => (
+                          <p key={criterion.key} className="text-[13px] text-ink-soft">
+                            <span className="font-medium text-ink">{criterion.name}</span>
+                            {" — "}
+                            {criterion.text}
+                          </p>
+                        ))}
+                        <a
+                          href={`/learn?question=${question.key}`}
+                          className="inline-link text-[13px] text-accent underline underline-offset-2"
+                        >
+                          לעמוד הלימוד
+                        </a>
+                      </div>
+                    </details>
+                  ) : null}
                   <ScaleInput
                     name={question.label}
                     value={scores[question.key]}

@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "import:gis": "node scripts/import-gis.mjs"
+    "import:gis": "node scripts/import-gis.mjs",
+    "assign:quarters": "node scripts/assign-quarters.mjs"
   },
   "dependencies": {
     "@mapbox/mapbox-gl-rtl-text": "^0.2.3",

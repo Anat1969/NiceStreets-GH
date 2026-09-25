@@ -49,6 +49,7 @@ export default function StreetsTable({
   typologies,
   statuses,
   staff,
+  initialFilter = DEFAULT_FILTER,
 }: {
   rows: Row[];
   quarterRows: QuarterRow[];
@@ -56,9 +57,11 @@ export default function StreetsTable({
   typologies: { key: string; label: string }[];
   statuses: { key: string; label: string }[];
   staff: boolean;
+  /** Set from the address, so a link can open the table already narrowed. */
+  initialFilter?: StreetFilter;
 }) {
   const [view, setView] = useState<"streets" | "quarters">("streets");
-  const [filter, setFilter] = useState<StreetFilter>(DEFAULT_FILTER);
+  const [filter, setFilter] = useState<StreetFilter>(initialFilter);
 
   const set = <K extends keyof StreetFilter>(key: K, value: StreetFilter[K]) =>
     setFilter((f) => ({ ...f, [key]: value }));

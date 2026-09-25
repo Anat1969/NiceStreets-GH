@@ -81,10 +81,16 @@ export default async function StreetPage({
             />
           ))}
         </Card>
+        <p className="mt-2 text-[13px] text-ink-faint">
+          כל שאלה מייצגת קריטריונים מקצועיים.{" "}
+          <Link href="/learn" className="inline-link text-accent underline underline-offset-2">
+            מה עומד מאחורי השאלות
+          </Link>
+        </p>
       </Section>
 
       {typology ? (
-        <Section title="ערכי ייחוס לסוג הרחוב" note={typology.description}>
+        <Section title={`ערכי ייחוס ל${typology.label}`} note={typology.description}>
           <Card>
             <dl className="grid grid-cols-3 gap-2 text-[13px]">
               <div>
@@ -110,6 +116,14 @@ export default async function StreetPage({
                   : ""}
               </p>
             ) : null}
+            <p className="mt-2 text-[13px]">
+              <Link
+                href={`/examples?typology=${typology.key}`}
+                className="inline-link text-accent underline underline-offset-2"
+              >
+                דוגמאות לרחובות מהסוג הזה
+              </Link>
+            </p>
           </Card>
         </Section>
       ) : null}
@@ -188,17 +202,24 @@ export default async function StreetPage({
       </Section>
 
       <div className="mb-6 grid gap-2">
+        {/* The street is already known here, so the flow opens on the questions. */}
         <Link
-          href="/choose"
+          href={street.code ? `/choose?street=${street.code}` : "/choose"}
           className="flex items-center justify-center rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white"
         >
-          לדרג את הרחוב הזה
+          לדרג את {street.name}
         </Link>
         <Link
-          href="/streets"
+          href={
+            street.quarterId
+              ? `/streets?quarter=${street.quarterId}&minVotes=0`
+              : "/streets"
+          }
           className="flex items-center justify-center rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px] text-ink"
         >
-          חזרה לרשימת הרחובות
+          {street.quarterId
+            ? `רחובות נוספים ב${stats.quarterName}`
+            : "חזרה לרשימת הרחובות"}
         </Link>
       </div>
 

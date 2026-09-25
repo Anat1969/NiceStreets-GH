@@ -39,6 +39,36 @@
   --color-scale-3-on: #e3d98f;
   --color-scale-4-on: #b3d596;
   --color-scale-5-on: #8ec7a4;
+
+  /*
+   * Brand ramp. One hue, six steps, from the accent green the app already
+   * uses. Monochrome on purpose: the colour marks the municipality, and never
+   * carries meaning on its own, so nothing here has to pass a contrast test
+   * except where ink sits on it — and ink only ever sits on the two lightest.
+   */
+  --brand-50: #f0f6f4;
+  --brand-100: #dbeae4;
+  --brand-300: #8fc0b0;
+  --brand-500: #1f6f5c;
+  --brand-700: #155246;
+  --brand-900: #0c322b;
+}
+
+/* The one branded surface: a saturated rule above a barely-tinted header. */
+.brand-rule {
+  height: 3px;
+  background: linear-gradient(
+    to left,
+    var(--brand-900),
+    var(--brand-500),
+    var(--brand-300)
+  );
+}
+
+.brand-logo {
+  height: 40px;
+  width: auto;
+  flex-shrink: 0;
 }
 
 html,
@@ -160,17 +190,25 @@ table {
   flex: 1;
 }
 
+/*
+ * Six tabs share the width, so the longest label ("דוגמאות") sets the limit.
+ * Measured at 360px: 60px per tab against a 49px label. The labels never wrap
+ * and never shrink the 56px target.
+ */
 .app-nav a {
   display: flex;
   align-items: center;
   justify-content: center;
   height: 56px;
   gap: 4px;
+  font-size: 14px;
+  white-space: nowrap;
 }
 
 .app-header {
   border-bottom: 1px solid var(--color-line);
-  background: var(--color-surface);
+  /* A trace of the brand colour, light enough that ink keeps its contrast. */
+  background: linear-gradient(to bottom, var(--brand-50), var(--color-surface));
   padding: 12px 16px;
 }
 
@@ -216,6 +254,8 @@ table {
 
 :root[data-view="desktop"] .app-nav a {
   justify-content: flex-start;
+  /* The side column has room, so the label goes back to body size. */
+  font-size: 15px;
   height: 48px;
   padding-inline: 12px;
   border-radius: 10px;
@@ -280,6 +320,8 @@ table {
 
   :root[data-view="auto"] .app-nav a {
     justify-content: flex-start;
+    /* The side column has room, so the label goes back to body size. */
+    font-size: 15px;
     height: 48px;
     padding-inline: 12px;
     border-radius: 10px;

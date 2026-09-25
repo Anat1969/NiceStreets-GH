@@ -338,6 +338,15 @@ export default function MapView({
                 {votesLabel(selectedQuarter.votes)}
               </span>
             </div>
+            {/* The map shows only rated streets; the table shows them all. */}
+            <p className="mb-2 text-[13px]">
+              <Link
+                href={`/streets?quarter=${selectedQuarter.id}&minVotes=0`}
+                className="inline-link text-accent underline underline-offset-2"
+              >
+                כל הרחובות ב{selectedQuarter.name}
+              </Link>
+            </p>
             {selectedStreets.length === 0 ? (
               <p className="text-[14px] text-ink-soft">
                 אין עדיין רחובות מדורגים ברובע הזה.
