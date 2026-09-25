@@ -21,8 +21,16 @@ export interface DataStore {
   }): Promise<Quarter>;
   listStreets(): Promise<Street[]>;
   getStreet(id: string): Promise<Street | null>;
-  /** Creates the row for a canonical street the first time it is voted on. */
-  createStreet(input: { code: string; name: string }): Promise<Street>;
+  /**
+   * Creates the row for a canonical street the first time it is voted on.
+   * `quarterId` is passed only for a street that crosses quarters, where the
+   * resident says which stretch they mean and the row is that stretch.
+   */
+  createStreet(input: {
+    code: string;
+    name: string;
+    quarterId?: string;
+  }): Promise<Street>;
   /** Staff assignment of quarter and street type. */
   setStreetAssignment(input: {
     streetId: string;

@@ -148,6 +148,12 @@ export interface StreetAssignment {
  *
  * Street type (typology) is not in that list and stays unassigned.
  */
+/**
+ * The area the municipal list uses for boulevards that run through several
+ * quarters. A street assigned to it is rated per stretch — see lib/segments.ts.
+ */
+export const CROSSING_AREA_ID = "q-main-axis";
+
 export const STREET_ASSIGNMENTS: Record<string, StreetAssignment> =
   Object.fromEntries(
     Object.entries(STREET_QUARTERS).map(([code, quarterId]) => [

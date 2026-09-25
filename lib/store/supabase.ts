@@ -143,7 +143,11 @@ export class SupabaseStore implements DataStore {
     return rows[0] ? toStreet(rows[0]) : null;
   }
 
-  async createStreet(input: { code: string; name: string }): Promise<Street> {
+  async createStreet(input: {
+    code: string;
+    name: string;
+    quarterId?: string;
+  }): Promise<Street> {
     const existing = await this.rows("streets", (q) => q.eq("code", input.code).limit(1));
     if (existing[0]) return toStreet(existing[0]);
 
@@ -153,7 +157,7 @@ export class SupabaseStore implements DataStore {
       .insert({
         code: input.code,
         name: input.name,
-        quarter_id: assignment.quarterId ?? null,
+        quarter_id: input.quarterId ?? assignment.quarterId ?? null,
         typology: assignment.typology ?? null,
         line: assignment.line ?? null,
         gis: assignment.gis ?? null,

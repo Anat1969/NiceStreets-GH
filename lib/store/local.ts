@@ -134,7 +134,11 @@ export class LocalStore implements DataStore {
     return snapshot.streets.find((s) => s.id === streetId) ?? null;
   }
 
-  async createStreet(input: { code: string; name: string }): Promise<Street> {
+  async createStreet(input: {
+    code: string;
+    name: string;
+    quarterId?: string;
+  }): Promise<Street> {
     return withLock(async () => {
       const snapshot = await load();
       const existing = snapshot.streets.find((s) => s.code === input.code);
@@ -145,7 +149,7 @@ export class LocalStore implements DataStore {
         id: id("s"),
         name: input.name,
         code: input.code,
-        quarterId: assignment.quarterId ?? null,
+        quarterId: input.quarterId ?? assignment.quarterId ?? null,
         typology: assignment.typology ?? null,
         line: assignment.line ?? null,
         gis: assignment.gis ?? null,

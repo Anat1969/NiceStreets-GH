@@ -10,6 +10,8 @@ interface StreetOption {
   code: string;
   name: string;
   synonyms: string[];
+  /** True when the street runs through several quarters (a main boulevard). */
+  crossing: boolean;
   /** Assigned by staff; null means the street is not classified yet. */
   typology: string | null;
 }
@@ -26,8 +28,11 @@ interface Props {
     criteria: { key: string; name: string; text: string }[];
   }[];
   registrySource: string;
+  /** The quarters a stretch of a crossing boulevard can belong to. */
+  segmentQuarters: { id: string; name: string }[];
   /** Set when the visitor came from a street card, so the street is known. */
   initialStreet?: StreetOption | null;
+  initialQuarterId?: string;
 }
 
 export default function ChooseFlow({
@@ -36,14 +41,19 @@ export default function ChooseFlow({
   typologyLabels,
   questions,
   registrySource,
+  segmentQuarters,
   initialStreet = null,
+  initialQuarterId = "",
 }: Props) {
   const router = useRouter();
   // Arriving from a street card, the street is already known: the flow opens on
   // the questions instead of asking again for what the previous screen showed.
-  const [step, setStep] = useState(initialStreet ? 2 : 1);
+  const [step, setStep] = useState(
+    initialStreet && (!initialStreet.crossing || initialQuarterId) ? 2 : 1,
+  );
   const [query, setQuery] = useState(initialStreet?.name ?? "");
   const [selected, setSelected] = useState<StreetOption | null>(initialStreet);
+  const [quarterId, setQuarterId] = useState(initialQuarterId);
   const [suggestType, setSuggestType] = useState(false);
   const [typologySuggestion, setTypologySuggestion] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
@@ -82,7 +92,11 @@ export default function ChooseFlow({
     ].slice(0, 8);
   }, [query, streets]);
 
-  const step1Valid = selected !== null;
+  // A boulevard that crosses quarters is rated per stretch, so the stretch is
+  // part of choosing the street, not an afterthought.
+  const needsQuarter = selected?.crossing ?? false;
+  const step1Valid =
+    selected !== null && (!needsQuarter || quarterId.length > 0);
   const step2Valid = questions.every((q) => scores[q.key] >= 1);
 
   async function onPhoto(event: React.ChangeEvent<HTMLInputElement>) {
@@ -108,6 +122,7 @@ export default function ChooseFlow({
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           streetCode: selected.code,
+          quarterId: selected.crossing ? quarterId : null,
           scores,
           reason,
           typologySuggestion: suggestType && typologySuggestion ? typologySuggestion : null,
@@ -174,6 +189,7 @@ export default function ChooseFlow({
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelected(null);
+                setQuarterId("");
               }}
               placeholder="התחילו להקליד…"
               autoComplete="off"
@@ -196,6 +212,7 @@ export default function ChooseFlow({
                       onClick={() => {
                         setSelected(street);
                         setQuery(street.name);
+                        setQuarterId("");
                       }}
                       className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-right text-[15px] text-ink"
                     >
@@ -221,6 +238,29 @@ export default function ChooseFlow({
               הרשמי.
             </p>
           </div>
+
+          {needsQuarter ? (
+            <div className="card p-3">
+              <p className="text-[15px] font-medium text-ink">באיזה רובע הקטע?</p>
+              <p className="mb-2 text-[14px] text-ink-soft">
+                {selected?.name} עובר בכמה רובעים, ולכן כל קטע מדורג בנפרד.
+                בחרו את הרובע של הקטע שאתם מדרגים.
+              </p>
+              <select
+                value={quarterId}
+                onChange={(e) => setQuarterId(e.target.value)}
+                aria-label="הרובע של הקטע"
+                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px]"
+              >
+                <option value="">בחרו רובע</option>
+                {segmentQuarters.map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
 
           {selected ? (
             <div className="card p-3">
@@ -277,6 +317,9 @@ export default function ChooseFlow({
           <p className="flex items-baseline justify-between gap-2 text-[14px] text-ink-soft">
             <span>
               מדרגים את <span className="font-medium text-ink">{selected?.name}</span>
+              {needsQuarter
+                ? ` · ${segmentQuarters.find((q) => q.id === quarterId)?.name ?? ""}`
+                : ""}
               {selected?.typology ? ` · ${typologyLabels[selected.typology]}` : ""}
             </span>
             <button

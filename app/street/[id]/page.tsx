@@ -4,6 +4,7 @@ import { QUESTIONS, TYPOLOGY_MAP } from "@/lib/city";
 import { getStore } from "@/lib/store";
 import { buildStreetStats, voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
+import { parseSegmentCode } from "@/lib/segments";
 import { Card, Notice, ScoreBar, Section, StatusBadge } from "@/components/ui";
 import StatusEditor from "@/components/StatusEditor";
 
@@ -38,6 +39,18 @@ export default async function StreetPage({
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 8);
   const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
+
+  /*
+   * A stretch of a crossing boulevard carries its quarter inside the code
+   * ("189#q-b"), so the rating link has to hand both back separately: a "#"
+   * in an address is a fragment, not a value.
+   */
+  const segment = street.code ? parseSegmentCode(street.code) : null;
+  const rateHref = segment
+    ? `/choose?street=${segment.code}&quarter=${segment.quarterId}`
+    : street.code
+      ? `/choose?street=${street.code}`
+      : "/choose";
 
   return (
     <>
@@ -204,7 +217,7 @@ export default async function StreetPage({
       <div className="mb-6 grid gap-2">
         {/* The street is already known here, so the flow opens on the questions. */}
         <Link
-          href={street.code ? `/choose?street=${street.code}` : "/choose"}
+          href={rateHref}
           className="flex items-center justify-center rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white"
         >
           לדרג את {street.name}

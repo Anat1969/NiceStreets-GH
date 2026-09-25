@@ -3,6 +3,12 @@ import { QUESTIONS, TYPOLOGY_MAP } from "@/lib/city";
 import type { TypologyKey } from "@/lib/city";
 import { findCanonicalStreet, getStreetByCode } from "@/lib/streets";
 import { getStore } from "@/lib/store";
+import {
+  isCrossingStreet,
+  segmentCode,
+  segmentName,
+  segmentQuarters,
+} from "@/lib/segments";
 import { RESIDENT_COOKIE, getResidentId, newResidentId } from "@/lib/session";
 import type { Scores } from "@/lib/types";
 
@@ -17,6 +23,8 @@ interface Body {
   reason?: string;
   typologySuggestion?: string | null;
   photo?: string | null;
+  /** Only for a street that crosses quarters: which stretch is being rated. */
+  quarterId?: string | null;
 }
 
 function parseScores(raw: Record<string, unknown> | undefined): Scores | null {
@@ -59,16 +67,34 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "סוג הרחוב אינו מוכר" }, { status: 400 });
   }
 
+  /*
+   * A boulevard that crosses quarters is rated per stretch. The resident is
+   * the source for which stretch, so the vote cannot be saved without it.
+   */
+  const crossing = isCrossingStreet(canonical.code);
+  const quarterId = crossing ? (body.quarterId ?? "") : "";
+  if (crossing && !segmentQuarters().some((q) => q.id === quarterId)) {
+    return NextResponse.json(
+      { error: "הרחוב עובר בכמה רובעים. יש לבחור באיזה רובע הקטע שאתם מדרגים." },
+      { status: 400 },
+    );
+  }
+
   const reason = (body.reason ?? "").toString().trim().slice(0, 600);
   const store = getStore();
   const existingId = await getResidentId();
   const userId = existingId ?? newResidentId();
 
   try {
-    const street = await store.createStreet({
-      code: canonical.code,
-      name: canonical.name,
-    });
+    const street = await store.createStreet(
+      crossing
+        ? {
+            code: segmentCode(canonical.code, quarterId),
+            name: segmentName(canonical.name, quarterId),
+            quarterId,
+          }
+        : { code: canonical.code, name: canonical.name },
+    );
     const vote = await store.upsertVote({
       streetId: street.id,
       scores,
