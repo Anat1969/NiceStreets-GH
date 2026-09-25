@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { votesLabel } from "@/lib/hebrew";
 
 interface Row {
   id: string;
@@ -78,7 +79,7 @@ export default function StreetAssignment({
                   <span className="text-[12px] font-normal text-warm"> · ללא קוד רשמי</span>
                 )}
               </p>
-              <p className="mb-2 text-[12px] text-ink-faint">{row.votes} קולות</p>
+              <p className="mb-2 text-[12px] text-ink-faint">{votesLabel(row.votes)}</p>
 
               <div className="grid gap-2">
                 <label className="text-[13px] text-ink-soft">

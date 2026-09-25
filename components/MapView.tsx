@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
+import { votesLabel } from "@/lib/hebrew";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 interface QuarterFeature {
@@ -264,7 +265,7 @@ export default function MapView({ center, zoom, quarters, streets }: Props) {
           <div className="card p-4">
             <div className="mb-2 flex items-baseline justify-between">
               <h2 className="text-[18px] font-semibold text-ink">{selectedQuarter.name}</h2>
-              <span className="text-[14px] text-ink-faint">{selectedQuarter.votes} קולות</span>
+              <span className="text-[14px] text-ink-faint">{votesLabel(selectedQuarter.votes)}</span>
             </div>
             {selectedStreets.length === 0 ? (
               <p className="text-[14px] text-ink-soft">אין עדיין רחובות מדורגים ברובע הזה.</p>

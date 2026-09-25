@@ -79,6 +79,8 @@ export interface StreetStats {
   photos: number;
   /** Uploaded but not yet moderated. */
   photosPending: number;
+  /** Newest approved photo, for the cards that show one. */
+  latestPhotoId: string | null;
   status: StreetStatus | null;
 }
 

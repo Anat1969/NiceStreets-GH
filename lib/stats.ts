@@ -40,6 +40,9 @@ export function buildStreetStats(
 
   return streets.map((street) => {
     const streetVotes = votes.filter((v) => v.streetId === street.id);
+    const streetApproved = approvedPhotos
+      .filter((p) => p.streetId === street.id)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     const perQuestion = Object.fromEntries(
       QUESTIONS.map((q) => [
         q.key,
@@ -59,8 +62,9 @@ export function buildStreetStats(
       votes: streetVotes.length,
       avgScore: mean(streetVotes.map(voteScore)),
       perQuestion,
-      photos: approvedPhotos.filter((p) => p.streetId === street.id).length,
+      photos: streetApproved.length,
       photosPending: pendingPhotos.filter((p) => p.streetId === street.id).length,
+      latestPhotoId: streetApproved[0]?.id ?? null,
       status: statusByStreet.get(street.id) ?? null,
     };
   });

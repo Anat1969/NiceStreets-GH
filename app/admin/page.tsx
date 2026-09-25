@@ -2,6 +2,7 @@ import Link from "next/link";
 import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
+import { votesLabel } from "@/lib/hebrew";
 import { isStaff, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
 import PhotoModeration from "@/components/PhotoModeration";
@@ -165,7 +166,7 @@ export default async function AdminPage({
                 <Link href={`/street/${row.street.id}`} className="flex-1 text-[15px] text-ink">
                   {row.street.name}
                   <span className="block text-[12px] text-ink-faint">
-                    {row.quarterName} · {row.votes} קולות
+                    {row.quarterName} · {votesLabel(row.votes)}
                   </span>
                 </Link>
                 <StatusBadge status={row.status?.status ?? null} />
