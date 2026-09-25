@@ -22,8 +22,13 @@ create table if not exists quarters (
 create table if not exists streets (
   id          uuid primary key default gen_random_uuid(),
   name        text not null,
-  quarter_id  text not null references quarters(id),
-  typology    text not null check (typology in (
+  -- Code in the national street registry (data.gov.il). This, not the name,
+  -- is what identifies a street: residents spell names many ways.
+  code        text unique,
+  -- Quarter and street type are not in the national registry. Staff assign
+  -- them; null means "not assigned yet", never a guess.
+  quarter_id  text references quarters(id),
+  typology    text check (typology in (
                 'neighborhood_commercial','main_commercial','residential',
                 'boulevard','pedestrian_mall','linear_park')),
   line        jsonb,                          -- [[lon,lat], ...] for the UI
@@ -31,7 +36,6 @@ create table if not exists streets (
   gis         jsonb,                          -- row_width_m, w_h, canopy_pct, ...
   verified    boolean not null default false, -- matched against the GIS layer
   created_at  timestamptz not null default now(),
-  unique (name, quarter_id)
 );
 
 create index if not exists streets_quarter_idx on streets (quarter_id);
@@ -43,8 +47,13 @@ create index if not exists quarters_geom_idx on quarters using gist (geom);
 create table if not exists votes (
   id          uuid primary key default gen_random_uuid(),
   street_id   uuid not null references streets(id) on delete cascade,
-  quarter_id  text not null references quarters(id),
-  typology    text not null,
+  quarter_id  text references quarters(id),
+  typology    text,
+  -- A resident's opinion that the street is of a different kind, kept apart
+  -- from the staff classification.
+  typology_suggestion text check (typology_suggestion is null or typology_suggestion in (
+                'neighborhood_commercial','main_commercial','residential',
+                'boulevard','pedestrian_mall','linear_park')),
   scores      jsonb not null,   -- {shade:1..5, walking:.., ..., safety:..}
   reason      text default '',
   photo_id    uuid,

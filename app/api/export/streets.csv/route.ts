@@ -33,7 +33,7 @@ export async function GET() {
     s.street.id,
     s.street.name,
     s.quarterName,
-    TYPOLOGY_MAP[s.street.typology]?.label ?? s.street.typology,
+    s.street.typology ? (TYPOLOGY_MAP[s.street.typology]?.label ?? s.street.typology) : "טרם סווג",
     s.votes,
     s.avgScore === null ? null : s.avgScore.toFixed(2),
     ...QUESTIONS.map((q) => {

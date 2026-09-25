@@ -53,7 +53,9 @@ export function buildStreetStats(
 
     return {
       street,
-      quarterName: quarterName.get(street.quarterId) ?? street.quarterId,
+      quarterName: street.quarterId
+        ? (quarterName.get(street.quarterId) ?? street.quarterId)
+        : "טרם שויך רובע",
       votes: streetVotes.length,
       avgScore: mean(streetVotes.map(voteScore)),
       perQuestion,

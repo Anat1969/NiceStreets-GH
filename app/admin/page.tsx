@@ -1,11 +1,12 @@
 import Link from "next/link";
-import { STATUSES } from "@/lib/city";
+import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { isStaff, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
 import PhotoModeration from "@/components/PhotoModeration";
 import DemoControls from "@/components/DemoControls";
+import StreetAssignment from "@/components/StreetAssignment";
 
 export const dynamic = "force-dynamic";
 
@@ -59,10 +60,23 @@ export default async function AdminPage({
   }
 
   const store = getStore();
-  const [{ streetStats, totals, error: dataError }, pendingPhotos] = await Promise.all([
-    loadCityData(),
-    store.listPhotos({ status: "pending" }).catch(() => []),
-  ]);
+  const [{ streetStats, totals, error: dataError }, pendingPhotos, allVotes] =
+    await Promise.all([
+      loadCityData(),
+      store.listPhotos({ status: "pending" }).catch(() => []),
+      store.listVotes().catch(() => []),
+    ]);
+
+  // Residents' opinions that a street is of a different kind, per street.
+  const suggestionsByStreet = new Map<string, Map<string, number>>();
+  for (const vote of allVotes) {
+    if (!vote.typologySuggestion) continue;
+    if (!suggestionsByStreet.has(vote.streetId)) {
+      suggestionsByStreet.set(vote.streetId, new Map());
+    }
+    const counts = suggestionsByStreet.get(vote.streetId)!;
+    counts.set(vote.typologySuggestion, (counts.get(vote.typologySuggestion) ?? 0) + 1);
+  }
   const streetName = new Map(streetStats.map((s) => [s.street.id, s.street.name]));
   const unverified = streetStats.filter((s) => !s.street.verified && s.votes > 0);
 
@@ -116,6 +130,27 @@ export default async function AdminPage({
             id: p.id,
             streetId: p.streetId,
             streetName: streetName.get(p.streetId) ?? p.streetId,
+          }))}
+        />
+      </Section>
+
+      <Section
+        title="שיוך רחובות"
+        note="רובע וסוג רחוב אינם מופיעים ברישום הארצי, ולכן הם נקבעים כאן. התושבים רואים אותם לקריאה בלבד."
+      >
+        <StreetAssignment
+          quarters={QUARTERS.map((q) => ({ id: q.id, name: q.name }))}
+          typologies={TYPOLOGIES.map((t) => ({ key: t.key, label: t.label }))}
+          rows={streetStats.map((row) => ({
+            id: row.street.id,
+            name: row.street.name,
+            code: row.street.code,
+            quarterId: row.street.quarterId,
+            typology: row.street.typology,
+            votes: row.votes,
+            suggestions: [...(suggestionsByStreet.get(row.street.id) ?? new Map()).entries()].map(
+              ([key, count]) => ({ label: TYPOLOGY_MAP[key]?.label ?? key, count }),
+            ),
           }))}
         />
       </Section>

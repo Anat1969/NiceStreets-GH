@@ -11,8 +11,15 @@ export interface Quarter {
 export interface Street {
   id: string;
   name: string;
-  quarterId: string;
-  typology: TypologyKey;
+  /** Registry code from the national street list; the street's real identity. */
+  code: string | null;
+  /**
+   * Assigned by staff. The national registry carries no quarter, so this is
+   * null until someone who knows the city sets it — never guessed.
+   */
+  quarterId: string | null;
+  /** Set by staff, not by residents. Null means not classified yet. */
+  typology: TypologyKey | null;
   line: [number, number][] | null;
   gis: {
     rowWidthM?: number;
@@ -29,8 +36,10 @@ export type Scores = Record<QuestionKey, number>;
 export interface Vote {
   id: string;
   streetId: string;
-  quarterId: string;
-  typology: TypologyKey;
+  quarterId: string | null;
+  typology: TypologyKey | null;
+  /** A resident's opinion that the street is of a different kind. */
+  typologySuggestion: TypologyKey | null;
   scores: Scores;
   reason: string;
   photoId: string | null;
@@ -95,5 +104,6 @@ export interface VoteInput {
   scores: Scores;
   reason: string;
   userId: string;
+  typologySuggestion?: TypologyKey | null;
   photo?: { dataUrl: string } | null;
 }

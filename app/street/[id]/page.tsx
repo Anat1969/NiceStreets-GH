@@ -37,7 +37,7 @@ export default async function StreetPage({
     .filter((v) => v.reason.trim().length > 0)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 8);
-  const typology = TYPOLOGY_MAP[street.typology];
+  const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
 
   return (
     <>
@@ -49,7 +49,7 @@ export default async function StreetPage({
 
       <h1 className="text-[26px] font-bold text-ink">{street.name}</h1>
       <p className="mb-4 text-[14px] text-ink-soft">
-        {stats.quarterName} · {typology?.label ?? street.typology}
+        {stats.quarterName} · {typology?.label ?? "טרם סווג"}
       </p>
 
       <div className="mb-5 flex gap-2">

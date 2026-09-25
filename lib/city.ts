@@ -64,21 +64,32 @@ export interface Quarter {
   schematic: boolean;
 }
 
-export interface SeedStreet {
-  id: string;
-  name: string;
-  quarterId: string;
-  typology: TypologyKey;
-  /** Schematic centreline: [lon, lat] points. Replace with municipal GIS. */
-  line: [number, number][];
+/**
+ * What staff know about a street beyond its name. The national street registry
+ * (data/ashdod-streets.json) carries neither quarter nor street type, so both
+ * are assigned here or from the admin screen — never guessed from the name.
+ *
+ * Keyed by the registry code. A street missing from this map is still usable:
+ * residents can vote on it, and it shows as "טרם שויך רובע" until someone sets it.
+ */
+export interface StreetAssignment {
+  quarterId?: string;
+  /** Several quarters means the resident is asked which stretch they mean. */
+  quarterIds?: string[];
+  typology?: TypologyKey;
   gis?: {
     rowWidthM?: number;
     heightToWidth?: number;
     canopyPct?: number;
     intersectionDistanceM?: number;
   };
-  verified: boolean;
+  line?: [number, number][];
 }
+
+export const STREET_ASSIGNMENTS: Record<string, StreetAssignment> = {
+  // Filled by staff. Left empty on purpose: assigning a quarter without the
+  // municipal source would be a guess presented as fact.
+};
 
 export const CITY = {
   id: "ashdod",
@@ -336,35 +347,6 @@ export const QUARTERS: Quarter[] = QUARTER_SEED.map((q) => ({
   schematic: true,
 }));
 
-function line(center: [number, number], dx: number, dy: number): [number, number][] {
-  return [
-    [center[0] - dx, center[1] - dy],
-    [center[0], center[1]],
-    [center[0] + dx, center[1] + dy],
-  ];
-}
-
-/**
- * Seed street list — PLACEHOLDER. Replace with the official municipal list.
- * Residents can also type a street that is not on the list; it is stored as
- * unverified and shown to staff for matching against the GIS layer.
- */
-export const SEED_STREETS: SeedStreet[] = [
-  { id: "s-yerushalayim", name: "שדרות ירושלים", quarterId: "q-b", typology: "boulevard", line: line([34.6556, 31.8085], 0.006, 0.0), gis: { rowWidthM: 40, heightToWidth: 0.5, canopyPct: 35, intersectionDistanceM: 180 }, verified: false },
-  { id: "s-begin", name: "שדרות מנחם בגין", quarterId: "q-h", typology: "boulevard", line: line([34.6556, 31.7826], 0.005, 0.001), gis: { rowWidthM: 36, canopyPct: 30 }, verified: false },
-  { id: "s-rogozin", name: "רחוב רוגוזין", quarterId: "q-c", typology: "main_commercial", line: line([34.6706, 31.8086], 0.004, 0.001), gis: { rowWidthM: 28, canopyPct: 15 }, verified: false },
-  { id: "s-bnei-brit", name: "שדרות בני ברית", quarterId: "q-e", typology: "boulevard", line: line([34.6556, 31.7955], 0.004, 0.0), verified: false },
-  { id: "s-shavei-tzion", name: "רחוב שבי ציון", quarterId: "q-a", typology: "main_commercial", line: line([34.6402, 31.8082], 0.004, 0.0), verified: false },
-  { id: "s-herzl", name: "רחוב הרצל", quarterId: "q-a", typology: "neighborhood_commercial", line: line([34.6402, 31.8082], 0.002, 0.002), verified: false },
-  { id: "s-nordau", name: "רחוב נורדאו", quarterId: "q-b", typology: "residential", line: line([34.6556, 31.8085], 0.002, 0.002), verified: false },
-  { id: "s-tayelet", name: "טיילת אשדוד", quarterId: "q-marina", typology: "linear_park", line: line([34.6255, 31.7955], 0.001, 0.008), verified: false },
-  { id: "s-haorgim", name: "רחוב האורגים", quarterId: "q-c", typology: "main_commercial", line: line([34.6706, 31.8086], 0.003, 0.002), verified: false },
-  { id: "s-habanim", name: "רחוב הבנים", quarterId: "q-d", typology: "residential", line: line([34.6404, 31.7955], 0.003, 0.0), verified: false },
-  { id: "s-hatzionut", name: "שדרות הציונות", quarterId: "q-f", typology: "boulevard", line: line([34.6706, 31.7955], 0.004, 0.0), verified: false },
-  { id: "s-hapalmach", name: "רחוב הפלמ\"ח", quarterId: "q-g", typology: "residential", line: line([34.6404, 31.7826], 0.003, 0.001), verified: false },
-  { id: "s-midrachov-gimel", name: "מדרחוב רובע ג'", quarterId: "q-c", typology: "pedestrian_mall", line: line([34.6706, 31.8086], 0.0015, 0.0015), verified: false },
-  { id: "s-shderot-hameginim", name: "שדרות המגינים", quarterId: "q-k", typology: "boulevard", line: line([34.6556, 31.7697], 0.004, 0.0), verified: false },
-];
 
 export const QUESTION_MAP = Object.fromEntries(QUESTIONS.map((q) => [q.key, q]));
 export const TYPOLOGY_MAP = Object.fromEntries(TYPOLOGIES.map((t) => [t.key, t]));

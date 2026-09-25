@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { STREET_ASSIGNMENTS } from "../city";
 import type { StatusKey, TypologyKey } from "../city";
 import type {
   Photo,
@@ -21,8 +22,9 @@ function toStreet(row: Row): Street {
   return {
     id: row.id,
     name: row.name,
-    quarterId: row.quarter_id,
-    typology: row.typology,
+    code: row.code ?? null,
+    quarterId: row.quarter_id ?? null,
+    typology: row.typology ?? null,
     line: row.line ?? null,
     gis: row.gis ?? null,
     verified: Boolean(row.verified),
@@ -34,8 +36,9 @@ function toVote(row: Row): Vote {
   return {
     id: row.id,
     streetId: row.street_id,
-    quarterId: row.quarter_id,
-    typology: row.typology,
+    quarterId: row.quarter_id ?? null,
+    typology: row.typology ?? null,
+    typologySuggestion: row.typology_suggestion ?? null,
     scores: row.scores,
     reason: row.reason ?? "",
     photoId: row.photo_id ?? null,
@@ -119,19 +122,40 @@ export class SupabaseStore implements DataStore {
     return rows[0] ? toStreet(rows[0]) : null;
   }
 
-  async createStreet(input: {
-    name: string;
-    quarterId: string;
-    typology: TypologyKey;
-  }): Promise<Street> {
-    const name = input.name.trim();
-    const existing = await this.rows("streets", (q) =>
-      q.eq("name", name).eq("quarter_id", input.quarterId).limit(1),
-    );
+  async createStreet(input: { code: string; name: string }): Promise<Street> {
+    const existing = await this.rows("streets", (q) => q.eq("code", input.code).limit(1));
     if (existing[0]) return toStreet(existing[0]);
+
+    const assignment = STREET_ASSIGNMENTS[input.code] ?? {};
     const { data, error } = await this.db
       .from("streets")
-      .insert({ name, quarter_id: input.quarterId, typology: input.typology, verified: false })
+      .insert({
+        code: input.code,
+        name: input.name,
+        quarter_id: assignment.quarterId ?? null,
+        typology: assignment.typology ?? null,
+        line: assignment.line ?? null,
+        gis: assignment.gis ?? null,
+        verified: true,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return toStreet(data);
+  }
+
+  async setStreetAssignment(input: {
+    streetId: string;
+    quarterId?: string | null;
+    typology?: TypologyKey | null;
+  }): Promise<Street> {
+    const patch: Row = {};
+    if (input.quarterId !== undefined) patch.quarter_id = input.quarterId;
+    if (input.typology !== undefined) patch.typology = input.typology;
+    const { data, error } = await this.db
+      .from("streets")
+      .update(patch)
+      .eq("id", input.streetId)
       .select("*")
       .single();
     if (error) throw new Error(error.message);
@@ -183,6 +207,7 @@ export class SupabaseStore implements DataStore {
       street_id: input.streetId,
       quarter_id: street.quarterId,
       typology: street.typology,
+      typology_suggestion: input.typologySuggestion ?? existing?.typologySuggestion ?? null,
       scores: input.scores,
       reason: input.reason,
       photo_id: photoId,
@@ -285,6 +310,7 @@ export class SupabaseStore implements DataStore {
       street_id: vote.streetId,
       quarter_id: vote.quarterId,
       typology: vote.typology,
+      typology_suggestion: null,
       scores: vote.scores,
       reason: vote.reason,
       user_id: vote.userId,

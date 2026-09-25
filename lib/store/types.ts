@@ -15,10 +15,13 @@ export interface DataStore {
   listQuarters(): Promise<Quarter[]>;
   listStreets(): Promise<Street[]>;
   getStreet(id: string): Promise<Street | null>;
-  createStreet(input: {
-    name: string;
-    quarterId: string;
-    typology: TypologyKey;
+  /** Creates the row for a canonical street the first time it is voted on. */
+  createStreet(input: { code: string; name: string }): Promise<Street>;
+  /** Staff assignment of quarter and street type. */
+  setStreetAssignment(input: {
+    streetId: string;
+    quarterId?: string | null;
+    typology?: TypologyKey | null;
   }): Promise<Street>;
 
   upsertVote(input: VoteInput): Promise<Vote>;

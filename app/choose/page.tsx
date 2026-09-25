@@ -1,26 +1,40 @@
 import ChooseFlow from "@/components/ChooseFlow";
-import { QUARTERS, QUESTIONS, TYPOLOGIES } from "@/lib/city";
+import { QUESTIONS, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
+import { CANONICAL_STREETS, STREET_REGISTRY_SOURCE } from "@/lib/streets";
 import { getStore } from "@/lib/store";
 
 export const dynamic = "force-dynamic";
 
 export default async function ChoosePage() {
-  // A data-layer failure must not blank the screen: residents can still type a
-  // street name, which is stored for the staff to match against the GIS layer.
-  const streets = await getStore()
+  // Street types are staff knowledge; the flow shows them read-only, so the
+  // page carries the assignments already made.
+  const known = await getStore()
     .listStreets()
     .catch(() => []);
+  const typologyByCode = Object.fromEntries(
+    known
+      .filter((s) => s.code && s.typology)
+      .map((s) => [s.code as string, s.typology as string]),
+  );
+
   return (
     <ChooseFlow
-      streets={streets.map((s) => ({
-        id: s.id,
+      streets={CANONICAL_STREETS.map((s) => ({
+        code: s.code,
         name: s.name,
-        quarterId: s.quarterId,
-        typology: s.typology,
+        synonyms: s.synonyms,
+        typology: typologyByCode[s.code] ?? null,
       }))}
-      quarters={QUARTERS.map((q) => ({ id: q.id, name: q.name }))}
-      typologies={TYPOLOGIES.map((t) => ({ key: t.key, label: t.label, description: t.description }))}
+      typologies={TYPOLOGIES.map((t) => ({
+        key: t.key,
+        label: t.label,
+        description: t.description,
+      }))}
+      typologyLabels={Object.fromEntries(
+        Object.entries(TYPOLOGY_MAP).map(([k, v]) => [k, v.label]),
+      )}
       questions={QUESTIONS.map((q) => ({ key: q.key, label: q.label, help: q.help }))}
+      registrySource={STREET_REGISTRY_SOURCE}
     />
   );
 }

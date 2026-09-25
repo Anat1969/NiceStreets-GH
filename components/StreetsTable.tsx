@@ -8,9 +8,9 @@ import type { StatusKey } from "@/lib/city";
 interface Row {
   id: string;
   name: string;
-  quarterId: string;
+  quarterId: string | null;
   quarterName: string;
-  typology: string;
+  typology: string | null;
   votes: number;
   avgScore: number | null;
   photos: number;

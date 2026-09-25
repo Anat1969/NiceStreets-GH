@@ -3,30 +3,39 @@
 import { useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { resizeImage } from "@/lib/image";
+import { normalizeStreetName } from "@/lib/street-name";
 
 interface StreetOption {
-  id: string;
+  code: string;
   name: string;
-  quarterId: string;
-  typology: string;
+  synonyms: string[];
+  /** Assigned by staff; null means the street is not classified yet. */
+  typology: string | null;
 }
 
 interface Props {
   streets: StreetOption[];
-  quarters: { id: string; name: string }[];
   typologies: { key: string; label: string; description: string }[];
+  typologyLabels: Record<string, string>;
   questions: { key: string; label: string; help: string }[];
+  registrySource: string;
 }
 
 const SCALE_LABELS = ["גרוע", "חלש", "בינוני", "טוב", "מצוין"];
 
-export default function ChooseFlow({ streets, quarters, typologies, questions }: Props) {
+export default function ChooseFlow({
+  streets,
+  typologies,
+  typologyLabels,
+  questions,
+  registrySource,
+}: Props) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [query, setQuery] = useState("");
-  const [streetId, setStreetId] = useState<string | null>(null);
-  const [quarterId, setQuarterId] = useState("");
-  const [typology, setTypology] = useState("");
+  const [selected, setSelected] = useState<StreetOption | null>(null);
+  const [suggestType, setSuggestType] = useState(false);
+  const [typologySuggestion, setTypologySuggestion] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
@@ -35,24 +44,35 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
 
+  /** Matches the official name and the registry's other spellings. */
   const matches = useMemo(() => {
-    const q = query.trim();
-    if (!q) return streets.slice(0, 8);
-    return streets.filter((s) => s.name.includes(q)).slice(0, 8);
+    const needle = normalizeStreetName(query);
+    if (!needle) return [];
+    const starts: StreetOption[] = [];
+    const contains: StreetOption[] = [];
+    const viaSynonym: { street: StreetOption; synonym: string }[] = [];
+
+    for (const street of streets) {
+      const name = normalizeStreetName(street.name);
+      if (name.startsWith(needle)) starts.push(street);
+      else if (name.includes(needle)) contains.push(street);
+      else {
+        const synonym = street.synonyms.find((s) =>
+          normalizeStreetName(s).includes(needle),
+        );
+        if (synonym) viaSynonym.push({ street, synonym });
+      }
+      if (starts.length >= 8) break;
+    }
+
+    return [
+      ...starts.map((street) => ({ street, synonym: null as string | null })),
+      ...contains.map((street) => ({ street, synonym: null as string | null })),
+      ...viaSynonym,
+    ].slice(0, 8);
   }, [query, streets]);
 
-  const exactMatch = streets.find((s) => s.name === query.trim());
-  const selected = streets.find((s) => s.id === streetId) ?? null;
-  const isNewStreet = !selected && query.trim().length > 1;
-
-  function selectStreet(street: StreetOption) {
-    setStreetId(street.id);
-    setQuery(street.name);
-    setQuarterId(street.quarterId);
-    setTypology(street.typology);
-  }
-
-  const step1Valid = Boolean((selected || isNewStreet) && quarterId && typology);
+  const step1Valid = selected !== null;
   const step2Valid = questions.every((q) => scores[q.key] >= 1);
 
   async function onPhoto(event: React.ChangeEvent<HTMLInputElement>) {
@@ -69,6 +89,7 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
   }
 
   async function submit() {
+    if (!selected) return;
     setBusy(true);
     setError(null);
     try {
@@ -76,12 +97,10 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
         method: "POST",
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
-          streetId: selected?.id,
-          newStreet: selected
-            ? undefined
-            : { name: query.trim(), quarterId, typology },
+          streetCode: selected.code,
           scores,
           reason,
+          typologySuggestion: suggestType && typologySuggestion ? typologySuggestion : null,
           photo,
         }),
       });
@@ -119,7 +138,10 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
       </ol>
 
       {error ? (
-        <p role="alert" className="mb-4 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink">
+        <p
+          role="alert"
+          className="mb-4 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink"
+        >
           {error}
         </p>
       ) : null}
@@ -135,79 +157,92 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
               value={query}
               onChange={(e) => {
                 setQuery(e.target.value);
-                setStreetId(null);
+                setSelected(null);
               }}
               placeholder="התחילו להקליד…"
               autoComplete="off"
+              role="combobox"
+              aria-expanded={matches.length > 0 && !selected}
+              aria-controls="street-matches"
               className="w-full rounded-[12px] border border-line bg-surface px-3 py-3 text-[16px]"
             />
-            {!exactMatch && matches.length > 0 ? (
-              <ul className="mt-2 grid gap-1">
-                {matches.map((street) => (
-                  <li key={street.id}>
+
+            {selected ? (
+              <p className="mt-2 text-[14px] text-accent">
+                נבחר: {selected.name}
+              </p>
+            ) : matches.length > 0 ? (
+              <ul id="street-matches" className="mt-2 grid gap-1">
+                {matches.map(({ street, synonym }) => (
+                  <li key={street.code}>
                     <button
                       type="button"
-                      onClick={() => selectStreet(street)}
+                      onClick={() => {
+                        setSelected(street);
+                        setQuery(street.name);
+                      }}
                       className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-right text-[15px] text-ink"
                     >
                       {street.name}
+                      {synonym ? (
+                        <span className="block text-[12px] text-ink-faint">
+                          ידוע גם כ־{synonym}
+                        </span>
+                      ) : null}
                     </button>
                   </li>
                 ))}
               </ul>
-            ) : null}
-            {isNewStreet ? (
-              <p className="mt-2 text-[13px] text-ink-faint">
-                הרחוב אינו ברשימה — הוא יתווסף ויסומן לאימות מול ה־GIS העירוני.
+            ) : query.trim().length > 0 ? (
+              <p className="mt-2 text-[13px] text-ink-soft">
+                לא נמצא רחוב בשם הזה ברשימת הרחובות הרשמית של אשדוד. בדקו את
+                האיות, או נסו חלק מהשם.
               </p>
             ) : null}
+
+            <p className="mt-2 text-[12px] text-ink-faint">
+              הרשימה מבוססת על {registrySource}, וכוללת גם שמות מקובלים שאינם השם
+              הרשמי.
+            </p>
           </div>
 
-          <div>
-            <label htmlFor="quarter" className="mb-1 block text-[15px] font-medium text-ink">
-              רובע
-            </label>
-            <select
-              id="quarter"
-              value={quarterId}
-              onChange={(e) => setQuarterId(e.target.value)}
-              className="w-full rounded-[12px] border border-line bg-surface px-3 py-3 text-[16px]"
-            >
-              <option value="">בחרו רובע</option>
-              {quarters.map((q) => (
-                <option key={q.id} value={q.id}>
-                  {q.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {selected ? (
+            <div className="card p-3">
+              <p className="text-[15px] font-medium text-ink">סוג הרחוב</p>
+              <p className="text-[14px] text-ink-soft">
+                {selected.typology
+                  ? typologyLabels[selected.typology]
+                  : "טרם סווג על ידי צוות אדריכלות העיר"}
+              </p>
+              <p className="mt-1 text-[12px] text-ink-faint">
+                סוג הרחוב נקבע על ידי הצוות, כדי שההשוואה תהיה בין רחובות מאותו סוג.
+              </p>
 
-          <fieldset>
-            <legend className="mb-2 text-[15px] font-medium text-ink">סוג הרחוב</legend>
-            <div className="grid gap-2">
-              {typologies.map((t) => (
-                <label
-                  key={t.key}
-                  className={`card flex cursor-pointer items-start gap-3 p-3 ${
-                    typology === t.key ? "border-accent bg-accent-soft" : ""
-                  }`}
+              <label className="mt-3 flex items-center gap-2 text-[14px] text-ink">
+                <input
+                  type="checkbox"
+                  checked={suggestType}
+                  onChange={(e) => setSuggestType(e.target.checked)}
+                />
+                לדעתי זה רחוב מסוג אחר
+              </label>
+              {suggestType ? (
+                <select
+                  value={typologySuggestion}
+                  onChange={(e) => setTypologySuggestion(e.target.value)}
+                  aria-label="הסוג שלדעתכם מתאים"
+                  className="mt-2 w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px]"
                 >
-                  <input
-                    type="radio"
-                    name="typology"
-                    value={t.key}
-                    checked={typology === t.key}
-                    onChange={() => setTypology(t.key)}
-                    className="mt-1"
-                  />
-                  <span>
-                    <span className="block text-[15px] font-medium text-ink">{t.label}</span>
-                    <span className="block text-[13px] text-ink-soft">{t.description}</span>
-                  </span>
-                </label>
-              ))}
+                  <option value="">בחרו סוג</option>
+                  {typologies.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
             </div>
-          </fieldset>
+          ) : null}
 
           <button
             type="button"
@@ -224,7 +259,9 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
         <section className="grid gap-4">
           {questions.map((question) => (
             <fieldset key={question.key} className="card p-3">
-              <legend className="px-1 text-[16px] font-medium text-ink">{question.label}</legend>
+              <legend className="px-1 text-[16px] font-medium text-ink">
+                {question.label}
+              </legend>
               <p className="mb-2 text-[13px] text-ink-soft">{question.help}</p>
               <div className="flex gap-1" role="group" aria-label={question.label}>
                 {[1, 2, 3, 4, 5].map((value) => (
@@ -298,13 +335,17 @@ export default function ChooseFlow({ streets, quarters, typologies, questions }:
               className="w-full rounded-[12px] border border-line bg-surface px-3 py-2 text-[15px]"
             />
             <p className="mt-1 text-[13px] text-ink-soft">
-              התמונה מוקטנת במכשיר לפני השליחה, נתוני ה־EXIF נמחקים, והיא מתפרסמת רק אחרי
-              אישור הצוות. אנא הימנעו מצילום פנים ולוחיות רישוי.
+              התמונה מוקטנת במכשיר לפני השליחה, נתוני ה־EXIF נמחקים, והיא מתפרסמת רק
+              אחרי אישור הצוות. אנא הימנעו מצילום פנים ולוחיות רישוי.
             </p>
             {photo ? (
               <div className="mt-2">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={photo} alt={`תצוגה מקדימה: ${photoName}`} className="max-h-48 rounded-[12px]" />
+                <img
+                  src={photo}
+                  alt={`תצוגה מקדימה: ${photoName}`}
+                  className="max-h-48 rounded-[12px]"
+                />
                 <button
                   type="button"
                   onClick={() => {

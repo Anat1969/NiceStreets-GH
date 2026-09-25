@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import os from "node:os";
-import { QUARTERS, SEED_STREETS } from "../city";
+import { QUARTERS, STREET_ASSIGNMENTS } from "../city";
 import type { StatusKey, TypologyKey } from "../city";
 import type {
   Photo,
@@ -39,22 +39,9 @@ const FILE = path.join(DATA_DIR, "store.json");
 const PHOTO_DIR = path.join(DATA_DIR, "photos");
 
 function emptySnapshot(): Snapshot {
-  return {
-    version: 1,
-    streets: SEED_STREETS.map((s) => ({
-      id: s.id,
-      name: s.name,
-      quarterId: s.quarterId,
-      typology: s.typology,
-      line: s.line,
-      gis: s.gis ?? null,
-      verified: s.verified,
-      createdAt: new Date(0).toISOString(),
-    })),
-    votes: [],
-    photos: [],
-    statuses: [],
-  };
+  // Streets are created from the national registry the first time someone
+  // votes on them, so nothing is seeded here.
+  return { version: 1, streets: [], votes: [], photos: [], statuses: [] };
 }
 
 let cache: Snapshot | null = null;
@@ -120,29 +107,43 @@ export class LocalStore implements DataStore {
     return snapshot.streets.find((s) => s.id === streetId) ?? null;
   }
 
-  async createStreet(input: {
-    name: string;
-    quarterId: string;
-    typology: TypologyKey;
-  }): Promise<Street> {
+  async createStreet(input: { code: string; name: string }): Promise<Street> {
     return withLock(async () => {
       const snapshot = await load();
-      const name = input.name.trim();
-      const existing = snapshot.streets.find(
-        (s) => s.name === name && s.quarterId === input.quarterId,
-      );
+      const existing = snapshot.streets.find((s) => s.code === input.code);
       if (existing) return { ...existing };
+
+      const assignment = STREET_ASSIGNMENTS[input.code] ?? {};
       const street: Street = {
         id: id("s"),
-        name,
-        quarterId: input.quarterId,
-        typology: input.typology,
-        line: null,
-        gis: null,
-        verified: false,
+        name: input.name,
+        code: input.code,
+        quarterId: assignment.quarterId ?? null,
+        typology: assignment.typology ?? null,
+        line: assignment.line ?? null,
+        gis: assignment.gis ?? null,
+        verified: true,
         createdAt: new Date().toISOString(),
       };
       snapshot.streets.push(street);
+      await persist(snapshot);
+      return { ...street };
+    });
+  }
+
+  async setStreetAssignment(input: {
+    streetId: string;
+    quarterId?: string | null;
+    typology?: TypologyKey | null;
+  }): Promise<Street> {
+    return withLock(async () => {
+      const snapshot = await load();
+      const index = snapshot.streets.findIndex((s) => s.id === input.streetId);
+      if (index < 0) throw new Error("STREET_NOT_FOUND");
+      const street = { ...snapshot.streets[index] };
+      if (input.quarterId !== undefined) street.quarterId = input.quarterId;
+      if (input.typology !== undefined) street.typology = input.typology;
+      snapshot.streets[index] = street;
       await persist(snapshot);
       return { ...street };
     });
@@ -181,12 +182,22 @@ export class LocalStore implements DataStore {
       }
 
       const vote: Vote = existing
-        ? { ...existing, scores: input.scores, reason: input.reason, photoId, updatedAt: now }
+        ? {
+            ...existing,
+            scores: input.scores,
+            reason: input.reason,
+            typologySuggestion: input.typologySuggestion ?? existing.typologySuggestion,
+            quarterId: street.quarterId,
+            typology: street.typology,
+            photoId,
+            updatedAt: now,
+          }
         : {
             id: id("v"),
             streetId: input.streetId,
             quarterId: street.quarterId,
             typology: street.typology,
+            typologySuggestion: input.typologySuggestion ?? null,
             scores: input.scores,
             reason: input.reason,
             photoId,

@@ -38,11 +38,11 @@ export default async function MapPage() {
           };
         })}
         streets={streetStats
-          .filter((s) => s.street.line && s.street.line.length > 1)
+          .filter((s) => s.street.line && s.street.line.length > 1 && s.street.quarterId)
           .map((s) => ({
             id: s.street.id,
             name: s.street.name,
-            quarterId: s.street.quarterId,
+            quarterId: s.street.quarterId as string,
             line: s.street.line as [number, number][],
             votes: s.votes,
             avgScore: s.avgScore,

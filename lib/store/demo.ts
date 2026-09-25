@@ -33,6 +33,7 @@ export function buildDemoVotes(streets: Street[]): Vote[] {
         typology: street.typology,
         scores,
         reason: rand() > 0.45 ? DEMO_REASONS[Math.floor(rand() * DEMO_REASONS.length)] : "",
+        typologySuggestion: null,
         photoId: null,
         userId: `demo-user-${streetIndex}-${i}`,
         createdAt: now,

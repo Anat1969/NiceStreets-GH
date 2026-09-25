@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
-import { QUESTIONS, TYPOLOGY_MAP, QUARTER_MAP } from "@/lib/city";
+import { QUESTIONS, TYPOLOGY_MAP } from "@/lib/city";
 import type { TypologyKey } from "@/lib/city";
+import { findCanonicalStreet, getStreetByCode } from "@/lib/streets";
 import { getStore } from "@/lib/store";
 import { RESIDENT_COOKIE, getResidentId, newResidentId } from "@/lib/session";
 import type { Scores } from "@/lib/types";
@@ -8,10 +9,13 @@ import type { Scores } from "@/lib/types";
 export const dynamic = "force-dynamic";
 
 interface Body {
-  streetId?: string;
-  newStreet?: { name: string; quarterId: string; typology: string };
+  /** Registry code of the chosen street; the canonical way to identify it. */
+  streetCode?: string;
+  /** Accepted as a fallback and resolved through the registry. */
+  streetName?: string;
   scores?: Record<string, unknown>;
   reason?: string;
+  typologySuggestion?: string | null;
   photo?: string | null;
 }
 
@@ -38,36 +42,39 @@ export async function POST(request: Request) {
     );
   }
 
+  // Only a street from the national registry is accepted, so three spellings
+  // of the same street can never become three records.
+  const canonical = body.streetCode
+    ? getStreetByCode(body.streetCode)
+    : findCanonicalStreet(body.streetName ?? "");
+  if (!canonical) {
+    return NextResponse.json(
+      { error: "יש לבחור רחוב מתוך רשימת הרחובות" },
+      { status: 400 },
+    );
+  }
+
+  const suggestion = body.typologySuggestion;
+  if (suggestion && !TYPOLOGY_MAP[suggestion]) {
+    return NextResponse.json({ error: "סוג הרחוב אינו מוכר" }, { status: 400 });
+  }
+
   const reason = (body.reason ?? "").toString().trim().slice(0, 600);
   const store = getStore();
-
-  let streetId = body.streetId;
-  if (!streetId && body.newStreet) {
-    const { name, quarterId, typology } = body.newStreet;
-    if (!name?.trim() || !QUARTER_MAP[quarterId] || !TYPOLOGY_MAP[typology]) {
-      return NextResponse.json({ error: "פרטי הרחוב חסרים או לא תקינים" }, { status: 400 });
-    }
-    const street = await store.createStreet({
-      name,
-      quarterId,
-      typology: typology as TypologyKey,
-    });
-    streetId = street.id;
-  }
-
-  if (!streetId) {
-    return NextResponse.json({ error: "לא נבחר רחוב" }, { status: 400 });
-  }
-
   const existingId = await getResidentId();
   const userId = existingId ?? newResidentId();
 
   try {
+    const street = await store.createStreet({
+      code: canonical.code,
+      name: canonical.name,
+    });
     const vote = await store.upsertVote({
-      streetId,
+      streetId: street.id,
       scores,
       reason,
       userId,
+      typologySuggestion: (suggestion as TypologyKey) ?? null,
       photo: body.photo ? { dataUrl: body.photo } : null,
     });
     const response = NextResponse.json({

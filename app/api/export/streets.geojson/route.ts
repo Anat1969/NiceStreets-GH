@@ -19,7 +19,9 @@ export async function GET() {
         street_id: s.street.id,
         name: s.street.name,
         quarter: s.quarterName,
-        typology: TYPOLOGY_MAP[s.street.typology]?.label ?? s.street.typology,
+        typology: s.street.typology
+          ? (TYPOLOGY_MAP[s.street.typology]?.label ?? s.street.typology)
+          : null,
         votes: s.votes,
         avg_score: s.avgScore,
         ...Object.fromEntries(QUESTIONS.map((q) => [`q_${q.key}`, s.perQuestion[q.key]])),
