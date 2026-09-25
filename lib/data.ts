@@ -17,6 +17,8 @@ function emptyTotals(): Totals {
     votes: 0,
     streets: 0,
     photos: 0,
+    photosPending: 0,
+    orphanVotes: 0,
     byStatus: Object.fromEntries(STATUSES.map((s) => [s.key, 0])) as Record<
       StatusKey,
       number
@@ -45,7 +47,7 @@ export async function loadCityData(): Promise<CityData> {
     return {
       streetStats,
       quarterStats: buildQuarterStats(quarters, streetStats),
-      totals: buildTotals(streetStats),
+      totals: buildTotals(streetStats, votes, photos),
       error: null,
     };
   } catch (error) {

@@ -77,9 +77,15 @@ export default async function AdminPage({
             <li>קולות: {totals.votes}</li>
             <li>רחובות עם קולות: {totals.streets}</li>
             <li>תמונות מאושרות: {totals.photos}</li>
-            <li>תמונות שממתינות לאישור: {pendingPhotos.length}</li>
+            <li>תמונות שממתינות לאישור: {totals.photosPending}</li>
           </ul>
         </Card>
+        {totals.orphanVotes > 0 ? (
+          <p role="alert" className="mt-2 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[13px] text-ink">
+            {totals.orphanVotes} קולות מפנים לרחוב שאינו ברשימת הרחובות. הם נספרים
+            בסיכומים, אך לא יופיעו בטבלת הרחובות עד שהרחוב יתווסף.
+          </p>
+        ) : null}
         {dataError ? (
           <p role="alert" className="mt-2 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[13px] text-ink">
             תקלה בקריאה ממסד הנתונים: {dataError}

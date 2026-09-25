@@ -49,7 +49,15 @@ export default async function HomePage() {
         <div className="flex gap-2">
           <Counter value={totals.votes} label="קולות" />
           <Counter value={totals.streets} label="רחובות" />
-          <Counter value={totals.photos} label="תמונות" />
+          <Counter
+            value={totals.photos}
+            label="תמונות"
+            note={
+              totals.photosPending > 0
+                ? `${totals.photosPending} ממתינות לאישור`
+                : undefined
+            }
+          />
         </div>
       </Section>
 

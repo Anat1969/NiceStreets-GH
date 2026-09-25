@@ -115,6 +115,11 @@ export default async function StreetPage({
       ) : null}
 
       <Section title="גלריה" note={staff ? "הצוות רואה גם תמונות שממתינות לאישור." : undefined}>
+        {stats.photosPending > 0 && !staff ? (
+          <p className="mb-2 text-[13px] text-ink-soft">
+            {stats.photosPending} תמונות ממתינות לאישור הצוות ויפורסמו לאחר בדיקה.
+          </p>
+        ) : null}
         {visiblePhotos.length === 0 ? (
           <Card>
             <p className="text-[14px] text-ink-soft">עדיין אין תמונות מאושרות לרחוב הזה.</p>

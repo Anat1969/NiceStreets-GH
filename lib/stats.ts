@@ -36,6 +36,7 @@ export function buildStreetStats(
   );
   const statusByStreet = new Map(statuses.map((s) => [s.streetId, s]));
   const approvedPhotos = photos.filter((p) => p.status === "approved");
+  const pendingPhotos = photos.filter((p) => p.status === "pending");
 
   return streets.map((street) => {
     const streetVotes = votes.filter((v) => v.streetId === street.id);
@@ -57,6 +58,7 @@ export function buildStreetStats(
       avgScore: mean(streetVotes.map(voteScore)),
       perQuestion,
       photos: approvedPhotos.filter((p) => p.streetId === street.id).length,
+      photosPending: pendingPhotos.filter((p) => p.streetId === street.id).length,
       status: statusByStreet.get(street.id) ?? null,
     };
   });
@@ -80,7 +82,17 @@ export function buildQuarterStats(
   });
 }
 
-export function buildTotals(streetStats: StreetStats[]): Totals {
+/**
+ * Totals are counted from the votes and photos themselves, not from the
+ * per-street rows. A vote whose street is missing from the street list used to
+ * disappear from every number without a trace; now it is still counted, and
+ * `orphanVotes` makes the inconsistency visible instead of silent.
+ */
+export function buildTotals(
+  streetStats: StreetStats[],
+  votes: Vote[],
+  photos: Photo[],
+): Totals {
   const byStatus = Object.fromEntries(STATUSES.map((s) => [s.key, 0])) as Record<
     StatusKey,
     number
@@ -88,10 +100,16 @@ export function buildTotals(streetStats: StreetStats[]): Totals {
   streetStats.forEach((s) => {
     if (s.status) byStatus[s.status.status] += 1;
   });
+
+  const knownStreetIds = new Set(streetStats.map((s) => s.street.id));
+  const votedStreetIds = new Set(votes.map((v) => v.streetId));
+
   return {
-    votes: streetStats.reduce((sum, s) => sum + s.votes, 0),
-    streets: streetStats.filter((s) => s.votes > 0).length,
-    photos: streetStats.reduce((sum, s) => sum + s.photos, 0),
+    votes: votes.length,
+    streets: votedStreetIds.size,
+    photos: photos.filter((p) => p.status === "approved").length,
+    photosPending: photos.filter((p) => p.status === "pending").length,
+    orphanVotes: votes.filter((v) => !knownStreetIds.has(v.streetId)).length,
     byStatus,
   };
 }

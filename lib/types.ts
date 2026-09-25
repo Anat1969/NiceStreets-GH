@@ -66,7 +66,10 @@ export interface StreetStats {
   votes: number;
   avgScore: number | null;
   perQuestion: Record<QuestionKey, number | null>;
+  /** Approved photos, the ones the public sees. */
   photos: number;
+  /** Uploaded but not yet moderated. */
+  photosPending: number;
   status: StreetStatus | null;
 }
 
@@ -81,6 +84,9 @@ export interface Totals {
   votes: number;
   streets: number;
   photos: number;
+  photosPending: number;
+  /** Votes whose street is missing from the street list; should always be 0. */
+  orphanVotes: number;
   byStatus: Record<StatusKey, number>;
 }
 

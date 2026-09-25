@@ -78,13 +78,22 @@ export function ScoreBar({
   );
 }
 
-export function Counter({ value, label }: { value: number; label: string }) {
+export function Counter({
+  value,
+  label,
+  note,
+}: {
+  value: number;
+  label: string;
+  note?: string;
+}) {
   return (
     <div className="card flex-1 p-3 text-center">
       <div className="text-[24px] font-semibold tabular-nums text-accent">
         {value.toLocaleString("he-IL")}
       </div>
       <div className="text-[13px] text-ink-soft">{label}</div>
+      {note ? <div className="mt-1 text-[12px] text-ink-faint">{note}</div> : null}
     </div>
   );
 }
