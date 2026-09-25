@@ -3,6 +3,7 @@ import "./globals.css";
 import { CITY } from "@/lib/city";
 import TabBar from "@/components/TabBar";
 import { isStaff } from "@/lib/session";
+import { getStore } from "@/lib/store";
 
 export const metadata: Metadata = {
   title: CITY.appTitle,
@@ -24,6 +25,13 @@ export default async function RootLayout({
   children: React.ReactNode;
 }) {
   const staff = await isStaff();
+  // Read the queue only for staff; the public pages must not pay for it.
+  const pendingPhotos = staff
+    ? await getStore()
+        .listPhotos({ status: "pending" })
+        .then((rows) => rows.length)
+        .catch(() => 0)
+    : 0;
   return (
     <html lang="he" dir="rtl">
       <head>
@@ -46,7 +54,7 @@ export default async function RootLayout({
           <main id="main" className="flex-1 px-4 pb-28 pt-4">
             {children}
           </main>
-          <TabBar staff={staff} />
+          <TabBar staff={staff} pendingPhotos={pendingPhotos} />
         </div>
       </body>
     </html>

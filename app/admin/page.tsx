@@ -5,7 +5,6 @@ import { loadCityData } from "@/lib/data";
 import { votesLabel } from "@/lib/hebrew";
 import { isStaff, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
-import PhotoModeration from "@/components/PhotoModeration";
 import DemoControls from "@/components/DemoControls";
 import StreetAssignment from "@/components/StreetAssignment";
 
@@ -61,12 +60,10 @@ export default async function AdminPage({
   }
 
   const store = getStore();
-  const [{ streetStats, totals, error: dataError }, pendingPhotos, allVotes] =
-    await Promise.all([
-      loadCityData(),
-      store.listPhotos({ status: "pending" }).catch(() => []),
-      store.listVotes().catch(() => []),
-    ]);
+  const [{ streetStats, totals, error: dataError }, allVotes] = await Promise.all([
+    loadCityData(),
+    store.listVotes().catch(() => []),
+  ]);
 
   // Residents' opinions that a street is of a different kind, per street.
   const suggestionsByStreet = new Map<string, Map<string, number>>();
@@ -78,7 +75,6 @@ export default async function AdminPage({
     const counts = suggestionsByStreet.get(vote.streetId)!;
     counts.set(vote.typologySuggestion, (counts.get(vote.typologySuggestion) ?? 0) + 1);
   }
-  const streetName = new Map(streetStats.map((s) => [s.street.id, s.street.name]));
   const unverified = streetStats.filter((s) => !s.street.verified && s.votes > 0);
 
   return (
@@ -125,14 +121,25 @@ export default async function AdminPage({
         </div>
       </Section>
 
-      <Section title="אישור תמונות" note="תמונה מתפרסמת רק אחרי אישור. בדקו פנים ולוחיות רישוי.">
-        <PhotoModeration
-          photos={pendingPhotos.map((p) => ({
-            id: p.id,
-            streetId: p.streetId,
-            streetName: streetName.get(p.streetId) ?? p.streetId,
-          }))}
-        />
+      <Section title="תמונות">
+        <Link href="/admin/photos" className="card flex items-center gap-3 p-4">
+          <span className="flex-1">
+            <span className="block text-[16px] font-medium text-ink">תור תמונות</span>
+            <span className="block text-[13px] text-ink-soft">
+              {totals.photosPending > 0
+                ? "תמונות שהעלו תושבים וממתינות לאישור לפני פרסום"
+                : "אין תמונות שממתינות לאישור"}
+            </span>
+          </span>
+          {totals.photosPending > 0 ? (
+            <span
+              className="rounded-full bg-warm px-3 py-1 text-[15px] font-semibold text-white"
+              aria-label={`${totals.photosPending} תמונות ממתינות לאישור`}
+            >
+              {totals.photosPending}
+            </span>
+          ) : null}
+        </Link>
       </Section>
 
       <Section

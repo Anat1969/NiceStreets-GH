@@ -11,9 +11,18 @@ const TABS = [
   { href: "/learn", label: "ללמוד" },
 ];
 
-export default function TabBar({ staff }: { staff: boolean }) {
+export default function TabBar({
+  staff,
+  pendingPhotos = 0,
+}: {
+  staff: boolean;
+  /** Shown on the staff tab so a waiting queue is never missed. */
+  pendingPhotos?: number;
+}) {
   const pathname = usePathname();
-  const tabs = staff ? [...TABS, { href: "/admin", label: "צוות" }] : TABS;
+  const tabs = staff
+    ? [...TABS, { href: "/admin", label: "צוות", badge: pendingPhotos }]
+    : TABS;
 
   return (
     <nav
@@ -37,6 +46,14 @@ export default function TabBar({ staff }: { staff: boolean }) {
                 }`}
               >
                 {tab.label}
+                {"badge" in tab && tab.badge ? (
+                  <span
+                    className="mr-1 rounded-full bg-warm px-[7px] py-[1px] text-[12px] font-semibold text-white"
+                    aria-label={`${tab.badge} תמונות ממתינות לאישור`}
+                  >
+                    {tab.badge}
+                  </span>
+                ) : null}
               </Link>
             </li>
           );
