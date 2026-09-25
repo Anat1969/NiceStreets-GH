@@ -13,6 +13,12 @@ export interface DataStore {
   readonly kind: "local" | "supabase";
 
   listQuarters(): Promise<Quarter[]>;
+  /** Staff calibration: place a quarter's box on the real map. */
+  setQuarterGeometry(input: {
+    quarterId: string;
+    center: [number, number];
+    polygon: [number, number][];
+  }): Promise<Quarter>;
   listStreets(): Promise<Street[]>;
   getStreet(id: string): Promise<Street | null>;
   /** Creates the row for a canonical street the first time it is voted on. */

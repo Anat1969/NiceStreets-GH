@@ -19,6 +19,8 @@ import { buildDemoVotes } from "./demo";
 
 interface Snapshot {
   version: 1;
+  /** Quarter boxes the staff placed on the real map, by quarter id. */
+  quarterGeometry?: Record<string, { center: [number, number]; polygon: [number, number][] }>;
   streets: Street[];
   votes: Vote[];
   photos: Photo[];
@@ -94,7 +96,32 @@ export class LocalStore implements DataStore {
   readonly kind = "local" as const;
 
   async listQuarters(): Promise<Quarter[]> {
-    return QUARTERS.map((q) => ({ ...q }));
+    const snapshot = await withLock(load);
+    const placed = snapshot.quarterGeometry ?? {};
+    return QUARTERS.map((quarter) => {
+      const override = placed[quarter.id];
+      return override
+        ? { ...quarter, ...override, schematic: false }
+        : { ...quarter };
+    });
+  }
+
+  async setQuarterGeometry(input: {
+    quarterId: string;
+    center: [number, number];
+    polygon: [number, number][];
+  }): Promise<Quarter> {
+    return withLock(async () => {
+      const snapshot = await load();
+      const base = QUARTERS.find((q) => q.id === input.quarterId);
+      if (!base) throw new Error("QUARTER_NOT_FOUND");
+      snapshot.quarterGeometry = {
+        ...(snapshot.quarterGeometry ?? {}),
+        [input.quarterId]: { center: input.center, polygon: input.polygon },
+      };
+      await persist(snapshot);
+      return { ...base, center: input.center, polygon: input.polygon, schematic: false };
+    });
   }
 
   async listStreets(): Promise<Street[]> {

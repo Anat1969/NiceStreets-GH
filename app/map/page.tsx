@@ -2,18 +2,20 @@ import MapView from "@/components/MapView";
 import { CITY, QUARTERS } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { getStore } from "@/lib/store";
+import { isStaff } from "@/lib/session";
 import { Notice } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function MapPage() {
-  const [{ streetStats, quarterStats }, quarters] = await Promise.all([
+  const [{ streetStats, quarterStats }, quarters, staff] = await Promise.all([
     loadCityData(),
     // Fall back to the configured quarters so the map still draws when the
     // database is unreachable.
     getStore()
       .listQuarters()
       .catch(() => QUARTERS),
+    isStaff(),
   ]);
 
   return (
@@ -25,6 +27,7 @@ export default async function MapPage() {
       <MapView
         center={CITY.center}
         zoom={CITY.zoom}
+        canCalibrate={staff}
         quarters={quarters.map((q) => {
           const stats = quarterStats.find((s) => s.quarter.id === q.id);
           return {
@@ -38,20 +41,19 @@ export default async function MapPage() {
           };
         })}
         streets={streetStats
-          .filter((s) => s.street.line && s.street.line.length > 1 && s.street.quarterId)
+          .filter((s) => s.street.quarterId && s.votes > 0)
           .map((s) => ({
             id: s.street.id,
             name: s.street.name,
             quarterId: s.street.quarterId as string,
-            line: s.street.line as [number, number][],
             votes: s.votes,
             avgScore: s.avgScore,
           }))}
       />
       <div className="mt-4">
         <Notice>
-          מפת הרקע מבוססת OpenStreetMap. גבולות הרובעים וקווי הרחובות שמוצגים מעליה
-          הם סכמטיים ונועדו להדגמה בלבד, עד לטעינת שכבות ה־GIS העירוניות.
+          מפת הרקע מבוססת OpenStreetMap. גבולות הרובעים הם ריבועים שהצוות ממקם על
+          המפה, עד לטעינת שכבות ה־GIS העירוניות.
         </Notice>
       </div>
     </>

@@ -113,6 +113,27 @@ export class SupabaseStore implements DataStore {
     }));
   }
 
+  async setQuarterGeometry(input: {
+    quarterId: string;
+    center: [number, number];
+    polygon: [number, number][];
+  }): Promise<Quarter> {
+    const { data, error } = await this.db
+      .from("quarters")
+      .update({ center: input.center, polygon: input.polygon, schematic: false })
+      .eq("id", input.quarterId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return {
+      id: data.id,
+      name: data.name,
+      polygon: data.polygon ?? [],
+      center: data.center ?? [0, 0],
+      schematic: Boolean(data.schematic),
+    };
+  }
+
   async listStreets(): Promise<Street[]> {
     return (await this.rows("streets")).map(toStreet);
   }
