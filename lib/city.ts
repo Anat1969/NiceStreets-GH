@@ -11,6 +11,8 @@
  * Use `npm run import:gis` (scripts/import-gis.mjs) once the layers exist.
  */
 
+import { STREET_QUARTERS } from "./street-quarters.generated";
+
 export type Scale = 1 | 2 | 3 | 4 | 5;
 
 export type QuestionKey =
@@ -137,10 +139,22 @@ export interface StreetAssignment {
   line?: [number, number][];
 }
 
-export const STREET_ASSIGNMENTS: Record<string, StreetAssignment> = {
-  // Filled by staff. Left empty on purpose: assigning a quarter without the
-  // municipal source would be a guess presented as fact.
-};
+/**
+ * Built from the municipal street→quarter list
+ * (data/ashdod-street-quarters.csv), matched against the national street
+ * registry by scripts/assign-quarters.mjs. A name the registry does not
+ * recognise is left out rather than guessed: the script reports it, and the
+ * street simply shows "טרם שויך רובע" until someone decides.
+ *
+ * Street type (typology) is not in that list and stays unassigned.
+ */
+export const STREET_ASSIGNMENTS: Record<string, StreetAssignment> =
+  Object.fromEntries(
+    Object.entries(STREET_QUARTERS).map(([code, quarterId]) => [
+      code,
+      { quarterId } as StreetAssignment,
+    ]),
+  );
 
 export const CITY = {
   id: "ashdod",
@@ -515,6 +529,16 @@ function ring(lon: number, lat: number, w = 0.016, h = 0.013): [number, number][
   ];
 }
 
+/**
+ * Besides the numbered quarters, the municipal list classifies streets into
+ * areas that are not quarters: the city centre, the southern CBD, the marina,
+ * the industrial zones, the port hinterland, and the boulevards that cross the
+ * city. They are kept as areas so no street loses its classification.
+ *
+ * The crossing boulevards are not a place: a street there runs through several
+ * quarters. Its box on the map is schematic like all the rest, until the
+ * municipal GIS lines replace it.
+ */
 const QUARTER_SEED: { id: string; name: string; center: [number, number] }[] = [
   { id: "q-a", name: "רובע א'", center: [34.6402, 31.8082] },
   { id: "q-b", name: "רובע ב'", center: [34.6556, 31.8085] },
@@ -534,6 +558,14 @@ const QUARTER_SEED: { id: string; name: string; center: [number, number] }[] = [
   { id: "q-p", name: "רובע ט\"ז", center: [34.6860, 31.7826] },
   { id: "q-q", name: "רובע י\"ז", center: [34.6860, 31.7955] },
   { id: "q-marina", name: "אזור המרינה והחוף", center: [34.6255, 31.7955] },
+  { id: "q-city", name: "הקריה (הסיטי)", center: [34.6255, 31.8082] },
+  { id: "q-cbd-south", name: "מע\"ר דרום", center: [34.6255, 31.7826] },
+  { id: "q-main-axis", name: "צירים ראשיים חוצי עיר", center: [34.6255, 31.7697] },
+  { id: "q-port", name: "עורף הנמל", center: [34.6255, 31.8211] },
+  { id: "q-ind-north", name: "אזור תעשייה צפוני", center: [34.6404, 31.8211] },
+  { id: "q-ind-halutzim", name: "אזור תעשייה קריית חלוצים", center: [34.6556, 31.8211] },
+  { id: "q-ind-light", name: "אזור תעשייה קלה", center: [34.6706, 31.8211] },
+  { id: "q-ind-ad-halom", name: "אזור תעשייה עד הלום", center: [34.6860, 31.7697] },
 ];
 
 export const QUARTERS: Quarter[] = QUARTER_SEED.map((q) => ({
