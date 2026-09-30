@@ -429,7 +429,7 @@ export class LocalStore implements DataStore {
       if (snapshot.votes.some((v) => v.isDemo)) return 0;
       const votes = buildDemoVotes(snapshot.streets);
       snapshot.votes.push(...votes);
-      const statusKeys: StatusKey[] = ["under_review", "in_progress", "done"];
+      const statusKeys: StatusKey[] = ["under_review", "done"];
       snapshot.streets.slice(0, 8).forEach((street, index) => {
         if (snapshot.statuses.some((s) => s.streetId === street.id)) return;
         snapshot.statuses.push({

@@ -24,7 +24,8 @@ export function streetsFoundLabel(n: number): string {
   return `נמצאו ${n.toLocaleString("he-IL")} ${n === 1 ? "רחוב" : "רחובות"}`;
 }
 
-/** ציון ממוצע, תמיד בספרה אחת אחרי הנקודה. מקף כשאין ציון. */
-export function scoreLabel(score: number | null): string {
-  return score === null ? "—" : score.toFixed(1);
-}
+/**
+ * ציון ממוצע בסולם המוצג (0–10), בספרה אחת אחרי הנקודה.
+ * ההמרה עצמה ב-lib/score.ts, יחד עם ההסבר למה הסולם השמור נשאר 1–5.
+ */
+export { scoreOutOfTen as scoreLabel } from "./score";

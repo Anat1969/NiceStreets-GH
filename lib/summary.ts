@@ -1,6 +1,7 @@
 import { QUESTIONS, QUESTION_MAP } from "./city";
 import type { QuestionKey } from "./city";
 import type { StreetStats } from "./types";
+import { scoreOutOfTen } from "./score";
 
 /**
  * מה התושבים חושבים על הרחוב, במשפטים.
@@ -35,7 +36,7 @@ export function summarise(stats: StreetStats, reasonCount: number): string {
   parts.push(
     avg === null
       ? `${noun} את הרחוב.`
-      : `${noun} את הרחוב, והציון הממוצע שלו הוא ${avg.toFixed(1)} מתוך 5${verdict(avg)}.`,
+      : `${noun} את הרחוב, והציון הממוצע שלו הוא ${scoreOutOfTen(avg)} מתוך 10${verdict(avg)}.`,
   );
 
   // החזק והחלש ביותר, רק כשיש באמת פער ביניהם.
@@ -50,12 +51,12 @@ export function summarise(stats: StreetStats, reasonCount: number): string {
     const worst = sorted[sorted.length - 1];
     if (best.value - worst.value >= 0.5) {
       parts.push(
-        `הכי חזק אצלו: ${QUESTION_MAP[best.key].label} (${best.value.toFixed(1)}). ` +
-          `הכי חלש: ${QUESTION_MAP[worst.key].label} (${worst.value.toFixed(1)}).`,
+        `הכי חזק אצלו: ${QUESTION_MAP[best.key].label} (${scoreOutOfTen(best.value)}). ` +
+          `הכי חלש: ${QUESTION_MAP[worst.key].label} (${scoreOutOfTen(worst.value)}).`,
       );
     } else {
       parts.push(
-        `הדירוגים אחידים למדי: כל השאלות נעות סביב ${best.value.toFixed(1)}, בלי חוזקה או חולשה בולטת.`,
+        `הדירוגים אחידים למדי: כל השאלות נעות סביב ${scoreOutOfTen(best.value)}, בלי חוזקה או חולשה בולטת.`,
       );
     }
   }

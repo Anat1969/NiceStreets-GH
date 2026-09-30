@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { STATUS_MAP } from "@/lib/city";
+import { scoreOutOfTen } from "@/lib/score";
 import type { StatusKey } from "@/lib/city";
 
 export function Section({
@@ -85,13 +86,13 @@ export function ScoreBar({
           {label}
         </span>
         <span className="tabular-nums font-semibold text-ink">
-          {value === null ? "אין נתונים" : value.toFixed(1)}
+          {value === null ? "אין נתונים" : scoreOutOfTen(value)}
         </span>
       </div>
       <div
         className="h-2 w-full rounded-full bg-accent-soft"
         role="img"
-        aria-label={`${label}: ${value === null ? "אין נתונים" : `${value.toFixed(1)} מתוך ${max}`}`}
+        aria-label={`${label}: ${value === null ? "אין נתונים" : `${scoreOutOfTen(value)} מתוך 10`}`}
       >
         <div
           className={`h-2 rounded-full ${muted ? "bg-ink-faint" : "bg-accent"}`}

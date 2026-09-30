@@ -306,19 +306,32 @@ export default async function AdminPage({
         </Section>
       ) : null}
 
-      <Section title="ייצוא">
-        <div className="flex gap-2">
+      {/*
+        שם הפורמט לבדו ("CSV") אינו אומר למי שאינו מתכנת מה ייפתח אצלו.
+        קודם מה זה בעברית, ואחר כך הפורמט בקטן בסוגריים — מי שיודע מה
+        הוא מחפש עדיין מוצא אותו.
+      */}
+      <Section title="ייצוא נתונים">
+        <div className="grid gap-2">
           <a
             href="/api/export/streets.csv"
-            className="flex-1 rounded-[12px] border border-line bg-surface px-3 py-3 text-center text-[15px] text-ink"
+            className="pressable rounded-[12px] border border-line bg-surface px-4 py-3 text-[15px] text-ink"
           >
-            CSV
+            <span className="block font-medium">טבלה לאקסל</span>
+            <span className="block text-[12px] text-ink-faint">
+              כל הרחובות, הקולות והציונים, שורה לכל רחוב. נפתח באקסל, בגוגל
+              שיטס ובנאמברס (CSV)
+            </span>
           </a>
           <a
             href="/api/export/streets.geojson"
-            className="flex-1 rounded-[12px] border border-line bg-surface px-3 py-3 text-center text-[15px] text-ink"
+            className="pressable rounded-[12px] border border-line bg-surface px-4 py-3 text-[15px] text-ink"
           >
-            GeoJSON
+            <span className="block font-medium">שכבת מפה למערכת ה-GIS</span>
+            <span className="block text-[12px] text-ink-faint">
+              אותם נתונים עם המיקום של כל רחוב. נפתח ב-QGIS, ב-ArcGIS ובמערכות
+              מפות אחרות (GeoJSON)
+            </span>
           </a>
         </div>
       </Section>

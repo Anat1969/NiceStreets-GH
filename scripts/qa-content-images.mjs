@@ -283,7 +283,7 @@ const admin = await ctx(ADMIN_CODE);
   const hasLeaders = !body.includes("עדיין אין קולות");
   if (hasLeaders) {
     ok("מיקום ברשימת המובילים מסומן במספר ונקודה", /1\./.test(body));
-    ok("למוביל מוצג ציון ממוצע", body.includes("ציון ממוצע"));
+    ok("למוביל מוצג ציון בסולם 10", body.includes("ציון מ-10"));
   } else {
     console.log("SKIP  המובילים — אין קולות במסד המקומי");
   }
@@ -343,6 +343,12 @@ const admin = await ctx(ADMIN_CODE);
     (await p.locator(".maplibregl-marker").count()) > 0,
     `${await p.locator(".maplibregl-marker").count()} סימנים`,
   );
+
+  // סולם הציון המוצג הוא 0–10 בכל מסך.
+  await p.goto(`${BASE}/street/s-0`);
+  const streetBody = await p.locator("body").innerText();
+  ok("כרטיס רחוב — הציון מתוך 10", streetBody.includes("מתוך 10"));
+  ok("כרטיס רחוב — אין יותר 'מתוך 5'", !streetBody.includes("מתוך 5"));
 
   await p.goto(`${BASE}/learn`);
   const learn = await p.locator("body").innerText();

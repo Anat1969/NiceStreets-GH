@@ -40,41 +40,36 @@ export default function PhotoDecision({
   }
 
   /*
-   * פס דק מתחת לתמונה, לא כפתורים בגודל מלא שמשתלטים עליה. התמונה היא
-   * מה שבודקים; ההכרעה היא פעולה קטנה שנעשית תוך כדי. הציבור אינו רואה
-   * את הרכיב הזה כלל — הוא מוצג רק לצוות ולמנהלת.
+   * שבב קטן ושקוף למחצה שיושב על התמונה, לא פס שתופס שורה מתחתיה.
+   * התמונה היא מה שבודקים; ההכרעה היא פעולה קטנה שנעשית תוך כדי
+   * הסתכלות עליה. הציבור אינו רואה את הרכיב הזה כלל.
    */
   return (
-    <div className="border-t border-line bg-paper px-2 py-1">
-      <div className="flex items-center gap-2 text-[12px]">
-        <span className="flex-1 text-ink-faint">
-          {status === "approved"
-            ? "מאושרת"
-            : status === "rejected"
-              ? "נדחתה"
-              : "ממתינה"}
-        </span>
-        <button
-          type="button"
-          disabled={busy || status === "approved"}
-          onClick={() => decide("approved")}
-          className="min-h-0 rounded-[6px] px-2 py-1 text-[12px] text-accent underline underline-offset-2 disabled:no-underline disabled:opacity-35"
-        >
-          אישור
-        </button>
-        <button
-          type="button"
-          disabled={busy || status === "rejected"}
-          onClick={() => decide("rejected")}
-          className="min-h-0 rounded-[6px] px-2 py-1 text-[12px] text-warm underline underline-offset-2 disabled:no-underline disabled:opacity-35"
-        >
-          דחייה
-        </button>
-      </div>
+    <div className="flex items-center gap-1 rounded-full bg-ink/70 px-1.5 py-1 backdrop-blur-sm">
+      <span className="px-1 text-[11px] text-white/85">
+        {status === "approved" ? "מאושרת" : status === "rejected" ? "נדחתה" : "ממתינה"}
+      </span>
+      <button
+        type="button"
+        disabled={busy || status === "approved"}
+        onClick={() => decide("approved")}
+        className="min-h-0 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-ink disabled:opacity-40"
+      >
+        אישור
+      </button>
+      <button
+        type="button"
+        disabled={busy || status === "rejected"}
+        onClick={() => decide("rejected")}
+        className="min-h-0 rounded-full border border-white/50 px-2 py-1 text-[11px] text-white disabled:opacity-40"
+      >
+        דחייה
+      </button>
+
       {error ? (
-        <p role="alert" className="mt-1 text-[12px] text-warm">
+        <span role="alert" className="px-1 text-[11px] text-white">
           {error}
-        </p>
+        </span>
       ) : null}
     </div>
   );

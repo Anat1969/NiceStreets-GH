@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { STATUS_MAP } from "@/lib/city";
 import type { StatusKey, TypologyKey } from "@/lib/city";
-import { streetsFoundLabel, votesLabel } from "@/lib/hebrew";
+import { streetsFoundLabel, votesLabel, scoreLabel } from "@/lib/hebrew";
 import {
   DEFAULT_FILTER,
   applyStreetFilter,
@@ -37,7 +37,7 @@ interface QuarterRow {
 
 const SORT_LABELS: { key: SortField; label: string }[] = [
   { key: "votes", label: "מספר קולות" },
-  { key: "avgScore", label: "ציון ממוצע" },
+  { key: "avgScore", label: "ציון ממוצע (0–10)" },
   { key: "photos", label: "מספר תמונות" },
   { key: "name", label: "שם הרחוב" },
 ];
@@ -265,7 +265,7 @@ export default function StreetsTable({
                       </th>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.votes}</td>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">
-                        {row.avgScore === null ? "—" : row.avgScore.toFixed(1)}
+                        {scoreLabel(row.avgScore)}
                       </td>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.photos}</td>
                       <td className="px-2 py-2 text-[13px] text-ink-soft">
@@ -311,7 +311,7 @@ export default function StreetsTable({
                       </th>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.votes}</td>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">
-                        {row.avgScore === null ? "—" : row.avgScore.toFixed(1)}
+                        {scoreLabel(row.avgScore)}
                       </td>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.streets}</td>
                     </tr>

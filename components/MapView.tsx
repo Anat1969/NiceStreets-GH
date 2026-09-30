@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
+import { scoreColorTen, scoreOutOfTen, toTen } from "@/lib/score";
 
 interface QuarterPoint {
   id: string;
@@ -60,16 +61,14 @@ const BLANK_STYLE: maplibregl.StyleSpecification = {
 };
 
 /**
- * סולם רצוף בחמישה שלבים לציון הממוצע, באותם צבעים של סולם 1–5 באפליקציה,
- * כדי שמשמעות הצבע תהיה זהה בכל מסך.
+ * צבע הציון — מהסולם המשותף ב-lib/score.ts, על רצף ולא במדרגות.
+ *
+ * הגרסה הקודמת עיגלה את הציון למספר שלם, ולכן כל שנים־עשר הרחובות
+ * שנעו בין 2.63 ל-3.33 קיבלו בדיוק את אותו צבע. הצבע קידד אפס מידע,
+ * וזה מה שנראה על המסך.
  */
-const SCORE_COLORS = ["#e0a99c", "#eec79a", "#e3d98f", "#b3d596", "#8ec7a4"];
-const NO_SCORE_COLOR = "#c3c8cf";
-
 function scoreColor(score: number | null): string {
-  if (score === null) return NO_SCORE_COLOR;
-  const step = Math.min(4, Math.max(0, Math.round(score) - 1));
-  return SCORE_COLORS[step];
+  return scoreColorTen(score === null ? null : toTen(score));
 }
 
 /**
@@ -110,6 +109,11 @@ export default function MapView({
    * ומי שלא ידע להתקרב מספיק לא ראה רחובות מעולם.
    */
   const [mode, setMode] = useState<"quarter" | "street">("quarter");
+  /*
+   * הרובע שנבחר בתצוגת רובעים. בחירה בו מתקרבת אליו ומוסיפה את
+   * הרחובות שבתוכו — במקום שכל רחובות העיר יצוירו כל הזמן.
+   */
+  const [focusQuarter, setFocusQuarter] = useState<string | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState<string | null>(null);
   const [selectedStreet, setSelectedStreet] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
@@ -158,6 +162,13 @@ export default function MapView({
     [quarters],
   );
   const approxCount = approx.length;
+
+  const focusedQuarter = focusQuarter
+    ? (quarters.find((q) => q.id === focusQuarter) ?? null)
+    : null;
+  const focusedStreetCount = focusQuarter
+    ? placedStreets.filter((s) => s.quarterId === focusQuarter && s.votes > 0).length
+    : 0;
   const approxNames = approx.map((q) => q.name).join(" · ");
 
   const saveQuarter = useCallback(
@@ -241,7 +252,11 @@ export default function MapView({
       dragRotate: false,
     });
     map.current = instance;
-    instance.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-left");
+    // למטה־שמאל: הפס העליון של הרובע שבמוקד תופס את הפינה העליונה.
+    instance.addControl(
+      new maplibregl.NavigationControl({ showCompass: false }),
+      "bottom-left",
+    );
     instance.touchZoomRotate.disableRotation();
 
     let usedFallback = false;
@@ -281,29 +296,25 @@ export default function MapView({
         id: "quarter-circles",
         type: "circle",
         source: "quarters",
+        /*
+          נקודה שקטה בלבד: "המקום הזה קיים ומוקם". המידע עצמו — כמה
+          קולות ומה הציון — נמצא בדיסקית שמעליה, ואין טעם לקודד אותו
+          פעמיים בשני אלמנטים שמתחרים זה בזה.
+        */
         paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["sqrt", ["get", "votes"]],
-            0, 10,
-            Math.sqrt(maxQuarterVotes), 34,
-          ],
-          "circle-color": ["get", "color"],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#16202b",
-          "circle-stroke-opacity": 0.9,
+          "circle-radius": 4,
+          "circle-color": "#8a97a5",
+          "circle-opacity": 0.55,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-opacity": 0.8,
         },
       });
 
       instance.on("click", "quarter-circles", (event) => {
         if (calibratingRef.current) return;
         const id = event.features?.[0]?.properties?.id as string | undefined;
-        if (id) {
-          setSelectedQuarter(id);
-          setSelectedStreet(null);
-        }
+        if (id) selectQuarter(id);
       });
       instance.on("mouseenter", "quarter-circles", () => {
         if (!calibratingRef.current) instance.getCanvas().style.cursor = "pointer";
@@ -382,17 +393,12 @@ export default function MapView({
         type: "circle",
         source: "street-points",
         paint: {
-          "circle-radius": [
-            "interpolate",
-            ["linear"],
-            ["sqrt", ["get", "votes"]],
-            0, 9,
-            Math.sqrt(maxStreetVotes), 26,
-          ],
-          "circle-color": ["get", "color"],
-          "circle-opacity": 0.85,
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#16202b",
+          "circle-radius": 4,
+          "circle-color": "#8a97a5",
+          "circle-opacity": 0.55,
+          "circle-stroke-width": 1,
+          "circle-stroke-color": "#ffffff",
+          "circle-stroke-opacity": 0.8,
         },
       });
 
@@ -416,62 +422,117 @@ export default function MapView({
      * תוויות הרובעים הן HTML ולא גליפים של המפה: הדפדפן מסדר עברית נכון
      * בעצמו, והתוויות שורדות גם רקע בלי שרת גליפים.
      */
+    /**
+     * סימן אחד שנושא את כל המידע.
+     *
+     * קודם לכן היו שני אלמנטים על כל מקום: עיגול שצבעו הציון וגודלו
+     * מספר הקולות, ולידו אליפסה עם השם והמספר. שניים כאלה על 22 מקומות
+     * כיסו את העיר ולא אמרו יותר מאחד. כאן יש דיסקית אחת:
+     *   הקוטר  = מספר הקולות (שורש, כדי שהיחס ייראה ולא יתפוצץ)
+     *   הצבע   = הציון הממוצע, על רצף
+     *   המספר בתוכה = מספר הקולות, כדי שלא צריך להקיש כדי לדעת
+     *   השם מתחתיה = טקסט עם הילה לבנה, בלי מסגרת ובלי רקע
+     */
+    function selectQuarter(quarterId: string) {
+      /*
+       * הקשה על רובע מתקרבת אליו ומוסיפה את רחובותיו למפה. גיליון
+       * שהיה נפתח כאן היה מכסה בדיוק את מה שהרגע נחשף.
+       */
+      setSelectedQuarter(null);
+      setSelectedStreet(null);
+      setFocusQuarter(quarterId);
+      const quarter = quarters.find((q) => q.id === quarterId);
+      if (quarter) {
+        instance.flyTo({ center: quarter.center, zoom: 15, duration: 700 });
+      }
+    }
+
     function addLabels() {
       labels.current.forEach((m) => m.remove());
-      /*
-       * תווית לכל נקודה הפכה את המפה לערמת בועות: 22 רובעים, שרובם בלי
-       * קולות, כיסו זה את זה ואת העיר. תווית מופיעה רק כשיש מה לספור;
-       * מקום בלי קולות נשאר עיגול שקט, ושמו מופיע בהקשה עליו.
-       */
+      const focusedStreets =
+        mode === "quarter" && focusQuarter
+          ? placedStreets.filter((s) => s.quarterId === focusQuarter && s.votes > 0)
+          : [];
+
       const items =
         mode === "quarter"
-          ? quarters
-              .filter((q) => q.votes > 0)
-              .map((q) => ({
-              id: q.id,
-              name: q.name,
-              votes: q.votes,
-              at: q.center,
-              pick: () => {
-                setSelectedQuarter(q.id);
-                setSelectedStreet(null);
-              },
-            }))
+          ? [
+              ...quarters
+                .filter((q) => q.votes > 0)
+                .map((q) => ({
+                  id: q.id,
+                  name: q.name,
+                  votes: q.votes,
+                  avgScore: q.avgScore,
+                  at: q.center,
+                  pick: () => selectQuarter(q.id),
+                })),
+              ...focusedStreets.map((s) => ({
+                id: s.id,
+                name: s.name,
+                votes: s.votes,
+                avgScore: s.avgScore,
+                at: streetPoint(s),
+                pick: () => {
+                  setSelectedStreet(s.id);
+                  setSelectedQuarter(null);
+                },
+              })),
+            ]
           : placedStreets
               .filter((s) => s.votes > 0)
               .map((s) => ({
-              id: s.id,
-              name: s.name,
-              votes: s.votes,
-              at: streetPoint(s),
-              pick: () => {
-                setSelectedStreet(s.id);
-                setSelectedQuarter(null);
-              },
-            }));
+                id: s.id,
+                name: s.name,
+                votes: s.votes,
+                avgScore: s.avgScore,
+                at: streetPoint(s),
+                pick: () => {
+                  setSelectedStreet(s.id);
+                  setSelectedQuarter(null);
+                },
+              }));
+
+      const maxVotes = Math.max(1, ...items.map((i) => i.votes));
 
       labels.current = items.map((item) => {
+        // קוטר בין 30 ל-58 פיקסלים, לפי שורש מספר הקולות.
+        const t = Math.sqrt(item.votes) / Math.sqrt(maxVotes);
+        const size = Math.round(30 + t * 28);
+        const fill = scoreColor(item.avgScore);
+
         const el = document.createElement("button");
         el.type = "button";
         el.dir = "rtl";
-        /*
-         * השם והמספר יחד, על הנקודה עצמה. מפה שמראה עיגול בלי מספר
-         * מחייבת להקיש כדי לדעת כמה — וזה בדיוק מה שהמפה אמורה לחסוך.
-         */
-        el.className =
-          "flex items-center gap-1.5 rounded-full border border-line bg-surface/95 px-2 py-[3px] text-[12px] text-ink shadow-sm";
+        el.className = "map-mark";
+        el.setAttribute(
+          "aria-label",
+          `${item.name}, ${votesLabel(item.votes)}${
+            item.avgScore === null ? "" : `, ציון ${scoreOutOfTen(item.avgScore)} מתוך 10`
+          }`,
+        );
+
+        const disc = document.createElement("span");
+        disc.className = "map-mark-disc";
+        disc.style.width = `${size}px`;
+        disc.style.height = `${size}px`;
+        disc.style.background = fill;
+        disc.style.fontSize = `${size >= 46 ? 15 : 13}px`;
+        disc.textContent = String(item.votes);
+        disc.setAttribute("aria-hidden", "true");
+
         const name = document.createElement("span");
+        name.className = "map-mark-name";
         name.textContent = item.name;
-        const count = document.createElement("span");
-        count.textContent = String(item.votes);
-        count.className = "font-bold tabular-nums text-accent";
-        el.append(name, count);
-        el.setAttribute("aria-label", `${item.name}, ${votesLabel(item.votes)}`);
+        name.setAttribute("aria-hidden", "true");
+
+        el.append(disc, name);
         el.addEventListener("click", (event) => {
           event.stopPropagation();
           if (!calibratingRef.current) item.pick();
         });
-        return new maplibregl.Marker({ element: el, offset: [0, -26] })
+
+        return new maplibregl.Marker({ element: el })
           .setLngLat(item.at)
           .addTo(instance);
       });
@@ -479,6 +540,17 @@ export default function MapView({
 
     /** המפה נפתחת על מה שיש עליה, ולא על מרכז קבוע שאולי ריק. */
     function fitToData() {
+      /*
+       * כשרובע נבחר, המפה כבר ממוקדת בו — התאמה מחדש לכל העיר הייתה
+       * מבטלת בדיוק את מה שהמשתמשת ביקשה בלחיצה.
+       */
+      if (focusQuarter) {
+        const focused = quarters.find((q) => q.id === focusQuarter);
+        if (focused) {
+          instance.jumpTo({ center: focused.center, zoom: 15 });
+          return;
+        }
+      }
       const points =
         mode === "quarter"
           ? quarters.map((q) => q.center)
@@ -538,6 +610,7 @@ export default function MapView({
     center,
     zoom,
     mode,
+    focusQuarter,
     quarters,
     linedStreets,
     placedStreets,
@@ -579,6 +652,7 @@ export default function MapView({
               setMode(value);
               setSelectedQuarter(null);
               setSelectedStreet(null);
+              setFocusQuarter(null);
             }}
             className={`pressable flex-1 rounded-[12px] px-3 py-2 text-[14px] ${
               mode === value
@@ -624,12 +698,29 @@ export default function MapView({
           </summary>
           <div className="border-t border-line px-3 py-2 text-[13px] text-ink-soft">
             <p>
-              עיגול = {mode === "quarter" ? "רובע" : "רחוב"}. הגודל לפי מספר
-              הקולות, הצבע לפי הציון הממוצע. המספר שעל התווית הוא מספר הקולות.
+              כל סימן הוא {mode === "quarter" ? "רובע" : "רחוב"}, ואומר שלושה
+              דברים בבת אחת: <b>הגודל</b> הוא מספר הקולות, <b>המספר שבתוכו</b>
+              הוא אותו מספר בדיוק, ו<b>הצבע</b> הוא הציון הממוצע.
             </p>
-            <p className="mt-1">
-              הצבעים, מהנמוך לגבוה: גרוע · חלש · בינוני · טוב · מצוין. אפור = אין עדיין ציון.
+            <p className="mt-1 flex flex-wrap items-center gap-1">
+              <span>הצבע, מ-0 עד 10:</span>
+              {[2, 4, 6, 8, 10].map((v) => (
+                <span key={v} className="flex items-center gap-1">
+                  <span
+                    className="inline-block h-3 w-3 rounded-full border border-line"
+                    style={{ background: scoreColorTen(v) }}
+                    aria-hidden="true"
+                  />
+                  <span className="tabular-nums">{v}</span>
+                </span>
+              ))}
+              <span className="text-ink-faint">· אפור = אין עדיין ציון</span>
             </p>
+            {mode === "quarter" ? (
+              <p className="mt-1">
+                הקשה על רובע מתקרבת אליו ומוסיפה את הרחובות שבתוכו.
+              </p>
+            ) : null}
             <p className="mt-1 text-ink-faint">
               המיקומים נשלפו מ-OpenStreetMap לפי שם הרחוב או הרובע, ואינם שכבת
               ה-GIS העירונית. רחוב מסומן בנקודה אחת, לא בקו לכל אורכו.
@@ -652,6 +743,36 @@ export default function MapView({
           </div>
         </details>
 
+        {/*
+          פס דק בראש המפה כשרובע במוקד: אומר איפה אנחנו ומחזיר החוצה,
+          בלי לכסות את הרחובות שהרגע נחשפו.
+        */}
+        {focusedQuarter ? (
+          <div className="map-focus-bar card">
+            <span className="text-[14px] font-semibold text-ink">
+              {focusedQuarter.name}
+            </span>
+            <span className="text-[13px] text-ink-faint">
+              {focusedStreetCount === 0
+                ? "אין בו רחובות מדורגים"
+                : `${focusedStreetCount} ${
+                    focusedStreetCount === 1 ? "רחוב מדורג" : "רחובות מדורגים"
+                  }`}
+            </span>
+            <button
+              type="button"
+              onClick={() => {
+                setFocusQuarter(null);
+                setSelectedQuarter(null);
+                setSelectedStreet(null);
+              }}
+              className="pressable min-h-0 rounded-full border border-line px-3 py-1 text-[13px] text-ink"
+            >
+              חזרה לכל העיר
+            </button>
+          </div>
+        ) : null}
+
         {/* גיליון תחתון: נפתח מעל המפה ואינו מזיז אותה. */}
         {sheetOpen ? (
           <div className="map-sheet card" role="dialog" aria-label="פרטים">
@@ -664,7 +785,9 @@ export default function MapView({
                   {quarter
                     ? votesLabel(quarter.votes)
                     : `${votesLabel(street?.votes ?? 0)}${
-                        street?.avgScore != null ? ` · ${street.avgScore.toFixed(1)}` : ""
+                        street?.avgScore != null
+                          ? ` · ציון ${scoreOutOfTen(street.avgScore)} מתוך 10`
+                          : ""
                       }`}
                 </p>
               </div>
@@ -673,6 +796,7 @@ export default function MapView({
                 onClick={() => {
                   setSelectedQuarter(null);
                   setSelectedStreet(null);
+                  setFocusQuarter(null);
                 }}
                 className="min-h-0 rounded-[8px] border border-line px-3 py-1 text-[13px] text-ink"
               >
@@ -703,7 +827,7 @@ export default function MapView({
                         <span>{s.name}</span>
                         <span className="text-[14px] tabular-nums text-ink-faint">
                           {votesLabel(s.votes)}
-                          {s.avgScore === null ? "" : ` · ${s.avgScore.toFixed(1)}`}
+                          {s.avgScore === null ? "" : ` · ${scoreOutOfTen(s.avgScore)}`}
                         </span>
                       </Link>
                     </li>

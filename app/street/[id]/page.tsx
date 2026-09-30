@@ -50,13 +50,17 @@ export default async function StreetPage({
   if (!street) notFound();
 
   const [stats] = buildStreetStats([street], votes, photos, statuses, quarters);
-  const visiblePhotos = photos.filter((p) => isPublicPhoto(p) || staff);
+  const visiblePhotos = photos
+    .filter((p) => isPublicPhoto(p) || staff)
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   const reasons = votes
     .filter((v) => v.reason.trim().length > 0)
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 8);
   const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
   const summary = summarise(stats, reasons.length);
+  /* התמונה שפותחת את הדף: החדשה מבין המאושרות. */
+  const heroPhoto = visiblePhotos.filter(isPublicPhoto)[0] ?? null;
 
   /*
    * A stretch of a crossing boulevard carries its quarter inside the code
@@ -83,10 +87,35 @@ export default async function StreetPage({
 
       <DemoBanner demoVotes={stats.demoVotes} totalVotes={stats.votes} />
 
-      <h1 className="text-[26px] font-bold text-ink">{street.name}</h1>
-      <p className="mb-4 text-[14px] text-ink-soft">
-        {stats.quarterName} · {typology?.label ?? "טרם סווג"}
-      </p>
+      {/*
+        כותרת הרחוב היא התמונה שלו. השם יושב עליה על גרדיאנט שיוצא
+        מהמסגרת, ולכן קודם רואים את הרחוב ורק אחר כך קוראים עליו.
+        כשאין עדיין תמונה, נשארת כותרת טקסט רגילה ולא מסגרת ריקה.
+      */}
+      {heroPhoto ? (
+        <div className="relative mb-4 overflow-hidden rounded-[16px] border border-line">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={`/api/photos/${heroPhoto.id}`}
+            alt={`${street.name}, ${stats.quarterName}`}
+            className="aspect-[16/10] w-full object-cover"
+          />
+          <span className="photo-scrim" aria-hidden="true" />
+          <div className="absolute inset-x-0 bottom-0 p-4 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
+            <h1 className="text-[28px] font-bold leading-tight">{street.name}</h1>
+            <p className="text-[14px] opacity-95">
+              {stats.quarterName} · {typology?.label ?? "טרם סווג"}
+            </p>
+          </div>
+        </div>
+      ) : (
+        <>
+          <h1 className="text-[26px] font-bold text-ink">{street.name}</h1>
+          <p className="mb-4 text-[14px] text-ink-soft">
+            {stats.quarterName} · {typology?.label ?? "טרם סווג"}
+          </p>
+        </>
+      )}
 
       <div className="mb-4 flex gap-2">
         <div className="card flex-1 p-3 text-center">
@@ -101,7 +130,7 @@ export default async function StreetPage({
             {scoreLabel(stats.avgScore)}
           </div>
           <div className="text-[13px] font-medium text-ink">ציון ממוצע</div>
-          <div className="mt-1 text-[11px] text-ink-faint">מתוך 5</div>
+          <div className="mt-1 text-[11px] text-ink-faint">מתוך 10</div>
         </div>
         <div className="card flex-1 p-3 text-center">
           <div className="text-[24px] font-bold tabular-nums text-accent">
@@ -263,25 +292,39 @@ export default async function StreetPage({
             <p className="text-[14px] text-ink-soft">עדיין אין תמונות מאושרות לרחוב הזה.</p>
           </Card>
         ) : (
-          <ul className="grid grid-cols-2 gap-2">
-            {visiblePhotos.map((photo) => (
-              <li key={photo.id} className="overflow-hidden rounded-[12px] border border-line">
+          /*
+            תמונה ברוחב מלא, כמו כל מסגרת אחרת בעמוד, ולא שתיים בשורה
+            שנחתכות לריבועים. הכיתוב יושב על התמונה עם גרדיאנט שיוצא
+            מהמסגרת, וההכרעה של הצוות היא שבב קטן בפינה — היא לא
+            מתחרה בתמונה, וגם לא מכסה אותה.
+          */
+          <ul className="grid gap-3">
+            {visiblePhotos.map((photo, index) => (
+              <li
+                key={photo.id}
+                className="relative overflow-hidden rounded-[14px] border border-line"
+              >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={`/api/photos/${photo.id}`}
                   alt={`תמונה מהרחוב ${street.name}`}
-                  className="h-32 w-full object-cover"
+                  className="aspect-[16/10] w-full object-cover"
+                  loading={index === 0 ? undefined : "lazy"}
                 />
-                {/*
-                  הציבור רואה תמונה בלבד. הסטטוס וההכרעה הם ענייני הצוות,
-                  והם מוצגים כפס דק מתחת לתמונה ולא כשכבה שמשתלטת עליה.
-                */}
+                <span className="photo-scrim" aria-hidden="true" />
+                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
+                  <span className="text-[14px] font-medium text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                    {street.name}
+                  </span>
+                  {staff ? (
+                    <PhotoDecision photoId={photo.id} status={photo.status} />
+                  ) : null}
+                </div>
                 {staff && photo.source !== "resident" ? (
-                  <p className="border-t border-line px-2 py-1 text-[12px] text-ink-faint">
-                    {photo.source === "example" ? "דוגמה של האגף" : "בדיקה, לא מוצגת לציבור"}
-                  </p>
+                  <span className="absolute inset-inline-start-3 top-3 rounded-full bg-ink/70 px-2 py-[2px] text-[11px] text-white">
+                    {photo.source === "example" ? "דוגמה של האגף" : "בדיקה"}
+                  </span>
                 ) : null}
-                {staff ? <PhotoDecision photoId={photo.id} status={photo.status} /> : null}
               </li>
             ))}
           </ul>
@@ -299,7 +342,7 @@ export default async function StreetPage({
               <li key={vote.id} className="card p-3">
                 <p className="text-[15px] text-ink">{vote.reason}</p>
                 <p className="mt-1 text-[12px] text-ink-faint">
-                  ציון הקול: {voteScore(vote).toFixed(1)}
+                  ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
                 </p>
               </li>
             ))}

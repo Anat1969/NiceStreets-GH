@@ -460,7 +460,7 @@ export class SupabaseStore implements DataStore {
     const { data, error } = await this.db.from("votes").insert(votes).select("id");
     if (error) throw new Error(error.message);
 
-    const statusKeys: StatusKey[] = ["under_review", "in_progress", "done"];
+    const statusKeys: StatusKey[] = ["under_review", "done"];
     await this.db.from("street_status").upsert(
       streets.slice(0, 8).map((street, index) => ({
         street_id: street.id,

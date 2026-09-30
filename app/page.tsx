@@ -143,7 +143,7 @@ export default async function HomePage() {
                       <span className="block text-[19px] font-bold tabular-nums text-ink">
                         {scoreLabel(row.avgScore)}
                       </span>
-                      <span className="block text-[11px] text-ink-faint">ציון ממוצע</span>
+                      <span className="block text-[11px] text-ink-faint">ציון מ-10</span>
                     </span>
                   </span>
                 </Link>
