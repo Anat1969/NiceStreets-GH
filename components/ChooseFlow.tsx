@@ -355,7 +355,7 @@ export default function ChooseFlow({
                   */}
                   {question.criteria.length > 0 ? (
                     <details className="mb-2">
-                      <summary className="cursor-pointer list-none text-[13px] text-accent underline underline-offset-2">
+                      <summary className="inline-block cursor-pointer list-none py-1 text-[13px] text-accent underline underline-offset-2">
                         מה זה?
                       </summary>
                       <div className="mt-1 border-e-2 border-line pe-2">

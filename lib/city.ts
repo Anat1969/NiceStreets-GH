@@ -454,9 +454,13 @@ export const TYPOLOGIES: Typology[] = [
   },
 ];
 
+/*
+ * הצבעים נושאים טקסט לבן ב-13px, ולכן כל אחד חייב לעבור 4.5:1 מול לבן.
+ * "התקבל" ו"בבדיקה" היו 3.05 ו-3.01 והוכהו; שלושת האחרים עברו כפי שהם.
+ */
 export const STATUSES: { key: StatusKey; label: string; color: string }[] = [
-  { key: "received", label: "התקבל", color: "#8B94A3" },
-  { key: "under_review", label: "בבדיקה", color: "#C08A2E" },
+  { key: "received", label: "התקבל", color: "#667283" },
+  { key: "under_review", label: "בבדיקה", color: "#96690F" },
   { key: "planned", label: "מתוכנן", color: "#2E6FA3" },
   { key: "in_progress", label: "בביצוע", color: "#1F7A5C" },
   { key: "done", label: "הושלם", color: "#14603F" },
