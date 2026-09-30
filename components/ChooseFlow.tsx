@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { resizeImage } from "@/lib/image";
 import { normalizeStreetName } from "@/lib/street-name";
@@ -365,12 +366,12 @@ export default function ChooseFlow({
                             {criterion.text}
                           </p>
                         ))}
-                        <a
-                          href={`/learn?question=${question.key}`}
+                        <Link
+                          href="/learn/criteria"
                           className="inline-link text-[13px] text-accent underline underline-offset-2"
                         >
                           לעמוד הלימוד
-                        </a>
+                        </Link>
                       </div>
                     </details>
                   ) : null}

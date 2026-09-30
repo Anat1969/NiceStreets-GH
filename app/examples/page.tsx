@@ -6,6 +6,7 @@ import {
   FAMILY_MAP,
   TYPOLOGY_MAP,
   TYPOLOGIES,
+  criterionHref,
 } from "@/lib/city";
 import type { CriterionKey, TypologyKey } from "@/lib/city";
 import { Card, Notice } from "@/components/ui";
@@ -186,7 +187,7 @@ export default async function ExamplesPage({
                 <span key={key}>
                   {i > 0 ? " · " : ""}
                   <Link
-                    href={`/learn?criterion=${key}`}
+                    href={criterionHref(key)}
                     className="inline-link text-accent underline underline-offset-2"
                   >
                     {CRITERION_MAP[key].name}

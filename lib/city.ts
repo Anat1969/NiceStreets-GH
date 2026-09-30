@@ -407,6 +407,11 @@ export function criteriaForQuestion(questionKey: QuestionKey): Criterion[] {
   );
 }
 
+/** העמוד שבו הקריטריון נמצא, אחרי פירוק מסך הלימוד לעמודים נפרדים. */
+export function criterionHref(key: CriterionKey): string {
+  return `/learn/criteria/${CRITERION_MAP[key].familyKey}`;
+}
+
 /** Criteria the study names but the city has not yet assigned a source to. */
 export const OPEN_CRITERIA = CRITERIA.filter((c) => c.link.kind === "open");
 
