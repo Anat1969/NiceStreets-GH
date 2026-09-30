@@ -75,7 +75,12 @@ create table if not exists photos (
   status        text not null default 'pending'
                   check (status in ('pending','approved','rejected')),
   created_at    timestamptz not null default now(),
-  is_demo       boolean not null default false
+  is_demo       boolean not null default false,
+  -- resident: תושב העלה, מתפרסם רק אחרי אישור.
+  -- example:  המנהלת העלתה כדוגמה, מתפרסם מיד ומופיע בספריית הדוגמאות.
+  -- test:     בדיקה, נראה לצוות בלבד ונמחק עם נתוני ההדגמה.
+  source        text not null default 'resident'
+                  check (source in ('resident','example','test'))
 );
 
 create index if not exists photos_street_idx on photos (street_id, status);
@@ -212,13 +217,19 @@ drop policy if exists app_streets_insert on streets;
 create policy app_streets_insert on streets for insert to anon
   with check (verified = false);
 
-drop policy if exists app_photos_write on photos;
-create policy app_photos_write on photos for all to anon
-  using (true) with check (true);
+-- תושב: הוספה בלבד, ורק תמונה שממתינה לאישור וממקור resident. שינוי סטטוס
+-- ומחיקה אינם אפשריים דרך המפתח הציבורי — הם שמורים לשרת.
+drop policy if exists app_photos_insert_pending on photos;
+create policy app_photos_insert_pending on photos for insert to anon
+  with check (status = 'pending' and source = 'resident' and is_demo = false);
 
-drop policy if exists app_photo_blobs_write on photo_blobs;
-create policy app_photo_blobs_write on photo_blobs for all to anon
-  using (true) with check (true);
+drop policy if exists app_photos_read on photos;
+create policy app_photos_read on photos for select to anon
+  using (status = 'approved' and source in ('resident', 'example'));
+
+drop policy if exists app_photo_blobs_insert on photo_blobs;
+create policy app_photo_blobs_insert on photo_blobs for insert to anon
+  with check (true);
 
 drop policy if exists app_status_write on street_status;
 create policy app_status_write on street_status for all to anon
