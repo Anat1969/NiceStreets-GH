@@ -18,7 +18,7 @@ import {
   StatusBadge,
 } from "@/components/ui";
 import StatusEditor from "@/components/StatusEditor";
-import PhotoDecision from "@/components/PhotoDecision";
+import PhotoDecision, { PhotoStatusBadge } from "@/components/PhotoDecision";
 import StreetPhotoActions from "@/components/StreetPhotoActions";
 import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
 import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
@@ -73,6 +73,12 @@ export default async function StreetPage({
   const photoByVote = new Map(
     photos.filter(isPublicPhoto).map((p) => [p.voteId, p]),
   );
+
+  /*
+   * הקול שכל תמונה הגיעה איתו, לפי מזהה. כך כל תמונה בגלריה נושאת את
+   * הנימוק ואת הציון שנשלחו יחד איתה, ולא רק את שם הרחוב.
+   */
+  const voteById = new Map(votes.map((v) => [v.id, v]));
 
   /*
    * A stretch of a crossing boulevard carries its quarter inside the code
@@ -325,34 +331,60 @@ export default async function StreetPage({
             מתחרה בתמונה, וגם לא מכסה אותה.
           */
           <ul className="grid gap-3">
-            {visiblePhotos.map((photo, index) => (
-              <li
-                key={photo.id}
-                className="relative overflow-hidden rounded-[14px] border border-line"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={`/api/photos/${photo.id}`}
-                  alt={`תמונה מהרחוב ${street.name}`}
-                  className="aspect-[16/10] w-full object-cover"
-                  loading={index === 0 ? undefined : "lazy"}
-                />
-                <span className="photo-scrim" aria-hidden="true" />
-                <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 p-3">
-                  <span className="text-[14px] font-medium text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                    {street.name}
-                  </span>
-                  {staff ? (
-                    <PhotoDecision photoId={photo.id} status={photo.status} />
-                  ) : null}
-                </div>
-                {staff && photo.source !== "resident" ? (
-                  <span className="absolute inset-inline-start-3 top-3 rounded-full bg-ink/70 px-2 py-[2px] text-[11px] text-white">
-                    {photo.source === "example" ? "דוגמה של האגף" : "בדיקה"}
-                  </span>
-                ) : null}
-              </li>
-            ))}
+            {visiblePhotos.map((photo, index) => {
+              const vote = photo.voteId ? voteById.get(photo.voteId) : undefined;
+              const reason = vote?.reason?.trim();
+              return (
+                <li key={photo.id} className="card overflow-hidden">
+                  <div className="relative">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={`/api/photos/${photo.id}`}
+                      alt={`תמונה מהרחוב ${street.name}`}
+                      className="aspect-[16/10] w-full object-cover"
+                      loading={index === 0 ? undefined : "lazy"}
+                    />
+                    <span className="photo-scrim" aria-hidden="true" />
+                    <span className="absolute inset-x-0 bottom-0 p-3 text-[15px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
+                      {street.name}
+                    </span>
+                    {/* לצוות בלבד: מצב התמונה, כתווית אחת ברורה בפינה. */}
+                    {staff ? (
+                      <span className="absolute end-3 top-3">
+                        <PhotoStatusBadge status={photo.status} source={photo.source} />
+                      </span>
+                    ) : null}
+                  </div>
+
+                  {/*
+                    הנימוק שנשלח עם התמונה, בדיוק כמו בכרטיס של "מה
+                    התושבים כתבו": תמונה בלי המשפט שבא איתה מאבדת את מה
+                    שהתושב ניסה להגיד.
+                  */}
+                  <div className="p-3">
+                    {reason ? (
+                      <p className="text-[15px] text-ink">{reason}</p>
+                    ) : (
+                      <p className="text-[14px] text-ink-faint">
+                        התמונה הועלתה בלי נימוק.
+                      </p>
+                    )}
+                    {vote ? (
+                      <p className="mt-1 text-[12px] text-ink-faint">
+                        ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
+                      </p>
+                    ) : null}
+
+                    {/* ההכרעה יושבת על נייר, מתחת לתמונה, עם פעלים מפורשים. */}
+                    {staff ? (
+                      <div className="mt-3 border-t border-line pt-3">
+                        <PhotoDecision photoId={photo.id} status={photo.status} />
+                      </div>
+                    ) : null}
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Section>

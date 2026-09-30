@@ -344,6 +344,29 @@ const admin = await ctx(ADMIN_CODE);
     `${await p.locator(".maplibregl-marker").count()} סימנים`,
   );
 
+  // כל תמונה בגלריה נושאת את הנימוק ואת הציון שהגיעו איתה.
+  {
+    // הקשר המנהלת, ולא הצוות: בדיקת היציאה שלמעלה מנתקת את הצוות.
+    const g = await admin.newPage();
+    await g.goto(`${BASE}/street/s-0`);
+    await g.waitForTimeout(1200);
+    const t = await g.locator("body").innerText();
+    if (t.includes("עדיין אין תמונות מאושרות")) {
+      console.log("SKIP  גלריה — אין תמונות במסד המקומי");
+    } else {
+      ok("גלריה — לכל תמונה ציון הקול שלה", (t.match(/ציון הקול/g) || []).length > 0);
+      ok(
+        "גלריה — ההכרעה בפעלים מפורשים",
+        t.includes("לאשר לפרסום") || t.includes("מאושרת ✓"),
+      );
+      ok(
+        "גלריה — מצב התמונה כתווית",
+        t.includes("מאושרת ומוצגת") || t.includes("ממתינה לאישור") || t.includes("נדחתה"),
+      );
+    }
+    await g.close();
+  }
+
   // סולם הציון המוצג הוא 0–10 בכל מסך.
   await p.goto(`${BASE}/street/s-0`);
   const streetBody = await p.locator("body").innerText();

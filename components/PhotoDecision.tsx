@@ -2,7 +2,44 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import type { PhotoStatus } from "@/lib/types";
+import type { PhotoSource, PhotoStatus } from "@/lib/types";
+
+/**
+ * מצב התמונה, כתווית אחת שקוראים במבט.
+ *
+ * קודם לכן הופיעו זה לצד זה "מאושרת", "אישור" ו"דחייה" בשלושה שבבים
+ * דומים — ואי אפשר היה לדעת מה מהם מצב ומה מהם כפתור. כאן המצב הוא
+ * תווית עם צבע משלה, והפעולות הן כפתורים נפרדים מתחת לתמונה.
+ */
+const STATE = {
+  approved: { label: "מאושרת ומוצגת", className: "bg-[#14603F] text-white" },
+  pending: { label: "ממתינה לאישור", className: "bg-[#96690F] text-white" },
+  rejected: { label: "נדחתה", className: "bg-[#862f27] text-white" },
+} as const;
+
+export function PhotoStatusBadge({
+  status,
+  source,
+}: {
+  status: PhotoStatus;
+  source?: PhotoSource;
+}) {
+  const state = STATE[status];
+  return (
+    <span className="flex flex-col items-end gap-1">
+      <span
+        className={`rounded-full px-2.5 py-1 text-[12px] font-semibold shadow-sm ${state.className}`}
+      >
+        {state.label}
+      </span>
+      {source && source !== "resident" ? (
+        <span className="rounded-full bg-ink/75 px-2 py-[2px] text-[11px] text-white">
+          {source === "example" ? "דוגמה של האגף" : "בדיקה, לא לציבור"}
+        </span>
+      ) : null}
+    </span>
+  );
+}
 
 /**
  * Approve or reject a single photo, where the photo already is.
@@ -39,37 +76,43 @@ export default function PhotoDecision({
     setError(data.error ?? "העדכון נכשל.");
   }
 
-  /*
-   * שבב קטן ושקוף למחצה שיושב על התמונה, לא פס שתופס שורה מתחתיה.
-   * התמונה היא מה שבודקים; ההכרעה היא פעולה קטנה שנעשית תוך כדי
-   * הסתכלות עליה. הציבור אינו רואה את הרכיב הזה כלל.
-   */
   return (
-    <div className="flex items-center gap-1 rounded-full bg-ink/70 px-1.5 py-1 backdrop-blur-sm">
-      <span className="px-1 text-[11px] text-white/85">
-        {status === "approved" ? "מאושרת" : status === "rejected" ? "נדחתה" : "ממתינה"}
-      </span>
-      <button
-        type="button"
-        disabled={busy || status === "approved"}
-        onClick={() => decide("approved")}
-        className="min-h-0 rounded-full bg-white/90 px-2 py-1 text-[11px] font-medium text-ink disabled:opacity-40"
-      >
-        אישור
-      </button>
-      <button
-        type="button"
-        disabled={busy || status === "rejected"}
-        onClick={() => decide("rejected")}
-        className="min-h-0 rounded-full border border-white/50 px-2 py-1 text-[11px] text-white disabled:opacity-40"
-      >
-        דחייה
-      </button>
-
+    <div>
+      <p className="mb-2 text-[12px] font-semibold text-ink-faint">הכרעת הצוות</p>
+      <div className="flex gap-2">
+        {/*
+          פועל מפורש ולא שם עצם: "לאשר לפרסום" אומר מה יקרה בלחיצה,
+          בעוד "אישור" אפשר לקרוא גם כשם של מצב. הכפתור של הפעולה
+          שכבר בוצעה מושבת ומסומן, כך שהמצב ברור בלי תווית נוספת.
+        */}
+        <button
+          type="button"
+          disabled={busy || status === "approved"}
+          onClick={() => decide("approved")}
+          className="pressable flex-1 rounded-[10px] bg-accent px-3 py-2 text-[14px] font-medium text-white disabled:cursor-default disabled:bg-accent-soft disabled:text-accent"
+        >
+          {status === "approved" ? "מאושרת ✓" : "לאשר לפרסום"}
+        </button>
+        <button
+          type="button"
+          disabled={busy || status === "rejected"}
+          onClick={() => decide("rejected")}
+          className="pressable flex-1 rounded-[10px] border border-warm px-3 py-2 text-[14px] font-medium text-warm disabled:cursor-default disabled:border-line disabled:text-ink-faint"
+        >
+          {status === "rejected" ? "נדחתה ✓" : "להסיר מהאתר"}
+        </button>
+      </div>
+      <p className="mt-1 text-[12px] text-ink-faint">
+        {status === "approved"
+          ? "התמונה גלויה לכל מי שנכנס לרחוב."
+          : status === "rejected"
+            ? "התמונה אינה מוצגת לציבור. אפשר לאשר אותה בחזרה."
+            : "התמונה עדיין אינה מוצגת לציבור."}
+      </p>
       {error ? (
-        <span role="alert" className="px-1 text-[11px] text-white">
+        <p role="alert" className="mt-1 text-[12px] text-warm">
           {error}
-        </span>
+        </p>
       ) : null}
     </div>
   );
