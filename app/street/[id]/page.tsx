@@ -20,6 +20,7 @@ import {
 import StatusEditor from "@/components/StatusEditor";
 import PhotoDecision, { PhotoStatusBadge } from "@/components/PhotoDecision";
 import StreetPhotoActions from "@/components/StreetPhotoActions";
+import { StreetTile } from "@/components/StreetTile";
 import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
 import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
 import { scoreLabel } from "@/lib/hebrew";
@@ -110,30 +111,32 @@ export default async function StreetPage({
         מהמסגרת, ולכן קודם רואים את הרחוב ורק אחר כך קוראים עליו.
         כשאין עדיין תמונה, נשארת כותרת טקסט רגילה ולא מסגרת ריקה.
       */}
-      {heroPhoto ? (
-        <div className="relative mb-4 overflow-hidden rounded-[16px] border border-line">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={`/api/photos/${heroPhoto.id}`}
-            alt={`${street.name}, ${stats.quarterName}`}
-            className="aspect-[16/10] w-full object-cover"
-          />
-          <span className="photo-scrim" aria-hidden="true" />
-          <div className="absolute inset-x-0 bottom-0 p-4 text-white drop-shadow-[0_1px_4px_rgba(0,0,0,0.8)]">
-            <h1 className="text-[28px] font-bold leading-tight">{street.name}</h1>
-            <p className="text-[14px] opacity-95">
-              {stats.quarterName} · {typology?.label ?? "טרם סווג"}
-            </p>
-          </div>
-        </div>
-      ) : (
-        <>
-          <h1 className="text-[26px] font-bold text-ink">{street.name}</h1>
-          <p className="mb-4 text-[14px] text-ink-soft">
-            {stats.quarterName} · {typology?.label ?? "טרם סווג"}
-          </p>
-        </>
-      )}
+      {/*
+        לרחוב יש תמיד פנים בראש הדף, גם בלי תמונה. כשאין — האריח נבנה
+        מהנתונים שלו, ומתחתיו הזמנה מפורשת לצלם: זה הרגע שבו התושב
+        קורא על הרחוב, ולכן זה גם הרגע שבו כדאי לבקש ממנו תמונה.
+      */}
+      <StreetTile
+        className="mb-3 block aspect-[16/10] w-full rounded-[16px] border border-line"
+        name={street.name}
+        quarterName={`${stats.quarterName} · ${typology?.label ?? "טרם סווג"}`}
+        avgScore={stats.avgScore}
+        photoId={heroPhoto?.id ?? null}
+        size="hero"
+      />
+
+      {!heroPhoto ? (
+        <p className="mb-2 text-[14px] text-ink-soft">
+          אין עדיין תמונה של {street.name}. התמונה הראשונה שתאושר תופיע כאן,
+          בראש הדף.
+        </p>
+      ) : null}
+
+      <StreetPhotoActions
+        streetId={street.id}
+        streetName={street.name}
+        city={CITY.name}
+      />
 
       <div className="mb-4 flex gap-2">
         <div className="card flex-1 p-3 text-center">
@@ -309,11 +312,6 @@ export default async function StreetPage({
             : "תמונות שתושבים צילמו ברחוב, אחרי אישור הצוות."
         }
       >
-        <StreetPhotoActions
-          streetId={street.id}
-          streetName={street.name}
-          city={CITY.name}
-        />
         {stats.photosPending > 0 && !staff ? (
           <p className="mb-2 text-[13px] text-ink-soft">
             {stats.photosPending} {stats.photosPending === 1 ? "תמונה ממתינה" : "תמונות ממתינות"} לאישור הצוות ויפורסמו לאחר בדיקה.
@@ -321,7 +319,10 @@ export default async function StreetPage({
         ) : null}
         {visiblePhotos.length === 0 ? (
           <Card>
-            <p className="text-[14px] text-ink-soft">עדיין אין תמונות מאושרות לרחוב הזה.</p>
+            <p className="text-[14px] text-ink-soft">
+              עדיין אין תמונות מאושרות לרחוב הזה. אם אתם שם עכשיו, הכפתור
+              בראש הדף פותח את המצלמה, והתמונה תגיע לאישור הצוות.
+            </p>
           </Card>
         ) : (
           /*

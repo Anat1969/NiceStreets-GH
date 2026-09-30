@@ -367,6 +367,25 @@ const admin = await ctx(ADMIN_CODE);
     await g.close();
   }
 
+  // רחוב בלי תמונה: אריח מהנתונים שלו, והזמנה לצלם — ולא כותרת קירחת.
+  {
+    const n = await resident.newPage();
+    await n.goto(`${BASE}/street/s-4`);
+    await n.waitForTimeout(900);
+    const t = await n.locator("body").innerText();
+    ok("רחוב בלי תמונה — יש הזמנה לצלם", t.includes("אין עדיין תמונה של"));
+    ok(
+      "רחוב בלי תמונה — שם הרחוב עדיין בראש",
+      (await n.locator("main span.font-bold").first().innerText()).trim().length > 0,
+    );
+    const tiles = await n.evaluate(() => {
+      const el = document.querySelector("main span[style*='linear-gradient']");
+      return el ? getComputedStyle(el).backgroundImage.includes("gradient") : false;
+    });
+    ok("רחוב בלי תמונה — האריח צבוע לפי הציון", tiles);
+    await n.close();
+  }
+
   // סולם הציון המוצג הוא 0–10 בכל מסך.
   await p.goto(`${BASE}/street/s-0`);
   const streetBody = await p.locator("body").innerText();

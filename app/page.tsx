@@ -3,6 +3,7 @@ import { CITY, PRINCIPLES, STATUSES } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { topStreets } from "@/lib/stats";
 import { scoreLabel } from "@/lib/hebrew";
+import { StreetTile } from "@/components/StreetTile";
 import {
   ButtonLink,
   Card,
@@ -104,22 +105,13 @@ export default async function HomePage() {
                     מהמסגרת עצמה. השם הוא הדבר החשוב בשורה, ולכן הוא
                     מודגש ויושב על הכהה ביותר בגרדיאנט.
                   */}
-                  <span className="relative h-[88px] w-[112px] shrink-0 overflow-hidden">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={
-                        row.latestPhotoId
-                          ? `/api/photos/${row.latestPhotoId}`
-                          : "/street-placeholder.svg"
-                      }
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                    <span className="photo-scrim" aria-hidden="true" />
-                    <span className="absolute inset-x-0 bottom-0 px-2 pb-1.5 text-[13px] font-semibold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.75)]">
-                      {row.street.name}
-                    </span>
-                  </span>
+                  <StreetTile
+                    className="h-[88px] w-[112px] shrink-0"
+                    name={row.street.name}
+                    quarterName={row.quarterName}
+                    avgScore={row.avgScore}
+                    photoId={row.latestPhotoId}
+                  />
 
                   <span className="flex flex-1 items-center gap-3 py-3 pl-3">
                     <span className="w-7 shrink-0 text-[18px] font-bold tabular-nums text-accent">
