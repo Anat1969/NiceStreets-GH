@@ -8,6 +8,7 @@ import { parseSegmentCode } from "@/lib/segments";
 import { isPublicPhoto } from "@/lib/types";
 import { Card, Notice, ScoreBar, Section, StatusBadge } from "@/components/ui";
 import StatusEditor from "@/components/StatusEditor";
+import PhotoDecision from "@/components/PhotoDecision";
 
 export const dynamic = "force-dynamic";
 
@@ -167,6 +168,13 @@ export default async function StreetPage({
                     {photo.status === "pending" ? "ממתינה לאישור" : "נדחתה"}
                   </p>
                 ) : null}
+                {photo.source !== "resident" ? (
+                  <p className="px-2 py-1 text-[12px] text-ink-faint">
+                    {photo.source === "example" ? "דוגמה של האגף" : "בדיקה, לא מוצגת לציבור"}
+                  </p>
+                ) : null}
+                {/* Staff and admin decide from here too, not only from the queue. */}
+                {staff ? <PhotoDecision photoId={photo.id} status={photo.status} /> : null}
               </li>
             ))}
           </ul>
