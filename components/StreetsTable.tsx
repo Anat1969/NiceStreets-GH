@@ -124,6 +124,22 @@ export default function StreetsTable({
             </div>
 
             <div className="grid gap-3">
+              {/*
+                חיפוש שם הרחוב, ראשון: מי שיודע איזה רחוב הוא מחפש לא
+                אמור לגלול טבלה שלמה או לנחש באיזה רובע הוא נמצא.
+              */}
+              <label className="text-[13px] text-ink-soft">
+                חיפוש רחוב
+                <input
+                  type="search"
+                  value={filter.q}
+                  onChange={(e) => set("q", e.target.value)}
+                  placeholder="שם הרחוב, למשל הרצל"
+                  autoComplete="off"
+                  className={`mt-1 ${field}`}
+                />
+              </label>
+
               <label className="text-[13px] text-ink-soft">
                 רובע
                 <select

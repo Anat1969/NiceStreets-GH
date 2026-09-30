@@ -350,6 +350,25 @@ const admin = await ctx(ADMIN_CODE);
   ok("כרטיס רחוב — הציון מתוך 10", streetBody.includes("מתוך 10"));
   ok("כרטיס רחוב — אין יותר 'מתוך 5'", !streetBody.includes("מתוך 5"));
 
+  // חיפוש רחוב: בטבלה ובמפה.
+  await p.goto(`${BASE}/streets`);
+  await p.getByLabel("חיפוש רחוב").fill("הרצל");
+  await p.waitForTimeout(500);
+  const table = await p.locator("body").innerText();
+  ok("טבלה — חיפוש רחוב מסנן", table.includes("הרצל") && !table.includes("רוגוזין"));
+
+  await p.goto(`${BASE}/map`);
+  await p.waitForTimeout(3500);
+  ok("מפה — המקרא פתוח כברירת מחדל", (await p.locator("details.map-legend[open]").count()) > 0);
+  await p.fill("#map-search", "הרצל");
+  await p.waitForTimeout(600);
+  ok("מפה — חיפוש רחוב מציע תוצאה", (await p.locator("#map-search ~ ul button").count()) > 0);
+  const disc = await p.locator(".map-mark-disc").first().evaluate((e) => ({
+    fs: parseInt(e.style.fontSize, 10),
+    hasColour: Boolean(e.style.color),
+  }));
+  ok("מפה — המספר בגודל קריא ובצבע מחושב", disc.fs >= 19 && disc.hasColour, `${disc.fs}px`);
+
   await p.goto(`${BASE}/learn`);
   const learn = await p.locator("body").innerText();
   ok("מסך הלימוד מציג את מה שהמסמך אינו מודד", learn.includes("מה שהמסמך אינו מודד"));

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
-import { scoreColorTen, scoreOutOfTen, toTen } from "@/lib/score";
+import { normaliseForSearch } from "@/lib/street-filter";
+import { scoreColorTen, scoreOutOfTen, textOnScore, toTen } from "@/lib/score";
 
 interface QuarterPoint {
   id: string;
@@ -117,8 +118,12 @@ export default function MapView({
   const [selectedQuarter, setSelectedQuarter] = useState<string | null>(null);
   const [selectedStreet, setSelectedStreet] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
-  const [legendOpen, setLegendOpen] = useState(false);
+  // המקרא פתוח כברירת מחדל: מפה שאי אפשר לפענח אינה שווה יותר מרשימה.
+  const [legendOpen, setLegendOpen] = useState(true);
 
+  const [search, setSearch] = useState("");
+  /** נקרא מתוך האפקט של המפה, כדי שהחיפוש יוכל להטיס אליה. */
+  const focusStreetRef = useRef<(id: string) => void>(() => {});
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMessage, setGeocodeMessage] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState("");
@@ -162,6 +167,21 @@ export default function MapView({
     [quarters],
   );
   const approxCount = approx.length;
+
+  const matches = useMemo(() => {
+    const needle = normaliseForSearch(search);
+    if (!needle) return [];
+    return placedStreets.filter((s) => normaliseForSearch(s.name).includes(needle));
+  }, [search, placedStreets]);
+
+  function focusStreet(id: string) {
+    setMode("street");
+    setFocusQuarter(null);
+    setSelectedQuarter(null);
+    setSelectedStreet(id);
+    setSearch("");
+    focusStreetRef.current(id);
+  }
 
   const focusedQuarter = focusQuarter
     ? (quarters.find((q) => q.id === focusQuarter) ?? null)
@@ -441,10 +461,38 @@ export default function MapView({
       setSelectedQuarter(null);
       setSelectedStreet(null);
       setFocusQuarter(quarterId);
+      flyToQuarter(quarterId, 700);
+    }
+
+    /**
+     * זום לתחום הרובע, לא לזום קבוע.
+     *
+     * רובע עם ארבעה רחובות פזורים ורובע עם שניים צמודים אינם צריכים
+     * אותו זום. התחום נבנה ממרכז הרובע ומכל רחובותיו, כך שכולם נכנסים
+     * למסך ואף אחד לא נחתך.
+     */
+    function flyToQuarter(quarterId: string, duration: number) {
       const quarter = quarters.find((q) => q.id === quarterId);
-      if (quarter) {
-        instance.flyTo({ center: quarter.center, zoom: 15, duration: 700 });
+      if (!quarter) return;
+      const own = placedStreets.filter((s) => s.quarterId === quarterId);
+      const points = [quarter.center, ...own.map((s) => streetPoint(s))];
+      if (points.length < 2) {
+        instance.flyTo({ center: quarter.center, zoom: 15, duration });
+        return;
       }
+      const bounds = points.reduce(
+        (b, p) => b.extend(p),
+        new maplibregl.LngLatBounds(points[0], points[0]),
+      );
+      /*
+       * ריפוד לא סימטרי: הפס העליון של הרובע תופס את ראש המפה, והשם
+       * של כל סימן נמצא מתחתיו — ולכן צריך מקום נוסף למעלה ולמטה.
+       */
+      instance.fitBounds(bounds, {
+        padding: { top: 100, bottom: 110, left: 56, right: 56 },
+        maxZoom: 16,
+        duration,
+      });
     }
 
     function addLabels() {
@@ -517,7 +565,13 @@ export default function MapView({
         disc.style.width = `${size}px`;
         disc.style.height = `${size}px`;
         disc.style.background = fill;
-        disc.style.fontSize = `${size >= 46 ? 15 : 13}px`;
+        /*
+         * 19 פיקסלים לפחות, ומודגש: בגודל הזה התקן דורש ניגודיות 3:1
+         * ולא 4.5:1, והנקודה החלשה ביותר ברצף הצבעים היא 4.11 — כלומר
+         * המספר קריא על כל ציון בסולם, ולא רק על חלקו.
+         */
+        disc.style.fontSize = `${Math.max(19, Math.round(size * 0.38))}px`;
+        disc.style.color = textOnScore(item.avgScore === null ? null : toTen(item.avgScore));
         disc.textContent = String(item.votes);
         disc.setAttribute("aria-hidden", "true");
 
@@ -545,11 +599,8 @@ export default function MapView({
        * מבטלת בדיוק את מה שהמשתמשת ביקשה בלחיצה.
        */
       if (focusQuarter) {
-        const focused = quarters.find((q) => q.id === focusQuarter);
-        if (focused) {
-          instance.jumpTo({ center: focused.center, zoom: 15 });
-          return;
-        }
+        flyToQuarter(focusQuarter, 0);
+        return;
       }
       const points =
         mode === "quarter"
@@ -560,7 +611,11 @@ export default function MapView({
         (b, p) => b.extend(p),
         new maplibregl.LngLatBounds(points[0], points[0]),
       );
-      instance.fitBounds(bounds, { padding: 64, maxZoom: 15, duration: 0 });
+      instance.fitBounds(bounds, {
+        padding: { top: 56, bottom: 72, left: 48, right: 48 },
+        maxZoom: 15,
+        duration: 0,
+      });
     }
 
     /*
@@ -570,6 +625,14 @@ export default function MapView({
      */
     const resizeObserver = new ResizeObserver(() => instance.resize());
     if (container.current) resizeObserver.observe(container.current);
+
+    /* החיפוש שמחוץ למפה מטיס אליה דרך הפניה הזאת. */
+    focusStreetRef.current = (streetId: string) => {
+      const target = placedStreets.find((s) => s.id === streetId);
+      if (target) {
+        instance.flyTo({ center: streetPoint(target), zoom: 16, duration: 700 });
+      }
+    };
 
     instance.on("load", () => {
       if (!usedFallback) setBasemap("ready");
@@ -666,6 +729,51 @@ export default function MapView({
         ))}
       </div>
 
+      {/*
+        חיפוש רחוב: מי שיודע איזה רחוב הוא מחפש לא אמור לסרוק את המפה.
+        התוצאה הראשונה נבחרת, המפה טסה אליה, והגיליון נפתח עם קישור
+        לכרטיס המלא.
+      */}
+      <div className="mb-2">
+        <label className="sr-only" htmlFor="map-search">
+          חיפוש רחוב במפה
+        </label>
+        <input
+          id="map-search"
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="חיפוש רחוב במפה"
+          autoComplete="off"
+          className="w-full rounded-[12px] border border-line bg-surface px-3 py-2 text-[15px] text-ink"
+        />
+        {search.trim() && matches.length > 0 ? (
+          <ul className="mt-1 grid gap-1">
+            {matches.slice(0, 6).map((m) => (
+              <li key={m.id}>
+                <button
+                  type="button"
+                  onClick={() => focusStreet(m.id)}
+                  className="pressable w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-right text-[14px] text-ink"
+                >
+                  {m.name}
+                  <span className="text-[13px] text-ink-faint">
+                    {" · "}
+                    {votesLabel(m.votes)}
+                    {m.avgScore === null ? "" : ` · ${scoreOutOfTen(m.avgScore)}`}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        {search.trim() && matches.length === 0 ? (
+          <p className="mt-1 text-[13px] text-ink-faint">
+            לא נמצא רחוב מוקם בשם הזה. ייתכן שהוא עדיין בלי מיקום על המפה.
+          </p>
+        ) : null}
+      </div>
+
       <div className="map-canvas-wrap">
         <div
           ref={container}
@@ -690,6 +798,7 @@ export default function MapView({
         {/* מקרא: טקסט בלבד, מקופל כברירת מחדל, ואינו מכסה את המפה. */}
         <details
           open={legendOpen}
+          key={mode}
           onToggle={(e) => setLegendOpen((e.target as HTMLDetailsElement).open)}
           className="map-legend card"
         >

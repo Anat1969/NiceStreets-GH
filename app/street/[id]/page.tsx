@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { QUESTIONS, TYPOLOGY_MAP, STATUS_MAP } from "@/lib/city";
+import { EXAMPLES, QUESTIONS, TYPOLOGY_MAP, STATUS_MAP } from "@/lib/city";
 import type { CriterionKey } from "@/lib/city";
 import { getStore } from "@/lib/store";
 import { buildStreetStats, voteScore } from "@/lib/stats";
@@ -61,6 +61,18 @@ export default async function StreetPage({
   const summary = summarise(stats, reasons.length);
   /* התמונה שפותחת את הדף: החדשה מבין המאושרות. */
   const heroPhoto = visiblePhotos.filter(isPublicPhoto)[0] ?? null;
+
+  /*
+   * התמונה של כל קול, לפי מזהה הקול. רק תמונות שהציבור רשאי לראות:
+   * נימוק שמוצג לכולם לא ייצמד לתמונה שממתינה לאישור.
+   */
+  const typeExampleCount = street.typology
+    ? EXAMPLES.filter((e) => e.typology === street.typology).length
+    : 0;
+
+  const photoByVote = new Map(
+    photos.filter(isPublicPhoto).map((p) => [p.voteId, p]),
+  );
 
   /*
    * A stretch of a crossing boulevard carries its quarter inside the code
@@ -258,12 +270,26 @@ export default async function StreetPage({
               </p>
             ) : null}
             <p className="mt-2 text-[13px]">
-              <Link
-                href={`/examples?typology=${typology.key}`}
-                className="inline-link text-accent underline underline-offset-2"
-              >
-                דוגמאות לרחובות מהסוג הזה
-              </Link>
+              {/*
+                קישור מסונן רק כשיש מה להראות. המסמך אינו מסווג את
+                רחובות הדוגמה שלו לטיפולוגיות, ולכן לרוב הסוגים אין
+                עדיין דוגמה — ושליחה לעמוד ריק גרועה מאמירה ישרה.
+              */}
+              {typeExampleCount > 0 ? (
+                <Link
+                  href={`/examples?typology=${typology.key}`}
+                  className="inline-link text-accent underline underline-offset-2"
+                >
+                  {typeExampleCount} דוגמאות ל{typology.label}
+                </Link>
+              ) : (
+                <Link
+                  href="/examples"
+                  className="inline-link text-accent underline underline-offset-2"
+                >
+                  ספריית הדוגמאות
+                </Link>
+              )}
             </p>
           </Card>
         </Section>
@@ -337,15 +363,34 @@ export default async function StreetPage({
             <p className="text-[14px] text-ink-soft">עדיין אין נימוקים.</p>
           </Card>
         ) : (
-          <ul className="grid gap-2">
-            {reasons.map((vote) => (
-              <li key={vote.id} className="card p-3">
-                <p className="text-[15px] text-ink">{vote.reason}</p>
-                <p className="mt-1 text-[12px] text-ink-faint">
-                  ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
-                </p>
-              </li>
-            ))}
+          /*
+            התמונה שהתושב צירף לקול שלו מוצגת עם המילים שלו, ולא רק
+            בגלריה. תמונה בלי המשפט שבא איתה מאבדת את מה שהתושב ניסה
+            להגיד; משפט בלי התמונה מאבד את ההוכחה.
+          */
+          <ul className="grid gap-3">
+            {reasons.map((vote) => {
+              const photo = photoByVote.get(vote.id) ?? null;
+              return (
+                <li key={vote.id} className="card overflow-hidden">
+                  {photo ? (
+                    /* eslint-disable-next-line @next/next/no-img-element */
+                    <img
+                      src={`/api/photos/${photo.id}`}
+                      alt={`תמונה שצורפה לקול על ${street.name}`}
+                      className="aspect-[16/10] w-full object-cover"
+                      loading="lazy"
+                    />
+                  ) : null}
+                  <div className="p-3">
+                    <p className="text-[15px] text-ink">{vote.reason}</p>
+                    <p className="mt-1 text-[12px] text-ink-faint">
+                      ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
+                    </p>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </Section>

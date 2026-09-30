@@ -4,6 +4,8 @@ export type SortField = "name" | "votes" | "avgScore" | "photos";
 export type SortDirection = "asc" | "desc";
 
 export interface StreetFilter {
+  /** חיפוש חופשי בשם הרחוב. ריק = בלי חיפוש. */
+  q: string;
   quarterId: string;
   typology: string;
   status: string;
@@ -24,6 +26,7 @@ export interface FilterableStreet {
 }
 
 export const DEFAULT_FILTER: StreetFilter = {
+  q: "",
   quarterId: "",
   typology: "",
   status: "",
@@ -33,6 +36,16 @@ export const DEFAULT_FILTER: StreetFilter = {
 };
 
 const SORT_FIELDS: SortField[] = ["name", "votes", "avgScore", "photos"];
+
+/** מוריד קידומות, גרשים ורווחים כפולים, כדי שהחיפוש יסלח על כתיב. */
+export function normaliseForSearch(value: string): string {
+  return value
+    .trim()
+    .replace(/["'\u05f3\u05f4]/g, "")
+    .replace(/^(רחוב|רח|שדרות|שד|דרך|סמטת|שביל)\s+/, "")
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
 
 /**
  * Reads a filter from a query string, so the table and the export always
@@ -44,6 +57,7 @@ export function parseStreetFilter(params: URLSearchParams): StreetFilter {
   const minVotes = Number(params.get("minVotes"));
 
   return {
+    q: (params.get("q") ?? "").trim(),
     quarterId: params.get("quarter") ?? "",
     typology: params.get("typology") ?? "",
     status: params.get("status") ?? "",
@@ -55,6 +69,7 @@ export function parseStreetFilter(params: URLSearchParams): StreetFilter {
 
 export function streetFilterToQuery(filter: StreetFilter): string {
   const params = new URLSearchParams();
+  if (filter.q) params.set("q", filter.q);
   if (filter.quarterId) params.set("quarter", filter.quarterId);
   if (filter.typology) params.set("typology", filter.typology);
   if (filter.status) params.set("status", filter.status);
@@ -68,8 +83,14 @@ export function applyStreetFilter<T extends FilterableStreet>(
   rows: T[],
   filter: StreetFilter,
 ): T[] {
+  /*
+   * החיפוש מנוקה מקידומות ומגרשים לפני ההשוואה, כי מי שמחפש "הרצל"
+   * מתכוון גם ל"שד הרצל", ומי שמקליד גרש אחר לא אמור לצאת בלי תוצאות.
+   */
+  const needle = normaliseForSearch(filter.q);
   const filtered = rows.filter(
     (row) =>
+      (!needle || normaliseForSearch(row.name).includes(needle)) &&
       (!filter.quarterId || row.quarterId === filter.quarterId) &&
       (!filter.typology || row.typology === filter.typology) &&
       (!filter.status || row.status === filter.status) &&
@@ -89,6 +110,7 @@ export function applyStreetFilter<T extends FilterableStreet>(
 /** Whether anything was narrowed, so a reset button can say so. */
 export function isDefaultFilter(filter: StreetFilter): boolean {
   return (
+    filter.q === DEFAULT_FILTER.q &&
     filter.quarterId === DEFAULT_FILTER.quarterId &&
     filter.typology === DEFAULT_FILTER.typology &&
     filter.status === DEFAULT_FILTER.status &&

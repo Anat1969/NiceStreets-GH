@@ -25,12 +25,18 @@ export function toTen(score: number): number {
  * הגוון נושא את המידע (חלודה → ענבר → ירוק), והבהירות נשארת דומה,
  * כדי שטקסט כהה יקרא על כל אחד מהם.
  */
+/*
+ * מעברי גוון רחבים, לא גוונים שכנים. הסולם רץ מאדום־לבנים עמוק, דרך
+ * כתום וצהוב, לירוק ולירוק עמוק — חמישה גוונים שונים לגמרי ולא חמש
+ * דרגות של אותו צבע. `textOnScore` בוחר טקסט כהה או לבן לפי הבהירות,
+ * כדי שהמספר שבתוך הסימן יישאר קריא על כל אחד מהם.
+ */
 const STOPS: [number, [number, number, number]][] = [
-  [2, [192, 86, 63]],
-  [4, [215, 139, 58]],
-  [6, [217, 191, 85]],
-  [8, [134, 171, 99]],
-  [10, [64, 150, 106]],
+  [2, [166, 54, 44]],
+  [4, [222, 118, 38]],
+  [6, [232, 199, 62]],
+  [8, [122, 174, 72]],
+  [10, [22, 110, 74]],
 ];
 
 export const NO_SCORE_COLOR = "#c3c8cf";
@@ -50,6 +56,35 @@ export function scoreColorTen(score: number | null): string {
   }
   const last = STOPS[STOPS.length - 1][1];
   return `rgb(${last[0]}, ${last[1]}, ${last[2]})`;
+}
+
+/**
+ * צבע הטקסט שיישב על צבע הציון: כהה על הבהירים, לבן על הכהים.
+ * נגזר מהבהירות היחסית ולא נקבע ידנית, כדי שלא יישבר כשהסולם משתנה.
+ */
+export function textOnScore(score: number | null): string {
+  if (score === null) return INK;
+  const rgb = scoreColorTen(score).match(/\d+/g)?.map(Number) ?? [0, 0, 0];
+  // נבחר מה שנותן ניגודיות גבוהה יותר, ולא סף בהירות שרירותי: סף כזה
+  // בחר לבן על כתום ועל ירוק בהיר, ושם שני הצבעים נכשלו ב-WCAG.
+  return contrast(rgb, INK_RGB) >= contrast(rgb, [255, 255, 255]) ? INK : "#ffffff";
+}
+
+const INK = "#16202b";
+const INK_RGB: [number, number, number] = [22, 32, 43];
+
+function relativeLuminance([r, g, b]: number[]): number {
+  const [rl, gl, bl] = [r, g, b].map((c) => {
+    const v = c / 255;
+    return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+  });
+  return 0.2126 * rl + 0.7152 * gl + 0.0722 * bl;
+}
+
+function contrast(a: number[], b: number[]): number {
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05);
 }
 
 /** תווית הציון בסולם המוצג, עם ספרה אחת אחרי הנקודה. */

@@ -33,20 +33,20 @@ export default function LearnPage() {
         />
         <IconCard
           href="/learn/types"
-          title="סוגי רחובות"
-          text={`${TYPOLOGIES.length} טיפולוגיות. כל רחוב נמדד מול רחובות מאותו סוג בלבד.`}
+          title={`${TYPOLOGIES.length} סוגי רחובות`}
+          text="כל רחוב נמדד מול רחובות מאותו סוג בלבד, ולכל סוג אב טיפוס במספרים."
           icon={HUB_ICONS.types}
         />
         <IconCard
           href="/examples"
-          title="ספריית דוגמאות"
-          text={`${EXAMPLES.length} הרחובות שהמסמך מביא כדוגמה, אחד לכל קריטריון, עם המספר שנמדד בהם.`}
+          title={`${EXAMPLES.length} דוגמאות`}
+          text="רחוב אחד לכל קריטריון, מתוך המסמך, עם המספר שנמדד בו."
           icon={HUB_ICONS.examples}
         />
         <IconCard
           href="/learn/help"
-          title="איך אתם עוזרים"
-          text="מה קורה לקול שלכם אחרי שהוא נשמר."
+          title="7 השאלות — איך אתם עוזרים"
+          text="מה קורה לקול שלכם אחרי שהוא נשמר, ולמה נשאלות דווקא השאלות האלה."
           icon={HUB_ICONS.help}
         />
       </div>
