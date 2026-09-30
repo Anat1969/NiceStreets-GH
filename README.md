@@ -163,7 +163,7 @@ psql "$DATABASE_URL" -f supabase/schema.sql
 | רובעים, טיפולוגיות, שבע השאלות, 12 הקריטריונים, סטטוסים, דוגמאות | `lib/city.ts` |
 | רשימת הרחובות | `data/ashdod-streets.json`, נבנית מקובץ המקור |
 | אייקונים | `components/icons.tsx` — רשת 24, קו 1.5, צבע אחד, בלי מילוי |
-| ערכת צבע | `app/globals.css` — `:root` לירוק, `:root[data-palette="blue"]` לכחול |
+| ערכות צבע | `lib/palette.ts` לרשימה, `app/globals.css` לערכים. `npm run build:palettes` מחשב ומאמת אותם |
 | שיוך רחוב לרובע | `data/ashdod-street-quarters.csv`, ואז `npm run assign:quarters` |
 | שיוך רחוב לסוג | ממסך הצוות |
 | צבעים ומרווחים | `app/globals.css` — משתני ה-CSS ב-`:root` |
