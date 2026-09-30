@@ -7,6 +7,8 @@ import { getRole, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
 import DemoControls from "@/components/DemoControls";
 import PhotoModeration from "@/components/PhotoModeration";
+import { QUARTER_MAP } from "@/lib/city";
+import { contestedThemes } from "@/lib/themes";
 import AdminUpload from "@/components/AdminUpload";
 import StreetAssignment from "@/components/StreetAssignment";
 
@@ -205,6 +207,27 @@ export default async function AdminPage({
             ),
           }))}
         />
+      </Section>
+
+      <Section
+        title="נושאי שמות שדורשים הכרעה"
+        note="בכל אחד מאלה, מילון הנושאים שנמסר סותר את רשימת הרחובות. עד להכרעה לא מוצג 'הידעת' ברובעים האלה."
+      >
+        <div className="card divide-y divide-line">
+          {contestedThemes().map(({ quarterId, entry }) => (
+            <div key={quarterId} className="p-3">
+              <p className="text-[15px] font-medium text-ink">
+                {QUARTER_MAP[quarterId]?.name ?? quarterId}
+              </p>
+              <p className="text-[14px] text-ink-soft">
+                לפי מילון הנושאים: {entry.theme}
+              </p>
+              <p className="text-[14px] text-ink-soft">
+                לפי רחובות הרובע ברשימה: {entry.observed}
+              </p>
+            </div>
+          ))}
+        </div>
       </Section>
 
       <Section title="סטטוסים" note="העדכון עצמו נעשה בכרטיס הרחוב.">

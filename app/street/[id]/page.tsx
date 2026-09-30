@@ -6,6 +6,7 @@ import { buildStreetStats, voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
 import { parseSegmentCode } from "@/lib/segments";
 import { isPublicPhoto } from "@/lib/types";
+import { confirmedTheme } from "@/lib/themes";
 import { Card, Notice, ScoreBar, Section, StatusBadge } from "@/components/ui";
 import StatusEditor from "@/components/StatusEditor";
 import PhotoDecision from "@/components/PhotoDecision";
@@ -47,6 +48,9 @@ export default async function StreetPage({
    * ("189#q-b"), so the rating link has to hand both back separately: a "#"
    * in an address is a fragment, not a value.
    */
+  // "הידעת?" — only where the quarter's naming theme is settled. See lib/themes.ts.
+  const theme = confirmedTheme(street.quarterId);
+
   const segment = street.code ? parseSegmentCode(street.code) : null;
   const rateHref = segment
     ? `/choose?street=${segment.code}&quarter=${segment.quarterId}`
@@ -85,6 +89,19 @@ export default async function StreetPage({
           <div className="text-[13px] text-ink-soft">תמונות</div>
         </div>
       </div>
+
+      {theme ? (
+        <div className="mb-5 rounded-[14px] border border-line bg-accent-soft/60 p-4">
+          <p className="mb-1 text-[15px] font-semibold text-accent">הידעת?</p>
+          <p className="text-[15px] text-ink">
+            שמות הרחובות ב{stats.quarterName} נקבעו סביב נושא אחד:{" "}
+            <span className="font-medium">{theme}</span>.
+          </p>
+          <p className="mt-1 text-[13px] text-ink-soft">
+            לכל רובע באשדוד נושא שמות משלו, והוא נקבע בוועדת השמות של העירייה.
+          </p>
+        </div>
+      ) : null}
 
       <Section title="פילוח לפי שאלות">
         <Card>
