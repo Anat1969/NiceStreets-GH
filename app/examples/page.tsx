@@ -9,6 +9,9 @@ import {
 } from "@/lib/city";
 import type { CriterionKey, TypologyKey } from "@/lib/city";
 import { Card, Notice } from "@/components/ui";
+import { getStore } from "@/lib/store";
+
+export const dynamic = "force-dynamic";
 
 export const metadata = { title: "דוגמאות — הרחובות הטובים של אשדוד" };
 
@@ -25,6 +28,19 @@ export default async function ExamplesPage({
   searchParams: Promise<{ criterion?: string; typology?: string }>;
 }) {
   const params = await searchParams;
+
+  /*
+   * Photos the admin uploaded as examples. They belong to a street, so the
+   * library shows them beside the written examples rather than instead of
+   * them: one is a picture of a street in Ashdod, the other is a description
+   * of a street elsewhere that explains a criterion.
+   */
+  const store = getStore();
+  const [examplePhotos, streets] = await Promise.all([
+    store.listPhotos().then((rows) => rows.filter((p) => p.source === "example")).catch(() => []),
+    store.listStreets().catch(() => []),
+  ]);
+  const streetById = new Map(streets.map((s) => [s.id, s]));
 
   const criterion =
     params.criterion && params.criterion in CRITERION_MAP
@@ -118,6 +134,38 @@ export default async function ExamplesPage({
         {criterion ? ` · ${CRITERION_MAP[criterion].name}` : ""}
         {typology ? ` · ${TYPOLOGY_MAP[typology].label}` : ""}
       </p>
+
+      {/* Only on the unfiltered view: these photos carry no criterion tag. */}
+      {!criterion && !typology && examplePhotos.length > 0 ? (
+        <section aria-labelledby="photo-examples" className="mb-5">
+          <h2 id="photo-examples" className="mb-2 text-[17px] font-semibold text-ink">
+            תמונות מהעיר
+          </h2>
+          <ul className="grid grid-cols-2 gap-2">
+            {examplePhotos.map((photo) => {
+              const street = streetById.get(photo.streetId);
+              return (
+                <li key={photo.id} className="overflow-hidden rounded-[12px] border border-line">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={`/api/photos/${photo.id}`}
+                    alt={street ? `${street.name}, אשדוד` : "דוגמה מאשדוד"}
+                    className="h-32 w-full object-cover"
+                  />
+                  {street ? (
+                    <Link
+                      href={`/street/${street.id}`}
+                      className="inline-link block px-2 py-2 text-[13px] text-accent underline underline-offset-2"
+                    >
+                      {street.name}
+                    </Link>
+                  ) : null}
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
 
       <div className="grid gap-3">
         {results.map((example) => (
