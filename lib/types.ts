@@ -51,14 +51,33 @@ export interface Vote {
 
 export type PhotoStatus = "pending" | "approved" | "rejected";
 
+/**
+ * Where a photo came from, which decides who may see it.
+ * resident — uploaded with a vote, public only once approved.
+ * example  — uploaded by the admin, public at once, and part of the example
+ *            library on the Examples screen.
+ * test     — staff-only at all times, and removed with the demo data.
+ */
+export type PhotoSource = "resident" | "example" | "test";
+
 export interface Photo {
   id: string;
   voteId: string;
   streetId: string;
   storagePath: string;
   status: PhotoStatus;
+  source: PhotoSource;
   createdAt: string;
   isDemo: boolean;
+}
+
+/**
+ * The single rule for whether the public may see a photo. A "test" upload is
+ * stored as approved so it behaves normally for staff, so status alone is not
+ * enough — every public surface has to ask this, not the status field.
+ */
+export function isPublicPhoto(photo: Pick<Photo, "status" | "source">): boolean {
+  return photo.status === "approved" && photo.source !== "test";
 }
 
 export interface StreetStatus {

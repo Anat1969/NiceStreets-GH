@@ -1,5 +1,6 @@
 import { QUARTER_MAP, QUESTIONS, STATUSES } from "./city";
 import type { QuestionKey, StatusKey } from "./city";
+import { isPublicPhoto } from "./types";
 import type {
   Photo,
   Quarter,
@@ -35,7 +36,7 @@ export function buildStreetStats(
     (quarters.length ? quarters : Object.values(QUARTER_MAP)).map((q) => [q.id, q.name]),
   );
   const statusByStreet = new Map(statuses.map((s) => [s.streetId, s]));
-  const approvedPhotos = photos.filter((p) => p.status === "approved");
+  const approvedPhotos = photos.filter(isPublicPhoto);
   const pendingPhotos = photos.filter((p) => p.status === "pending");
 
   return streets.map((street) => {
@@ -113,7 +114,7 @@ export function buildTotals(
   return {
     votes: votes.length,
     streets: votedStreetIds.size,
-    photos: photos.filter((p) => p.status === "approved").length,
+    photos: photos.filter(isPublicPhoto).length,
     photosPending: photos.filter((p) => p.status === "pending").length,
     orphanVotes: votes.filter((v) => !knownStreetIds.has(v.streetId)).length,
     byStatus,

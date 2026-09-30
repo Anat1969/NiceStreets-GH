@@ -6,6 +6,7 @@ import { QUARTERS, STREET_ASSIGNMENTS } from "../city";
 import type { StatusKey, TypologyKey } from "../city";
 import type {
   Photo,
+  PhotoSource,
   PhotoStatus,
   Quarter,
   Street,
@@ -205,6 +206,7 @@ export class LocalStore implements DataStore {
           streetId: input.streetId,
           storagePath,
           status: "pending",
+          source: "resident",
           createdAt: now,
           isDemo: false,
         });
@@ -262,6 +264,37 @@ export class LocalStore implements DataStore {
     return snapshot.votes
       .filter((v) => !filter?.streetId || v.streetId === filter.streetId)
       .map((v) => ({ ...v }));
+  }
+
+  /** Admin upload: stored already published. See the Supabase store for why. */
+  async createPhoto(input: {
+    streetId: string;
+    dataUrl: string;
+    source: PhotoSource;
+  }): Promise<Photo> {
+    return withLock(async () => {
+      const snapshot = await load();
+      const decoded = decodeDataUrl(input.dataUrl);
+      if (!decoded) throw new Error("PHOTO_FORMAT");
+      if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
+      await fs.mkdir(PHOTO_DIR, { recursive: true });
+      const photoId = id("p");
+      const storagePath = `${photoId}.${decoded.ext}`;
+      await fs.writeFile(path.join(PHOTO_DIR, storagePath), decoded.body);
+      const photo: Photo = {
+        id: photoId,
+        voteId: "",
+        streetId: input.streetId,
+        storagePath,
+        status: "approved",
+        source: input.source,
+        createdAt: new Date().toISOString(),
+        isDemo: input.source === "test",
+      };
+      snapshot.photos.push(photo);
+      await persist(snapshot);
+      return { ...photo };
+    });
   }
 
   async listPhotos(filter?: { streetId?: string; status?: PhotoStatus }): Promise<Photo[]> {
@@ -348,7 +381,8 @@ export class LocalStore implements DataStore {
       const snapshot = await load();
       const before = snapshot.votes.length;
       snapshot.votes = snapshot.votes.filter((v) => !v.isDemo);
-      snapshot.photos = snapshot.photos.filter((p) => !p.isDemo);
+      // Test uploads are demo data by another name, and go with it.
+      snapshot.photos = snapshot.photos.filter((p) => !p.isDemo && p.source !== "test");
       snapshot.statuses = snapshot.statuses.filter((s) => s.updatedBy !== "demo");
       await persist(snapshot);
       return before - snapshot.votes.length;

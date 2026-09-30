@@ -3,6 +3,7 @@ import { STREET_ASSIGNMENTS } from "../city";
 import type { StatusKey, TypologyKey } from "../city";
 import type {
   Photo,
+  PhotoSource,
   PhotoStatus,
   Quarter,
   Street,
@@ -56,6 +57,7 @@ function toPhoto(row: Row): Photo {
     streetId: row.street_id,
     storagePath: row.storage_path,
     status: row.status,
+    source: (row.source ?? "resident") as PhotoSource,
     createdAt: row.created_at,
     isDemo: Boolean(row.is_demo),
   };
@@ -209,6 +211,7 @@ export class SupabaseStore implements DataStore {
           vote_id: existing?.id ?? null,
           storage_path: storagePath,
           status: "pending",
+          source: "resident",
           is_demo: false,
         })
         .select("*")
@@ -266,6 +269,48 @@ export class SupabaseStore implements DataStore {
       filter?.streetId ? q.eq("street_id", filter.streetId) : q,
     );
     return rows.map(toVote);
+  }
+
+  /**
+   * Admin upload. The photo is stored already published, because the admin is
+   * the person the moderation queue exists for — sending her own photo to her
+   * own queue would be theatre. A "test" photo is the exception: it is never
+   * public, whatever its status says.
+   */
+  async createPhoto(input: {
+    streetId: string;
+    dataUrl: string;
+    source: PhotoSource;
+  }): Promise<Photo> {
+    const decoded = decodeDataUrl(input.dataUrl);
+    if (!decoded) throw new Error("PHOTO_FORMAT");
+    if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
+
+    const storagePath = `${input.streetId}/${crypto.randomUUID()}.${decoded.ext}`;
+    const { data, error } = await this.db
+      .from("photos")
+      .insert({
+        street_id: input.streetId,
+        vote_id: null,
+        storage_path: storagePath,
+        status: "approved",
+        source: input.source,
+        is_demo: input.source === "test",
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    const blob = await this.db.from("photo_blobs").insert({
+      photo_id: data.id,
+      content_type: decoded.mime,
+      data_base64: decoded.body.toString("base64"),
+    });
+    if (blob.error) {
+      await this.db.from("photos").delete().eq("id", data.id);
+      throw new Error(blob.error.message);
+    }
+    return toPhoto(data);
   }
 
   async listPhotos(filter?: { streetId?: string; status?: PhotoStatus }): Promise<Photo[]> {
@@ -376,6 +421,8 @@ export class SupabaseStore implements DataStore {
       .select("id");
     if (error) throw new Error(error.message);
     await this.db.from("photos").delete().eq("is_demo", true);
+    // Test uploads are demo data by another name, and go with it.
+    await this.db.from("photos").delete().eq("source", "test");
     await this.db.from("street_status").delete().eq("updated_by", "demo");
     return votes?.length ?? 0;
   }

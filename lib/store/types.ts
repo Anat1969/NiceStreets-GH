@@ -1,5 +1,6 @@
 import type {
   Photo,
+  PhotoSource,
   PhotoStatus,
   Quarter,
   Street,
@@ -42,6 +43,16 @@ export interface DataStore {
   getUserVote(userId: string, streetId: string): Promise<Vote | null>;
   listVotes(filter?: { streetId?: string }): Promise<Vote[]>;
 
+  /**
+   * Admin upload: the photo is published as it is saved, with no queue.
+   * `source` decides who sees it.
+   */
+  createPhoto(input: {
+    streetId: string;
+    dataUrl: string;
+    source: PhotoSource;
+    caption?: string;
+  }): Promise<Photo>;
   listPhotos(filter?: {
     streetId?: string;
     status?: PhotoStatus;
