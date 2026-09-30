@@ -1,22 +1,22 @@
 import { NextResponse } from "next/server";
-import { STAFF_COOKIE, staffCodeConfigured, verifyStaffCode } from "@/lib/session";
+import { STAFF_COOKIE, staffCodeConfigured, verifyCode } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: Request) {
   if (!staffCodeConfigured()) {
     return NextResponse.json(
-      { error: "לא הוגדר קוד צוות בשרת (STAFF_CODE)" },
+      { error: "לא הוגדר קוד בשרת (STAFF_CODE או ADMIN_CODE)" },
       { status: 503 },
     );
   }
   const form = await request.formData();
-  const token = verifyStaffCode(String(form.get("code") ?? ""));
+  const verified = verifyCode(String(form.get("code") ?? ""));
 
   // A relative Location keeps the visitor on the host they came from. An
   // absolute URL built from request.url can carry the server's own hostname,
   // and the cookie set here would then belong to a different origin.
-  if (!token) {
+  if (!verified) {
     return new NextResponse(null, {
       status: 303,
       headers: { Location: "/admin?error=1" },
@@ -27,7 +27,7 @@ export async function POST(request: Request) {
     status: 303,
     headers: { Location: "/admin" },
   });
-  response.cookies.set(STAFF_COOKIE, token, {
+  response.cookies.set(STAFF_COOKIE, verified.token, {
     httpOnly: true,
     sameSite: "lax",
     path: "/",

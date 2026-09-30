@@ -3,7 +3,7 @@ import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { votesLabel } from "@/lib/hebrew";
-import { isStaff, staffCodeConfigured } from "@/lib/session";
+import { getRole, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
 import DemoControls from "@/components/DemoControls";
 import StreetAssignment from "@/components/StreetAssignment";
@@ -16,14 +16,15 @@ export default async function AdminPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const staff = await isStaff();
+  const role = await getRole();
+  const staff = role !== "resident";
 
   if (!staff) {
     return (
       <>
         <h1 className="mb-1 text-[24px] font-bold text-ink">כניסת צוות</h1>
         <p className="mb-4 text-[14px] text-ink-soft">
-          לוח הבקרה של אגף אדריכלות העיר. הכניסה בקוד צוות.
+          לוח הבקרה של אגף אדריכלות העיר. הכניסה בקוד צוות או בקוד מנהלת.
         </p>
         {error ? (
           <p role="alert" className="mb-3 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px]">
@@ -32,12 +33,13 @@ export default async function AdminPage({
         ) : null}
         {!staffCodeConfigured() ? (
           <Notice>
-            לא הוגדר קוד צוות בשרת. יש להגדיר את משתנה הסביבה STAFF_CODE לפני השימוש.
+            לא הוגדר קוד בשרת. יש להגדיר את משתנה הסביבה STAFF_CODE, ואת
+            ADMIN_CODE לכניסת המנהלת, לפני השימוש.
           </Notice>
         ) : (
           <form action="/api/staff/login" method="post" className="grid gap-2">
             <label htmlFor="code" className="text-[15px] text-ink">
-              קוד צוות
+              קוד כניסה
             </label>
             <input
               id="code"
@@ -80,7 +82,10 @@ export default async function AdminPage({
   return (
     <>
       <h1 className="mb-1 text-[24px] font-bold text-ink">לוח בקרה</h1>
-      <p className="mb-5 text-[14px] text-ink-soft">אגף אדריכלות העיר, עיריית אשדוד.</p>
+      <p className="mb-5 text-[14px] text-ink-soft">
+        אגף אדריכלות העיר, עיריית אשדוד.{" "}
+        {role === "admin" ? "מחוברת כמנהלת." : "מחובר כצוות."}
+      </p>
 
       <Section title="מצב כללי">
         <Card>
