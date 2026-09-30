@@ -15,3 +15,13 @@ export const PALETTES: { value: Palette; label: string }[] = [
   { value: "green", label: "ירוק" },
   { value: "blue", label: "כחול" },
 ];
+
+/**
+ * The colour the browser paints its own chrome with — the address bar on
+ * Android, the status bar in a standalone PWA. It has to follow the chosen
+ * scheme, otherwise a blue app sits under a green bar.
+ */
+export const PALETTE_THEME_COLOR: Record<Palette, string> = {
+  green: "#1f6f5c",
+  blue: "#1b3f78",
+};

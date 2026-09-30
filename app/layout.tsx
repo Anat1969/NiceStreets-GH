@@ -5,6 +5,7 @@ import TabBar from "@/components/TabBar";
 import ViewModeToggle from "@/components/ViewModeToggle";
 import PaletteToggle from "@/components/PaletteToggle";
 import { getPalette, getViewMode, isStaff } from "@/lib/session";
+import { PALETTE_THEME_COLOR } from "@/lib/palette";
 import { getStore } from "@/lib/store";
 import { BUILD_LABEL } from "@/lib/version";
 
@@ -15,8 +16,12 @@ export const metadata: Metadata = {
   applicationName: CITY.appShortTitle,
 };
 
+/*
+ * themeColor is deliberately not set here: it is static, and the colour has
+ * to follow the scheme the visitor chose. It is rendered in <head> below,
+ * from the same cookie the rest of the scheme comes from.
+ */
 export const viewport: Viewport = {
-  themeColor: "#1f6f5c",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -43,6 +48,7 @@ export default async function RootLayout({
   return (
     <html lang="he" dir="rtl" data-view={viewMode} data-palette={palette}>
       <head>
+        <meta name="theme-color" content={PALETTE_THEME_COLOR[palette]} />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
         {/*
