@@ -8,19 +8,21 @@
 -- להריץ דרך כלי ה-SQL של Supabase, אחרי שהפריסה הגיעה ל-READY.
 -- להחליף את מזהה הגרסה בזה שהודפס בסוף `npm run sync`.
 
-\set build '71165b7'
+\set build '790d287'
 
 with pages as (
   select * from (values
     ('/',                               'איזה רחוב'),
     ('/choose',                         'שם הרחוב'),
-    ('/map',                            'מפת הרובעים'),
+    ('/map',                            'גודל העיגול לפי מספר הקולות'),
     ('/streets',                        'סינון ומיון'),
     ('/examples',                       'כל הקריטריונים'),
-    ('/learn',                          'ארבע משפחות'),
-    ('/learn?criterion=section_split',  'מסלול ניווט'),
+    ('/learn',                          'מה הופך רחוב לטוב, בארבעה חלקים'),
+    ('/learn/criteria/section',         'חלוקת החתך'),
     ('/examples?typology=boulevard',    'שדרה'),
-    ('/choose?street=189',              'באיזה רובע הקטע')
+    ('/choose?street=189',              'באיזה רובע הקטע'),
+    ('/learn/criteria/skeleton',        'תמונה'),
+    ('/learn/types/boulevard',          'שדרה')
   ) as t(path, marker)
 )
 select p.path,
