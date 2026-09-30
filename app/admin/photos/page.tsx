@@ -34,7 +34,7 @@ export default async function PhotoQueuePage() {
   return (
     <>
       <p className="mb-1 text-[13px] text-ink-faint">
-        <Link href="/admin" className="underline underline-offset-2">
+        <Link href="/admin" className="inline-link underline underline-offset-2">
           לוח בקרה
         </Link>{" "}
         · תור תמונות
