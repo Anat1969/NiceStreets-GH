@@ -1,99 +1,66 @@
-import crypto from "node:crypto";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { VIEW_MODE_COOKIE, parseViewMode, type ViewMode } from "./view-mode";
 import { PALETTE_COOKIE, parsePalette, type Palette } from "./palette";
-
-export const RESIDENT_COOKIE = "gs_uid";
-export const STAFF_COOKIE = "gs_staff";
-
-/** Anonymous resident id. No personal details are stored anywhere. */
-export async function getResidentId(): Promise<string | null> {
-  const jar = await cookies();
-  return jar.get(RESIDENT_COOKIE)?.value ?? null;
-}
-
-export function newResidentId(): string {
-  return `u-${crypto.randomUUID()}`;
-}
+import { supabaseServer } from "./supabase/server";
 
 /**
- * Three roles. A resident is anyone without a code. Staff is the department's
- * working login. Admin is the city architect, and has every staff right plus
- * the ones reserved for her — publishing a photo without moderation, above all.
+ * Three roles, all proven by Supabase Auth and enforced by the database:
  *
- * There are no user accounts: a role is proven by knowing its code, and the
- * cookie holds a token derived from it rather than the code itself.
+ * resident — anyone. Signed in anonymously the first time they write.
+ * staff    — an e-mail user with a row in public.staff (magic-link sign-in).
+ * admin    — staff with role 'admin': the city architect.
+ *
+ * The app reads the role only to decide what to show. What a request may
+ * actually do is decided by RLS from the same session, so a forged cookie
+ * or a skipped check here cannot write anything.
  */
 export type Role = "resident" | "staff" | "admin";
 
-/**
- * מנקה קוד לפני ההשוואה, בשני הקצוות — גם הערך שמוגדר במשתנה הסביבה וגם
- * מה שהוקלד במסך.
- *
- * הסיבה מעשית: ערך שמודבק לתוך Vercel סוחב איתו לא פעם ירידת שורה או
- * רווח, ומקלדת של נייד מוסיפה רווח אחרי מילה. שניהם בלתי נראים, ושניהם
- * הפכו קוד נכון ל"הקוד שגוי". גם מרכאות שנכנסו יחד עם הערך מוסרות, וכן
- * תווים בלתי נראים שמגיעים מהעתקה מדפדפן.
- */
-function cleanCode(value: string | undefined): string {
-  if (!value) return "";
-  return value
-    .replace(/[​-‏‪-‮﻿]/g, "")
-    .trim()
-    .replace(/^["']|["']$/g, "")
-    .trim();
+interface Identity {
+  userId: string | null;
+  email: string | null;
+  role: Role;
 }
 
-function roleToken(code: string): string {
-  return crypto.createHash("sha256").update(`gs::${code}`).digest("hex").slice(0, 32);
-}
-
-/** Constant-time comparison that does not leak the length of the secret. */
-function sameSecret(given: string, expected: string): boolean {
-  const a = crypto.createHash("sha256").update(given).digest();
-  const b = crypto.createHash("sha256").update(expected).digest();
-  return crypto.timingSafeEqual(a, b);
-}
-
-export function staffCodeConfigured(): boolean {
-  return Boolean(cleanCode(process.env.STAFF_CODE) || cleanCode(process.env.ADMIN_CODE));
-}
-
-export function adminCodeConfigured(): boolean {
-  return Boolean(cleanCode(process.env.ADMIN_CODE));
-}
-
-/**
- * Checks a typed code against both roles and returns the token to store.
- * Admin is checked first, so setting the same value for both codes grants the
- * stronger role rather than the weaker one.
- */
-export function verifyCode(code: string): { role: Role; token: string } | null {
-  const given = cleanCode(code);
-  if (!given) return null;
-  const admin = cleanCode(process.env.ADMIN_CODE);
-  if (admin && sameSecret(given, admin)) {
-    return { role: "admin", token: roleToken(admin) };
+/** Once per request, however many components ask. */
+const identity = cache(async (): Promise<Identity> => {
+  try {
+    const supabase = await supabaseServer();
+    const { data } = await supabase.auth.getUser();
+    const user = data.user;
+    if (!user) return { userId: null, email: null, role: "resident" };
+    if (user.is_anonymous) return { userId: user.id, email: null, role: "resident" };
+    const { data: row } = await supabase
+      .from("staff")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const role: Role = row?.role === "admin" ? "admin" : row ? "staff" : "resident";
+    return { userId: user.id, email: user.email ?? null, role };
+  } catch {
+    return { userId: null, email: null, role: "resident" };
   }
-  const staff = cleanCode(process.env.STAFF_CODE);
-  if (staff && sameSecret(given, staff)) {
-    return { role: "staff", token: roleToken(staff) };
-  }
-  return null;
+});
+
+/** The signed-in user's id (anonymous resident or staff), or null. */
+export async function getResidentId(): Promise<string | null> {
+  return (await identity()).userId;
 }
 
 export async function getRole(): Promise<Role> {
-  const jar = await cookies();
-  const token = jar.get(STAFF_COOKIE)?.value;
-  if (!token) return "resident";
+  return (await identity()).role;
+}
 
-  const admin = cleanCode(process.env.ADMIN_CODE);
-  if (admin && sameSecret(token, roleToken(admin))) return "admin";
+/** The address of an e-mail user (staff or not); null for residents and guests. */
+export async function getSignedInEmail(): Promise<string | null> {
+  return (await identity()).email;
+}
 
-  const staff = cleanCode(process.env.STAFF_CODE);
-  if (staff && sameSecret(token, roleToken(staff))) return "staff";
-
-  return "resident";
+/** The staff member's address, for "signed in as". */
+export async function getStaffEmail(): Promise<string | null> {
+  const who = await identity();
+  return who.role === "resident" ? null : who.email;
 }
 
 /** True for staff and for admin: the city architect has every staff right. */

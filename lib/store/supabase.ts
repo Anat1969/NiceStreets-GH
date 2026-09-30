@@ -1,4 +1,5 @@
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { supabaseServer } from "../supabase/server";
 import { STREET_ASSIGNMENTS } from "../city";
 import type { StatusKey, TypologyKey } from "../city";
 import type {
@@ -87,21 +88,22 @@ function decodeDataUrl(dataUrl: string): { body: Buffer; ext: string; mime: stri
 }
 
 /**
- * Server-side Supabase adapter. Uses the service-role key, so every call in
- * this class must already have been authorised by the route handler.
- * Browser clients never talk to Supabase directly; RLS in supabase/schema.sql
- * is the second line of defence.
+ * Server-side Supabase adapter.
+ *
+ * Every call runs as the person behind the current request: the client is
+ * built from their session cookies, with the publishable key. RLS in the
+ * database is the authority on who may read and write what; the route
+ * handlers' checks only decide what to show and which error to give.
  */
 export class SupabaseStore implements DataStore {
   readonly kind = "supabase" as const;
-  private db: SupabaseClient;
 
-  constructor(url: string, serviceKey: string) {
-    this.db = createClient(url, serviceKey, { auth: { persistSession: false } });
+  private async db(): Promise<SupabaseClient> {
+    return supabaseServer();
   }
 
   private async rows(table: string, build: (q: any) => any = (q) => q): Promise<Row[]> {
-    const { data, error } = await build(this.db.from(table).select("*"));
+    const { data, error } = await build((await this.db()).from(table).select("*"));
     if (error) throw new Error(`${table}: ${error.message}`);
     return data ?? [];
   }
@@ -123,7 +125,7 @@ export class SupabaseStore implements DataStore {
     center: [number, number];
     polygon: [number, number][];
   }): Promise<Quarter> {
-    const { data, error } = await this.db
+    const { data, error } = await (await this.db())
       .from("quarters")
       .update({
         center: input.center,
@@ -159,25 +161,19 @@ export class SupabaseStore implements DataStore {
     name: string;
     quarterId?: string;
   }): Promise<Street> {
-    const existing = await this.rows("streets", (q) => q.eq("code", input.code).limit(1));
-    if (existing[0]) return toStreet(existing[0]);
-
+    // Through ensure_street(): a resident may create the row for a street the
+    // first time it is rated, and nothing else about streets.
     const assignment = STREET_ASSIGNMENTS[input.code] ?? {};
-    const { data, error } = await this.db
-      .from("streets")
-      .insert({
-        code: input.code,
-        name: input.name,
-        quarter_id: input.quarterId ?? assignment.quarterId ?? null,
-        typology: assignment.typology ?? null,
-        line: assignment.line ?? null,
-        gis: assignment.gis ?? null,
-        verified: true,
-      })
-      .select("*")
-      .single();
+    const { data, error } = await (await this.db()).rpc("ensure_street", {
+      p_code: input.code,
+      p_name: input.name,
+      p_quarter_id: input.quarterId ?? assignment.quarterId ?? null,
+      p_typology: assignment.typology ?? null,
+      p_line: assignment.line ?? null,
+      p_gis: assignment.gis ?? null,
+    });
     if (error) throw new Error(error.message);
-    return toStreet(data);
+    return toStreet(Array.isArray(data) ? data[0] : data);
   }
 
   async setStreetCenter(
@@ -185,7 +181,7 @@ export class SupabaseStore implements DataStore {
     center: [number, number],
     source: "osm" | "municipal" | "staff",
   ): Promise<void> {
-    const { error } = await this.db
+    const { error } = await (await this.db())
       .from("streets")
       .update({ center, center_source: source })
       .eq("id", streetId);
@@ -200,7 +196,7 @@ export class SupabaseStore implements DataStore {
     const patch: Row = {};
     if (input.quarterId !== undefined) patch.quarter_id = input.quarterId;
     if (input.typology !== undefined) patch.typology = input.typology;
-    const { data, error } = await this.db
+    const { data, error } = await (await this.db())
       .from("streets")
       .update(patch)
       .eq("id", input.streetId)
@@ -211,7 +207,7 @@ export class SupabaseStore implements DataStore {
   }
 
   async listContentImageSlots(): Promise<string[]> {
-    const { data, error } = await this.db.from("content_images").select("slot");
+    const { data, error } = await (await this.db()).from("content_images").select("slot");
     if (error) throw new Error(error.message);
     return (data ?? []).map((row) => row.slot as string);
   }
@@ -219,7 +215,7 @@ export class SupabaseStore implements DataStore {
   async readContentImage(
     slot: string,
   ): Promise<{ body: Buffer; contentType: string } | null> {
-    const { data, error } = await this.db
+    const { data, error } = await (await this.db())
       .from("content_images")
       .select("content_type, data_base64")
       .eq("slot", slot)
@@ -241,7 +237,7 @@ export class SupabaseStore implements DataStore {
     const decoded = decodeDataUrl(input.dataUrl);
     if (!decoded) throw new Error("PHOTO_FORMAT");
     if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
-    const { error } = await this.db.from("content_images").upsert({
+    const { error } = await (await this.db()).from("content_images").upsert({
       slot: input.slot,
       content_type: decoded.mime,
       data_base64: decoded.body.toString("base64"),
@@ -252,76 +248,80 @@ export class SupabaseStore implements DataStore {
   }
 
   async deleteContentImage(slot: string): Promise<void> {
-    const { error } = await this.db.from("content_images").delete().eq("slot", slot);
+    const { error } = await (await this.db()).from("content_images").delete().eq("slot", slot);
     if (error) throw new Error(error.message);
   }
 
   async upsertVote(input: VoteInput): Promise<Vote> {
+    const db = await this.db();
     const street = await this.getStreet(input.streetId);
     if (!street) throw new Error("STREET_NOT_FOUND");
 
-    const existingRows = await this.rows("votes", (q) =>
-      q.eq("user_id", input.userId).eq("street_id", input.streetId).limit(1),
-    );
-    const existing = existingRows[0] ? toVote(existingRows[0]) : null;
+    const decoded = input.photo?.dataUrl ? decodeDataUrl(input.photo.dataUrl) : null;
+    if (input.photo?.dataUrl && !decoded) throw new Error("PHOTO_FORMAT");
+    if (decoded && decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
 
-    let photoId = existing?.photoId ?? null;
-    if (input.photo?.dataUrl) {
-      const decoded = decodeDataUrl(input.photo.dataUrl);
-      if (!decoded) throw new Error("PHOTO_FORMAT");
-      if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
-      const storagePath = `${input.streetId}/${crypto.randomUUID()}.${decoded.ext}`;
-      const { data, error } = await this.db
-        .from("photos")
-        .insert({
-          street_id: input.streetId,
-          vote_id: existing?.id ?? null,
-          storage_path: storagePath,
-          status: "pending",
-          source: "resident",
-          is_demo: false,
-        })
-        .select("*")
-        .single();
-      if (error) throw new Error(error.message);
-      // The image lives in photo_blobs as base64 text, so the whole dataset is
-      // one database to back up, restore and move between projects.
-      const blob = await this.db.from("photo_blobs").insert({
-        photo_id: data.id,
-        content_type: decoded.mime,
-        data_base64: decoded.body.toString("base64"),
-      });
-      if (blob.error) {
-        await this.db.from("photos").delete().eq("id", data.id);
-        throw new Error(blob.error.message);
-      }
-      photoId = data.id;
-    }
+    const existing = await this.getUserVote(input.userId, input.streetId);
 
-    const payload = {
-      street_id: input.streetId,
-      quarter_id: street.quarterId,
-      typology: street.typology,
-      typology_suggestion: input.typologySuggestion ?? existing?.typologySuggestion ?? null,
-      scores: input.scores,
-      reason: input.reason,
-      photo_id: photoId,
-      user_id: input.userId,
-      updated_at: new Date().toISOString(),
-      is_demo: false,
-    };
-
-    const { data, error } = await this.db
+    // The vote is saved first and the photo attached to it after, so every
+    // write is one the resident is allowed to make on their own rows.
+    const { data, error } = await db
       .from("votes")
-      .upsert(payload, { onConflict: "user_id,street_id" })
+      .upsert(
+        {
+          street_id: input.streetId,
+          quarter_id: street.quarterId,
+          typology: street.typology,
+          typology_suggestion: input.typologySuggestion ?? existing?.typologySuggestion ?? null,
+          scores: input.scores,
+          reason: input.reason,
+          photo_id: existing?.photoId ?? null,
+          user_id: input.userId,
+          updated_at: new Date().toISOString(),
+          is_demo: false,
+        },
+        { onConflict: "user_id,street_id" },
+      )
       .select("*")
       .single();
     if (error) throw new Error(error.message);
+    const vote = toVote(data);
 
-    if (photoId) {
-      await this.db.from("photos").update({ vote_id: data.id }).eq("id", photoId);
+    if (!decoded) return vote;
+
+    const storagePath = `${input.streetId}/${crypto.randomUUID()}.${decoded.ext}`;
+    const photo = await db
+      .from("photos")
+      .insert({
+        street_id: input.streetId,
+        vote_id: vote.id,
+        storage_path: storagePath,
+        status: "pending",
+        source: "resident",
+        is_demo: false,
+      })
+      .select("*")
+      .single();
+    if (photo.error) throw new Error(photo.error.message);
+    // The image lives in photo_blobs as base64 text, so the whole dataset is
+    // one database to back up, restore and move between projects.
+    const blob = await db.from("photo_blobs").insert({
+      photo_id: photo.data.id,
+      content_type: decoded.mime,
+      data_base64: decoded.body.toString("base64"),
+    });
+    if (blob.error) {
+      await db.from("photos").delete().eq("id", photo.data.id);
+      throw new Error(blob.error.message);
     }
-    return toVote(data);
+    const linked = await db
+      .from("votes")
+      .update({ photo_id: photo.data.id })
+      .eq("id", vote.id)
+      .select("*")
+      .single();
+    if (linked.error) throw new Error(linked.error.message);
+    return toVote(linked.data);
   }
 
   async getUserVote(userId: string, streetId: string): Promise<Vote | null> {
@@ -332,10 +332,11 @@ export class SupabaseStore implements DataStore {
   }
 
   async listVotes(filter?: { streetId?: string }): Promise<Vote[]> {
-    const rows = await this.rows("votes", (q) =>
+    // votes_public: every vote, without who wrote it. Screens never need that.
+    const rows = await this.rows("votes_public", (q) =>
       filter?.streetId ? q.eq("street_id", filter.streetId) : q,
     );
-    return rows.map(toVote);
+    return rows.map((row) => toVote({ ...row, user_id: "" }));
   }
 
   /**
@@ -355,7 +356,7 @@ export class SupabaseStore implements DataStore {
     if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
 
     const storagePath = `${input.streetId}/${crypto.randomUUID()}.${decoded.ext}`;
-    const { data, error } = await this.db
+    const { data, error } = await (await this.db())
       .from("photos")
       .insert({
         street_id: input.streetId,
@@ -369,13 +370,13 @@ export class SupabaseStore implements DataStore {
       .single();
     if (error) throw new Error(error.message);
 
-    const blob = await this.db.from("photo_blobs").insert({
+    const blob = await (await this.db()).from("photo_blobs").insert({
       photo_id: data.id,
       content_type: decoded.mime,
       data_base64: decoded.body.toString("base64"),
     });
     if (blob.error) {
-      await this.db.from("photos").delete().eq("id", data.id);
+      await (await this.db()).from("photos").delete().eq("id", data.id);
       throw new Error(blob.error.message);
     }
     return toPhoto(data);
@@ -392,20 +393,28 @@ export class SupabaseStore implements DataStore {
   }
 
   async readPhoto(photoId: string): Promise<{ body: Buffer; contentType: string } | null> {
-    const { data, error } = await this.db
-      .from("photo_blobs")
-      .select("content_type, data_base64")
-      .eq("photo_id", photoId)
-      .maybeSingle();
-    if (error || !data?.data_base64) return null;
+    const db = await this.db();
+    // A public photo comes through public_photo_blob(); anything else only
+    // staff can read, and RLS returns nothing to anyone else.
+    const open = await db.rpc("public_photo_blob", { p_photo_id: photoId });
+    let row: Row | null = open.error ? null : (open.data?.[0] ?? null);
+    if (!row) {
+      const { data } = await db
+        .from("photo_blobs")
+        .select("content_type, data_base64")
+        .eq("photo_id", photoId)
+        .maybeSingle();
+      row = data;
+    }
+    if (!row?.data_base64) return null;
     return {
-      body: Buffer.from(data.data_base64, "base64"),
-      contentType: data.content_type ?? "image/jpeg",
+      body: Buffer.from(row.data_base64, "base64"),
+      contentType: row.content_type ?? "image/jpeg",
     };
   }
 
   async setPhotoStatus(photoId: string, status: PhotoStatus): Promise<void> {
-    const { error } = await this.db.from("photos").update({ status }).eq("id", photoId);
+    const { error } = await (await this.db()).from("photos").update({ status }).eq("id", photoId);
     if (error) throw new Error(error.message);
   }
 
@@ -419,7 +428,7 @@ export class SupabaseStore implements DataStore {
     publicNote: string;
     updatedBy: string;
   }): Promise<StreetStatus> {
-    const { data, error } = await this.db
+    const { data, error } = await (await this.db())
       .from("street_status")
       .upsert(
         {
@@ -457,11 +466,11 @@ export class SupabaseStore implements DataStore {
       is_demo: true,
     }));
 
-    const { data, error } = await this.db.from("votes").insert(votes).select("id");
+    const { data, error } = await (await this.db()).from("votes").insert(votes).select("id");
     if (error) throw new Error(error.message);
 
     const statusKeys: StatusKey[] = ["under_review", "done"];
-    await this.db.from("street_status").upsert(
+    await (await this.db()).from("street_status").upsert(
       streets.slice(0, 8).map((street, index) => ({
         street_id: street.id,
         status: statusKeys[index % statusKeys.length],
@@ -476,16 +485,16 @@ export class SupabaseStore implements DataStore {
   }
 
   async clearDemo(): Promise<number> {
-    const { data: votes, error } = await this.db
+    const { data: votes, error } = await (await this.db())
       .from("votes")
       .delete()
       .eq("is_demo", true)
       .select("id");
     if (error) throw new Error(error.message);
-    await this.db.from("photos").delete().eq("is_demo", true);
+    await (await this.db()).from("photos").delete().eq("is_demo", true);
     // Test uploads are demo data by another name, and go with it.
-    await this.db.from("photos").delete().eq("source", "test");
-    await this.db.from("street_status").delete().eq("updated_by", "demo");
+    await (await this.db()).from("photos").delete().eq("source", "test");
+    await (await this.db()).from("street_status").delete().eq("updated_by", "demo");
     return votes?.length ?? 0;
   }
 }

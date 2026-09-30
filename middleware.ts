@@ -1,0 +1,37 @@
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
+
+/**
+ * Keeps the visitor's session fresh. A session token expires after an hour;
+ * this is the one place that can both read the old one and write the new one
+ * before the page renders. A visitor with no session passes straight through.
+ */
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({ request });
+  const hasSession = request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
+  if (!hasSession) return response;
+
+  try {
+    const supabase = createServerClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(list) {
+          for (const { name, value } of list) request.cookies.set(name, value);
+          response = NextResponse.next({ request });
+          for (const { name, value, options } of list) response.cookies.set(name, value, options);
+        },
+      },
+    });
+    await supabase.auth.getUser();
+  } catch {
+    // A failed refresh must never block the page; the visitor is simply anon.
+  }
+  return response;
+}
+
+export const config = {
+  matcher: ["/((?!_next/static|_next/image|icon.svg|manifest.webmanifest|api/photos/).*)"],
+};
