@@ -189,6 +189,52 @@ export class SupabaseStore implements DataStore {
     return toStreet(data);
   }
 
+  async listContentImageSlots(): Promise<string[]> {
+    const { data, error } = await this.db.from("content_images").select("slot");
+    if (error) throw new Error(error.message);
+    return (data ?? []).map((row) => row.slot as string);
+  }
+
+  async readContentImage(
+    slot: string,
+  ): Promise<{ body: Buffer; contentType: string } | null> {
+    const { data, error } = await this.db
+      .from("content_images")
+      .select("content_type, data_base64")
+      .eq("slot", slot)
+      .limit(1);
+    if (error) throw new Error(error.message);
+    const row = data?.[0];
+    if (!row) return null;
+    return {
+      body: Buffer.from(row.data_base64, "base64"),
+      contentType: row.content_type,
+    };
+  }
+
+  async setContentImage(input: {
+    slot: string;
+    dataUrl: string;
+    alt?: string;
+  }): Promise<void> {
+    const decoded = decodeDataUrl(input.dataUrl);
+    if (!decoded) throw new Error("PHOTO_FORMAT");
+    if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
+    const { error } = await this.db.from("content_images").upsert({
+      slot: input.slot,
+      content_type: decoded.mime,
+      data_base64: decoded.body.toString("base64"),
+      alt: input.alt ?? "",
+      updated_at: new Date().toISOString(),
+    });
+    if (error) throw new Error(error.message);
+  }
+
+  async deleteContentImage(slot: string): Promise<void> {
+    const { error } = await this.db.from("content_images").delete().eq("slot", slot);
+    if (error) throw new Error(error.message);
+  }
+
   async upsertVote(input: VoteInput): Promise<Vote> {
     const street = await this.getStreet(input.streetId);
     if (!street) throw new Error("STREET_NOT_FOUND");

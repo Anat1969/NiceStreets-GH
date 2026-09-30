@@ -5,10 +5,14 @@ import type { TypologyKey } from "@/lib/city";
 import { TYPOLOGY_ICONS } from "@/components/icons";
 import { BackLink, PrevNext } from "@/components/learn-nav";
 import { Card } from "@/components/ui";
+import ImageFrame from "@/components/ImageFrame";
+import { getStore } from "@/lib/store";
+import { imageSlot } from "@/lib/content-images";
+import { isAdmin } from "@/lib/session";
 
-export function generateStaticParams() {
-  return TYPOLOGIES.map((typology) => ({ type: typology.key }));
-}
+export const dynamic = "force-dynamic";
+
+/* נבנה בכל בקשה, מאותה סיבה כמו עמוד הקריטריונים. */
 
 export default async function TypePage({
   params,
@@ -18,6 +22,14 @@ export default async function TypePage({
   const { type: key } = await params;
   const typology = TYPOLOGY_MAP[key as TypologyKey];
   if (!typology) notFound();
+
+  const [slots, admin] = await Promise.all([
+    getStore()
+      .listContentImageSlots()
+      .catch(() => [] as string[]),
+    isAdmin(),
+  ]);
+  const slot = imageSlot("typology", typology.key);
 
   const Glyph = TYPOLOGY_ICONS[typology.key];
   const index = TYPOLOGIES.findIndex((t) => t.key === typology.key);
@@ -34,7 +46,17 @@ export default async function TypePage({
         </span>
         <h1 className="text-[24px] font-bold text-ink">{typology.label}</h1>
       </div>
-      <p className="mb-5 text-[15px] text-ink-soft">{typology.description}</p>
+      <p className="mb-4 text-[15px] text-ink-soft">{typology.description}</p>
+
+      <ImageFrame
+        className="mb-4"
+        slot={slot}
+        alt={`${typology.label} — תמונה להמחשה`}
+        hasImage={slots.includes(slot)}
+        canEdit={admin}
+        ratio="16 / 9"
+        emptyLabel="אין עדיין תמונה לסוג הזה"
+      />
 
       <Card>
         <p className="mb-2 text-[15px] font-medium text-ink">ערכי ייחוס</p>

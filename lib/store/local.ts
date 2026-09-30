@@ -25,6 +25,8 @@ interface Snapshot {
   votes: Vote[];
   photos: Photo[];
   statuses: StreetStatus[];
+  /** תמונות תוכן, לפי מפתח המקום. */
+  contentImages?: Record<string, { contentType: string; dataBase64: string; alt: string }>;
 }
 
 /**
@@ -83,11 +85,13 @@ function id(prefix: string): string {
   return `${prefix}-${crypto.randomUUID()}`;
 }
 
-function decodeDataUrl(dataUrl: string): { body: Buffer; ext: string } | null {
+function decodeDataUrl(
+  dataUrl: string,
+): { body: Buffer; ext: string; mime: string } | null {
   const match = /^data:(image\/(png|jpe?g|webp));base64,(.+)$/i.exec(dataUrl);
   if (!match) return null;
   const ext = match[2].toLowerCase().startsWith("jp") ? "jpg" : match[2].toLowerCase();
-  return { body: Buffer.from(match[3], "base64"), ext };
+  return { body: Buffer.from(match[3], "base64"), ext, mime: match[1].toLowerCase() };
 }
 
 const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
@@ -177,6 +181,53 @@ export class LocalStore implements DataStore {
       snapshot.streets[index] = street;
       await persist(snapshot);
       return { ...street };
+    });
+  }
+
+  async listContentImageSlots(): Promise<string[]> {
+    const snapshot = await withLock(load);
+    return Object.keys(snapshot.contentImages ?? {});
+  }
+
+  async readContentImage(
+    slot: string,
+  ): Promise<{ body: Buffer; contentType: string } | null> {
+    const snapshot = await withLock(load);
+    const row = snapshot.contentImages?.[slot];
+    if (!row) return null;
+    return {
+      body: Buffer.from(row.dataBase64, "base64"),
+      contentType: row.contentType,
+    };
+  }
+
+  async setContentImage(input: {
+    slot: string;
+    dataUrl: string;
+    alt?: string;
+  }): Promise<void> {
+    return withLock(async () => {
+      const snapshot = await load();
+      const decoded = decodeDataUrl(input.dataUrl);
+      if (!decoded) throw new Error("PHOTO_FORMAT");
+      if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
+      snapshot.contentImages = {
+        ...(snapshot.contentImages ?? {}),
+        [input.slot]: {
+          contentType: decoded.mime,
+          dataBase64: decoded.body.toString("base64"),
+          alt: input.alt ?? "",
+        },
+      };
+      await persist(snapshot);
+    });
+  }
+
+  async deleteContentImage(slot: string): Promise<void> {
+    return withLock(async () => {
+      const snapshot = await load();
+      if (snapshot.contentImages) delete snapshot.contentImages[slot];
+      await persist(snapshot);
     });
   }
 

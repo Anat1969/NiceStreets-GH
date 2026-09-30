@@ -11,6 +11,9 @@ import {
 import type { CriterionKey, TypologyKey } from "@/lib/city";
 import { Card, Notice } from "@/components/ui";
 import { getStore } from "@/lib/store";
+import ImageFrame from "@/components/ImageFrame";
+import { imageSlot } from "@/lib/content-images";
+import { isAdmin } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
@@ -37,6 +40,10 @@ export default async function ExamplesPage({
    * of a street elsewhere that explains a criterion.
    */
   const store = getStore();
+  const [slots, admin] = await Promise.all([
+    store.listContentImageSlots().catch(() => [] as string[]),
+    isAdmin(),
+  ]);
   const [examplePhotos, streets] = await Promise.all([
     store.listPhotos().then((rows) => rows.filter((p) => p.source === "example")).catch(() => []),
     store.listStreets().catch(() => []),
@@ -171,6 +178,15 @@ export default async function ExamplesPage({
       <div className="grid gap-3">
         {results.map((example) => (
           <Card key={example.key}>
+            <ImageFrame
+              className="mb-2"
+              slot={imageSlot("example", example.key)}
+              alt={`${example.title} — ${example.place}`}
+              hasImage={slots.includes(imageSlot("example", example.key))}
+              canEdit={admin}
+              ratio="16 / 9"
+              emptyLabel="אין עדיין תמונה לדוגמה"
+            />
             <p className="text-[16px] font-medium text-ink">{example.title}</p>
             <p className="text-[13px] text-ink-faint">{example.place}</p>
             <p className="mt-1 text-[14px] text-ink-soft">{example.text}</p>

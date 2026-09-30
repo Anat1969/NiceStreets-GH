@@ -8,6 +8,7 @@ import { getPalette, getViewMode, isStaff } from "@/lib/session";
 import { PALETTE_THEME_COLOR } from "@/lib/palette";
 import { getStore } from "@/lib/store";
 import { BUILD_LABEL } from "@/lib/version";
+import { imageSlot, imageSlotUrl } from "@/lib/content-images";
 
 export const metadata: Metadata = {
   title: CITY.appTitle,
@@ -44,6 +45,16 @@ export default async function RootLayout({
         .then((rows) => rows.length)
         .catch(() => 0)
     : 0;
+  /*
+   * The logo is uploaded in place from the dashboard, so it lives in the
+   * database rather than in public/. CITY.logo stays as the fallback for a
+   * file that ships with the build.
+   */
+  const uploadedLogo = await getStore()
+    .listContentImageSlots()
+    .then((slots) => slots.includes(imageSlot("logo")))
+    .catch(() => false);
+  const logoSrc = uploadedLogo ? imageSlotUrl(imageSlot("logo")) : CITY.logo;
 
   return (
     <html lang="he" dir="rtl" data-view={viewMode} data-palette={palette}>
@@ -72,9 +83,9 @@ export default async function RootLayout({
             <header className="app-header">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <div className="flex items-center gap-3">
-                  {CITY.logo ? (
+                  {logoSrc ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={CITY.logo} alt={CITY.authority} className="brand-logo" />
+                    <img src={logoSrc} alt={CITY.authority} className="brand-logo" />
                   ) : null}
                   <div>
                     <p className="text-[17px] font-semibold text-ink">{CITY.appTitle}</p>

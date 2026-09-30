@@ -101,6 +101,19 @@ alter table votes
   foreign key (photo_id) references photos(id) on delete set null
   not valid;
 
+-- Content images: one image per fixed place in the app. `photos` ties every
+-- image to a street, so a criterion, a street type, a library example and the
+-- municipal logo have nowhere to live there. Each one is identified by its slot
+-- key — `criterion:tree_canopy`, `typology:boulevard`, `logo` — and the bytes
+-- are base64 here too, for the same one-database-to-back-up reason.
+create table if not exists content_images (
+  slot          text primary key,
+  content_type  text not null,
+  data_base64   text not null,
+  alt           text not null default '',
+  updated_at    timestamptz not null default now()
+);
+
 create table if not exists street_status (
   street_id    uuid primary key references streets(id) on delete cascade,
   status       text not null check (status in (
@@ -132,6 +145,7 @@ alter table streets       enable row level security;
 alter table votes         enable row level security;
 alter table photos        enable row level security;
 alter table photo_blobs   enable row level security;
+alter table content_images enable row level security;
 alter table street_status enable row level security;
 alter table staff         enable row level security;
 
@@ -227,6 +241,14 @@ create policy app_photos_write on photos for all to anon
 
 drop policy if exists app_photo_blobs_write on photo_blobs;
 create policy app_photo_blobs_write on photo_blobs for all to anon
+  using (true) with check (true);
+
+-- תמונות תוכן: הציבור קורא, והכתיבה מגיעה מהשרת בלבד ונאכפת שם לפי תפקיד.
+drop policy if exists content_images_read on content_images;
+create policy content_images_read on content_images for select using (true);
+
+drop policy if exists app_content_images_write on content_images;
+create policy app_content_images_write on content_images for all to anon
   using (true) with check (true);
 
 drop policy if exists app_status_write on street_status;

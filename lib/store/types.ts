@@ -39,6 +39,15 @@ export interface DataStore {
     typology?: TypologyKey | null;
   }): Promise<Street>;
 
+  /**
+   * תמונות תוכן: תמונה אחת לכל מקום קבוע. `listContentImageSlots` מחזיר רק
+   * את המפתחות, כי המסכים צריכים לדעת מה קיים ולא לטעון את הבייטים.
+   */
+  listContentImageSlots(): Promise<string[]>;
+  readContentImage(slot: string): Promise<{ body: Buffer; contentType: string } | null>;
+  setContentImage(input: { slot: string; dataUrl: string; alt?: string }): Promise<void>;
+  deleteContentImage(slot: string): Promise<void>;
+
   upsertVote(input: VoteInput): Promise<Vote>;
   getUserVote(userId: string, streetId: string): Promise<Vote | null>;
   listVotes(filter?: { streetId?: string }): Promise<Vote[]>;

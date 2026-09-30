@@ -3,6 +3,7 @@ import { QUESTIONS, TYPOLOGIES, TYPOLOGY_MAP, criteriaForQuestion } from "@/lib/
 import { CANONICAL_STREETS, STREET_REGISTRY_SOURCE } from "@/lib/streets";
 import { getStore } from "@/lib/store";
 import { isCrossingStreet, segmentQuarters } from "@/lib/segments";
+import { imageSlot } from "@/lib/content-images";
 
 export const dynamic = "force-dynamic";
 
@@ -14,9 +15,12 @@ export default async function ChoosePage({
   const { street: streetCode, quarter: quarterParam } = await searchParams;
   // Street types are staff knowledge; the flow shows them read-only, so the
   // page carries the assignments already made.
-  const known = await getStore()
-    .listStreets()
-    .catch(() => []);
+  const store = getStore();
+  const [known, imageSlots] = await Promise.all([
+    store.listStreets().catch(() => []),
+    store.listContentImageSlots().catch(() => [] as string[]),
+  ]);
+  const hasImage = new Set(imageSlots);
   const typologyByCode = Object.fromEntries(
     known
       .filter((s) => s.code && s.typology)
@@ -65,6 +69,7 @@ export default async function ChoosePage({
           name: c.name,
           text: c.text,
         })),
+        hasImage: hasImage.has(imageSlot("question", q.key)),
       }))}
       registrySource={STREET_REGISTRY_SOURCE}
     />

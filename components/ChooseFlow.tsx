@@ -4,6 +4,7 @@ import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { resizeImage } from "@/lib/image";
+import { imageSlot, imageSlotUrl } from "@/lib/content-images";
 import { normalizeStreetName } from "@/lib/street-name";
 import ScaleInput, { SCALE_STEPS } from "@/components/ScaleInput";
 
@@ -27,6 +28,8 @@ interface Props {
     help: string;
     /** The criteria this question stands for, shown under "מה זה?". */
     criteria: { key: string; name: string; text: string }[];
+    /** true כשהמנהלת העלתה תמונה אמיתית לשאלה הזאת. */
+    hasImage: boolean;
   }[];
   registrySource: string;
   /** The quarters a stretch of a crossing boulevard can belong to. */
@@ -335,14 +338,21 @@ export default function ChooseFlow({
           {questions.map((question) => (
             <fieldset key={question.key} className="card p-3">
               <div className="flex items-start gap-3">
-                {/* Decorative: the question text carries the meaning. */}
+                {/*
+                  תמונה אמיתית לשאלה אם הועלתה, ואחרת הסמל הסכמטי. שתיהן
+                  דקורטיביות: נוסח השאלה נושא את המשמעות.
+                */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={`/criteria/${question.key}.svg`}
+                  src={
+                    question.hasImage
+                      ? imageSlotUrl(imageSlot("question", question.key))
+                      : `/criteria/${question.key}.svg`
+                  }
                   alt=""
                   width={44}
                   height={44}
-                  className="mt-[2px] h-11 w-11 shrink-0 rounded-[10px]"
+                  className="mt-[2px] h-11 w-11 shrink-0 rounded-[10px] object-cover"
                 />
                 <div className="min-w-0 flex-1">
                   <legend className="px-0 text-[16px] font-medium text-ink">

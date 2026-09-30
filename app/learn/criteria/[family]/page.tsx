@@ -10,10 +10,16 @@ import {
 import type { Criterion, FamilyKey } from "@/lib/city";
 import { CRITERION_ICONS } from "@/components/icons";
 import { BackLink, PrevNext } from "@/components/learn-nav";
+import ImageFrame from "@/components/ImageFrame";
+import { getStore } from "@/lib/store";
+import { imageSlot } from "@/lib/content-images";
+import { isAdmin } from "@/lib/session";
 
-export function generateStaticParams() {
-  return CRITERIA_FAMILIES.map((family) => ({ family: family.key }));
-}
+/*
+ * הדף נבנה בכל בקשה: הוא קורא את תפקיד המשתמשת מהעוגייה ואת רשימת תמונות
+ * התוכן, ולכן גרסה שנבנתה מראש הייתה מקפיאה תמונה שהועלתה אחרי הבנייה.
+ */
+export const dynamic = "force-dynamic";
 
 function Source({ criterion }: { criterion: Criterion }) {
   if (criterion.link.kind === "question") {
@@ -46,6 +52,14 @@ export default async function FamilyPage({
   const { family: key } = await params;
   const family = FAMILY_MAP[key as FamilyKey];
   if (!family) notFound();
+
+  const [slots, admin] = await Promise.all([
+    getStore()
+      .listContentImageSlots()
+      .catch(() => [] as string[]),
+    isAdmin(),
+  ]);
+  const has = new Set(slots);
 
   const index = CRITERIA_FAMILIES.findIndex((f) => f.key === family.key);
   const prev = CRITERIA_FAMILIES[index - 1];
@@ -84,6 +98,14 @@ export default async function FamilyPage({
                     אין עדיין דוגמה בספרייה לקריטריון הזה.
                   </p>
                 )}
+                <ImageFrame
+                  className="mt-3"
+                  slot={imageSlot("criterion", criterion.key)}
+                  alt={`${criterion.name} — תמונה להמחשה`}
+                  hasImage={has.has(imageSlot("criterion", criterion.key))}
+                  canEdit={admin}
+                  emptyLabel="אין עדיין תמונה לקריטריון"
+                />
               </div>
             </li>
           );

@@ -11,6 +11,8 @@ import { QUARTER_MAP } from "@/lib/city";
 import { contestedThemes } from "@/lib/themes";
 import AdminUpload from "@/components/AdminUpload";
 import StreetAssignment from "@/components/StreetAssignment";
+import ImageFrame from "@/components/ImageFrame";
+import { imageSlot } from "@/lib/content-images";
 
 export const dynamic = "force-dynamic";
 
@@ -66,11 +68,12 @@ export default async function AdminPage({
   }
 
   const store = getStore();
-  const [{ streetStats, totals, error: dataError }, allVotes, allPhotos] =
+  const [{ streetStats, totals, error: dataError }, allVotes, allPhotos, imageSlots] =
     await Promise.all([
       loadCityData(),
       store.listVotes().catch(() => []),
       store.listPhotos({ status: "pending" }).catch(() => []),
+      store.listContentImageSlots().catch(() => [] as string[]),
     ]);
 
   // The words the resident wrote with the vote the photo came with.
@@ -174,6 +177,23 @@ export default async function AdminPage({
           </Link>
         </p>
       </section>
+
+      {role === "admin" ? (
+        <Section
+          title="לוגו העירייה"
+          note="המסגרת עצמה היא ההעלאה. הלוגו מופיע בראש כל מסך."
+        >
+          <ImageFrame
+            slot={imageSlot("logo")}
+            alt="לוגו עיריית אשדוד"
+            hasImage={imageSlots.includes(imageSlot("logo"))}
+            canEdit
+            ratio="3 / 1"
+            emptyLabel="אין עדיין לוגו"
+            className="max-w-[240px]"
+          />
+        </Section>
+      ) : null}
 
       {role === "admin" ? (
         <Section
