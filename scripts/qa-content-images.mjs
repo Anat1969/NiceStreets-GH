@@ -176,14 +176,57 @@ const admin = await ctx(ADMIN_CODE);
   await p.close();
 }
 
-// ---- 5. מטרות מגע בכפתור ההסרה ובמסגרת
+// ---- 5. מסגרות בדוגמאות, ורוחב 390
 {
   const p = await admin.newPage();
   await p.goto(`${BASE}/examples`);
+  ok(
+    "מנהלת — מסגרות העלאה בדוגמאות",
+    (await p.locator('input[type=file]').count()) > 0,
+  );
   const overflow = await p.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
   );
   ok("390 — דוגמאות בלי גלישה", overflow <= 0, `${overflow}px`);
+  await p.close();
+}
+
+// ---- 6. הדלת: אפשר להגיע לכניסת הצוות בלי להקליד כתובת
+{
+  const p = await resident.newPage();
+  await p.goto(`${BASE}/`);
+  const door = p.getByRole("link", { name: "כניסת צוות" });
+  ok("תושב — קישור 'כניסת צוות' מופיע בתחתית", (await door.count()) > 0);
+  await door.first().click();
+  await p.waitForLoadState("networkidle");
+  ok(
+    "הקישור מוביל למסך ההתחברות",
+    (await p.locator("#code").count()) > 0,
+    p.url(),
+  );
+  await p.close();
+}
+
+// ---- 7. צוות מגיע לאישור התמונות, ויכול לצאת
+{
+  const p = await staff.newPage();
+  await p.goto(`${BASE}/`);
+  const tab = p.getByRole("link", { name: "צוות" });
+  ok("צוות — לשונית 'צוות' בניווט", (await tab.count()) > 0);
+  await tab.first().click();
+  await p.waitForLoadState("networkidle");
+  ok(
+    "צוות — מגיע למסך אישור התמונות",
+    (await p.getByRole("heading", { name: "תמונות לאישור" }).count()) > 0,
+  );
+
+  await p.getByRole("button", { name: "יציאה מהצוות" }).first().click();
+  await p.waitForLoadState("networkidle");
+  await p.goto(`${BASE}/`);
+  ok(
+    "היציאה מחזירה למצב תושב",
+    (await p.getByRole("link", { name: "כניסת צוות" }).count()) > 0,
+  );
   await p.close();
 }
 

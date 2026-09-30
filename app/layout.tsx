@@ -100,8 +100,32 @@ export default async function RootLayout({
             </header>
             <main id="main" className="app-main">
               {children}
-              {/* Which build is on screen, so "I do not see the change" is checkable. */}
-              <p className="mt-8 text-[12px] text-ink-faint">{BUILD_LABEL}</p>
+              {/*
+                דלת הכניסה של הצוות. קודם לכן לשונית "צוות" הופיעה רק אחרי
+                ההתחברות, כלומר הדרך היחידה להגיע למסך ההתחברות הייתה להקליד
+                /admin בשורת הכתובת. מי שאינו יודע זאת פשוט לא ראה שקיים
+                מסך אישור תמונות. הקישור כאן שקט, בתחתית, וקיים תמיד.
+              */}
+              <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-line pt-3 text-[12px] text-ink-faint">
+                <span>{BUILD_LABEL}</span>
+                {staff ? (
+                  <form action="/api/staff/logout" method="post">
+                    <button
+                      type="submit"
+                      className="inline-block py-1 text-[12px] text-ink-faint underline underline-offset-2"
+                    >
+                      יציאה מהצוות
+                    </button>
+                  </form>
+                ) : (
+                  <a
+                    href="/admin"
+                    className="inline-block py-1 text-[12px] text-ink-faint underline underline-offset-2"
+                  >
+                    כניסת צוות
+                  </a>
+                )}
+              </div>
             </main>
           </div>
         </div>
