@@ -7,6 +7,7 @@ import { getRole, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
 import DemoControls from "@/components/DemoControls";
 import PhotoModeration from "@/components/PhotoModeration";
+import AdminUpload from "@/components/AdminUpload";
 import StreetAssignment from "@/components/StreetAssignment";
 
 export const dynamic = "force-dynamic";
@@ -171,6 +172,19 @@ export default async function AdminPage({
           </Link>
         </p>
       </section>
+
+      {role === "admin" ? (
+        <Section
+          title="העלאת תמונה"
+          note="התמונה מתפרסמת מיד, בלי תור אישור. שמור למנהלת."
+        >
+          <AdminUpload
+            streets={streetStats
+              .map((row) => ({ id: row.street.id, name: row.street.name }))
+              .sort((a, b) => a.name.localeCompare(b.name, "he"))}
+          />
+        </Section>
+      ) : null}
 
       <Section
         title="שיוך רחובות"
