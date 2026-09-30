@@ -59,23 +59,26 @@ export default async function TypePage({
       />
 
       <Card>
-        <p className="mb-2 text-[15px] font-medium text-ink">ערכי ייחוס</p>
-        <dl className="grid grid-cols-3 gap-2 text-[13px]">
-          <div>
-            <dt className="text-ink-faint">רוחב זכות דרך</dt>
-            <dd className="text-ink">{typology.benchmarks.rowWidth}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-faint">יחס גובה־רוחב</dt>
-            <dd className="text-ink">{typology.benchmarks.ratio}</dd>
-          </div>
-          <div>
-            <dt className="text-ink-faint">חופת עצים</dt>
-            <dd className="text-ink">{typology.benchmarks.canopy}</dd>
-          </div>
+        <p className="mb-2 text-[15px] font-medium text-ink">אב הטיפוס במספרים</p>
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
+          {[
+            ["רוחב זכות דרך", typology.benchmarks.rowWidth],
+            ["חלק המדרכה", typology.benchmarks.sidewalk],
+            ["יחס רוחב לגובה", typology.benchmarks.ratio],
+            ["מפגש עם הרחוב", typology.benchmarks.frontage],
+            ["בניינים ל-100 מ'", typology.benchmarks.buildings],
+            ["חופת עצים", typology.benchmarks.canopy],
+            ["מרחק בין צמתים", typology.benchmarks.intersections],
+          ].map(([label, value]) => (
+            <div key={label}>
+              <dt className="text-ink-faint">{label}</dt>
+              <dd className="text-ink">{value}</dd>
+            </div>
+          ))}
         </dl>
         <p className="mt-2 text-[13px] text-ink-faint">
-          טווחי עבודה לצורך השוואה, לא תקן מחייב.
+          כל אב טיפוס נגזר משלושה רחובות בלבד — כיוון, לא תקן. מקור: מינהל
+          התכנון, &quot;הרחובות הטובים&quot;, 2026, עמ&apos; 9 ופרקי הטיפולוגיות.
         </p>
       </Card>
 

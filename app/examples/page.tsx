@@ -186,6 +186,8 @@ export default async function ExamplesPage({
               canEdit={admin}
               ratio="16 / 9"
               emptyLabel="אין עדיין תמונה לדוגמה"
+              fallbackSrc={`/examples/${example.key}.jpg`}
+              credit={example.source}
             />
             <p className="text-[16px] font-medium text-ink">{example.title}</p>
             <p className="text-[13px] text-ink-faint">{example.place}</p>

@@ -34,83 +34,23 @@ function Icon({ children }: { children: React.ReactNode }) {
 
 /* ----------------------------------------------------- שנים־עשר הקריטריונים */
 
-/** רציפות הציר: קו שממשיך בלי קטיעה, ומתחבר הלאה. */
-const AxisContinuity = () => (
+/** מקום ותנועה: ציר שעוברים בו, ועליו סימן שהוא גם יעד. */
+const PlaceAndMovement = () => (
   <Icon>
-    <path d="M2 12h20" />
-    <path d="M7 12V7M17 12v5" />
-    <circle cx="7" cy="12" r="1.2" />
-    <circle cx="17" cy="12" r="1.2" />
+    <path d="M2 18h20" />
+    <path d="M5 18v-2M11 18v-2M17 18v-2" />
+    <path d="M12 3a3.2 3.2 0 0 1 3.2 3.2c0 2.3-3.2 5.3-3.2 5.3S8.8 8.5 8.8 6.2A3.2 3.2 0 0 1 12 3Z" />
+    <circle cx="12" cy="6.2" r="1" />
   </Icon>
 );
 
-/** מרחק בין צמתים: שני צמתים וקו מידה ביניהם. */
-const IntersectionDistance = () => (
+/** צפיפות צמתים: שני צמתים וקו מידה קצר ביניהם. */
+const IntersectionDensity = () => (
   <Icon>
     <path d="M6 3v18M18 3v18" />
     <path d="M3 8h18" />
     <path d="M6 16h12" />
     <path d="M8 14l-2 2 2 2M16 14l2 2-2 2" />
-  </Icon>
-);
-
-/** חיבור לתחבורה ציבורית: תחנה ומרחק הליכה אליה. */
-const TransitAccess = () => (
-  <Icon>
-    <rect x="4" y="4" width="11" height="10" rx="1.5" />
-    <path d="M4 10h11M7 14v2M12 14v2" />
-    <path d="M18 8v11M18 19h3" />
-    <circle cx="18" cy="5.5" r="1.4" />
-  </Icon>
-);
-
-/** רוחב מדרכה: חתך, ורוחב מסומן על המדרכה. */
-const SidewalkWidth = () => (
-  <Icon>
-    <path d="M2 17h20" />
-    <path d="M2 13h7M15 13h7" />
-    <path d="M3 9h5M4 7l-1 2 1 2M7 7l1 2-1 2" />
-    <path d="M12 17v-4" />
-  </Icon>
-);
-
-/** יחס גובה לרוחב: שני בניינים וקו הרוחב ביניהם. */
-const HeightToWidth = () => (
-  <Icon>
-    <path d="M3 21V6h5v15M16 21V9h5v12" />
-    <path d="M2 21h20" />
-    <path d="M8 14h8M10 12l-2 2 2 2M14 12l2 2-2 2" />
-  </Icon>
-);
-
-/** חלוקת החתך: רצועות נפרדות לכל שימוש. */
-const SectionSplit = () => (
-  <Icon>
-    <path d="M2 19h20" />
-    <path d="M6 19v-4M12 19v-7M18 19v-4" />
-    <path d="M2 15h4M6 15h6M12 15h6M18 15h4" />
-    <path d="M9 12v3M15 12v3" />
-  </Icon>
-);
-
-/** שקיפות החזית: חזית עם חלונות וכניסה, לא קיר אטום. */
-const FrontageTransparency = () => (
-  <Icon>
-    <path d="M3 21V5h18v16" />
-    <path d="M2 21h20" />
-    <rect x="6" y="9" width="4" height="4" />
-    <rect x="14" y="9" width="4" height="4" />
-    <path d="M10 21v-5h4v5" />
-  </Icon>
-);
-
-/** מקצב הכניסות: כניסות תכופות לאורך החזית. */
-const EntranceRhythm = () => (
-  <Icon>
-    <path d="M2 21h20" />
-    <path d="M3 21V7h18v14" />
-    <path d="M6 21v-5h3v5M14 21v-5h3v5" />
-    <path d="M11 21v-3h1.5v3" />
   </Icon>
 );
 
@@ -127,7 +67,89 @@ const MixedUse = () => (
   </Icon>
 );
 
-/** חופת עצים: צמרות רציפות מעל מסלול ההליכה. */
+/** רוחב זכות הדרך: קו מידה בין שני קווי המגרש. */
+const RowWidth = () => (
+  <Icon>
+    <path d="M3 4v16M21 4v16" />
+    <path d="M3 12h18" />
+    <path d="M6 9l-3 3 3 3M18 9l3 3-3 3" />
+    <path d="M3 19h4M17 19h4" />
+  </Icon>
+);
+
+/** פרופורציות ומוגדרות: שני בניינים והיחס בין הרוחב לגובה. */
+const Proportions = () => (
+  <Icon>
+    <path d="M3 21V6h5v15M16 21V9h5v12" />
+    <path d="M2 21h20" />
+    <path d="M8 14h8M10 12l-2 2 2 2M14 12l2 2-2 2" />
+  </Icon>
+);
+
+/** חלוקת זכות הדרך: רצועות נפרדות לכל שימוש. */
+const RowSplit = () => (
+  <Icon>
+    <path d="M2 19h20" />
+    <path d="M6 19v-4M12 19v-7M18 19v-4" />
+    <path d="M2 15h4M6 15h6M12 15h6M18 15h4" />
+    <path d="M9 12v3M15 12v3" />
+  </Icon>
+);
+
+/** מפגש מגרש–רחוב: מדרכה, גדר נמוכה, חצר, ואז הבניין. */
+const PlotStreetMeeting = () => (
+  <Icon>
+    <path d="M2 20h20" />
+    <path d="M2 16h20" />
+    <path d="M6 16v-2M9 16v-2M12 16v-2" />
+    <path d="M15 16V6h6v10" />
+    <path d="M17 16v-3h2v3" />
+  </Icon>
+);
+
+/** שקיפות וחזית פעילה: חלונות וכניסה, לא קיר אטום. */
+const Transparency = () => (
+  <Icon>
+    <path d="M3 21V5h18v16" />
+    <path d="M2 21h20" />
+    <rect x="6" y="9" width="4" height="4" />
+    <rect x="14" y="9" width="4" height="4" />
+    <path d="M10 21v-5h4v5" />
+  </Icon>
+);
+
+/** מקצב בניינים: הרבה בניינים צרים לאורך הדופן. */
+const BuildingRhythm = () => (
+  <Icon>
+    <path d="M2 21h20" />
+    <path d="M3 21V8h4v13M9 21V6h4v15M15 21V9h4v12" />
+    <path d="M4.5 21v-3h1v3M10.5 21v-3h1v3M16.5 21v-3h1v3" />
+  </Icon>
+);
+
+/** שפה משותפת עם מגוון: גובה וקו בניין אחידים, גגות שונים. */
+const SharedLanguage = () => (
+  <Icon>
+    <path d="M2 21h20" />
+    <path d="M3 21V11h5v10M16 21V11h5v10" />
+    <path d="M9.5 21V11h5v10" />
+    <path d="M3 11l2.5-3L8 11" />
+    <path d="M9.5 11h5" />
+    <path d="M16 11l2.5-2.5L21 11" />
+  </Icon>
+);
+
+/** מגרשים קטנים: תוכנית, כמה מגרשים צרים לאורך הרחוב. */
+const SmallPlots = () => (
+  <Icon>
+    <path d="M2 16h20" />
+    <path d="M3 16V6h18v10" />
+    <path d="M7.5 16V6M12 16V6M16.5 16V6" />
+    <path d="M2 20h20" />
+  </Icon>
+);
+
+/** חופת עצים והצללה: צמרות רציפות מעל מסלול ההליכה. */
 const TreeCanopy = () => (
   <Icon>
     <path d="M2 20h20" />
@@ -137,40 +159,19 @@ const TreeCanopy = () => (
   </Icon>
 );
 
-/** מקום לשהייה: ספסל, ואדם שעוצר לידו. */
-const StayingPlace = () => (
-  <Icon>
-    <path d="M2 20h20" />
-    <path d="M3 14h10M4 14v4M12 14v4" />
-    <path d="M3 11h10" />
-    <circle cx="18" cy="8" r="1.6" />
-    <path d="M18 10v5M16 20l2-5 2 5" />
-  </Icon>
-);
-
-/** ריהוט רחוב ותאורה: עמוד תאורה בגובה הולך רגל. */
-const FurnitureLighting = () => (
-  <Icon>
-    <path d="M2 20h20" />
-    <path d="M8 20V7M8 7h6a2 2 0 0 1 2 2v1" />
-    <path d="M14 10h4l-2 3-2-3Z" />
-    <path d="M6 20h4" />
-  </Icon>
-);
-
 export const CRITERION_ICONS: Record<CriterionKey, () => React.ReactElement> = {
-  axis_continuity: AxisContinuity,
-  intersection_distance: IntersectionDistance,
-  transit_access: TransitAccess,
-  sidewalk_width: SidewalkWidth,
-  height_to_width: HeightToWidth,
-  section_split: SectionSplit,
-  frontage_transparency: FrontageTransparency,
-  entrance_rhythm: EntranceRhythm,
+  place_and_movement: PlaceAndMovement,
+  intersection_density: IntersectionDensity,
   mixed_use: MixedUse,
+  row_width: RowWidth,
+  proportions: Proportions,
+  row_split: RowSplit,
+  plot_street_meeting: PlotStreetMeeting,
+  transparency: Transparency,
+  building_rhythm: BuildingRhythm,
+  shared_language: SharedLanguage,
+  small_plots: SmallPlots,
   tree_canopy: TreeCanopy,
-  staying_place: StayingPlace,
-  furniture_lighting: FurnitureLighting,
 };
 
 /* ------------------------------------------------------------ ארבע המשפחות */

@@ -41,26 +41,34 @@ export type StatusKey =
 
 export type FamilyKey = "skeleton" | "section" | "frontage" | "texture";
 
+/**
+ * שנים־עשר הקריטריונים, בסדר ובניסוח של "הרחובות הטובים — זיקוק
+ * הקריטריונים" (מינהל התכנון, היחידה לתכנון אסטרטגי, 2026; זיקוק של
+ * אד' ענת דוד שטיבלמן). הרשימה הקודמת כאן נכתבה לפני שהמסמך היה בידי,
+ * ולא הייתה זהה לו — לא בשמות, לא בחלוקה למשפחות ולא במה שנמדד.
+ */
 export type CriterionKey =
-  | "axis_continuity"
-  | "intersection_distance"
-  | "transit_access"
-  | "sidewalk_width"
-  | "height_to_width"
-  | "section_split"
-  | "frontage_transparency"
-  | "entrance_rhythm"
+  | "place_and_movement"
+  | "intersection_density"
   | "mixed_use"
-  | "tree_canopy"
-  | "staying_place"
-  | "furniture_lighting";
+  | "row_width"
+  | "proportions"
+  | "row_split"
+  | "plot_street_meeting"
+  | "transparency"
+  | "building_rhythm"
+  | "shared_language"
+  | "small_plots"
+  | "tree_canopy";
 
 /** The measurable fields already carried on StreetAssignment.gis. */
 export type GisMetricKey =
   | "rowWidthM"
   | "heightToWidth"
   | "canopyPct"
-  | "intersectionDistanceM";
+  | "intersectionDistanceM"
+  | "buildingsPer100m"
+  | "plotFrontageM";
 
 export interface Question {
   key: QuestionKey;
@@ -104,8 +112,19 @@ export interface Typology {
   key: TypologyKey;
   label: string;
   description: string;
-  /** Reference values used on the street card to give context. */
-  benchmarks: { rowWidth: string; ratio: string; canopy: string };
+  /**
+   * אב הטיפוס במספרים, מתוך טבלת הטיפולוגיות במסמך. כל אב טיפוס נגזר
+   * משלושה רחובות בלבד — כיוון, לא תקן.
+   */
+  benchmarks: {
+    rowWidth: string;
+    sidewalk: string;
+    ratio: string;
+    frontage: string;
+    buildings: string;
+    canopy: string;
+    intersections: string;
+  };
 }
 
 export interface Quarter {
@@ -135,6 +154,8 @@ export interface StreetAssignment {
     heightToWidth?: number;
     canopyPct?: number;
     intersectionDistanceM?: number;
+    buildingsPer100m?: number;
+    plotFrontageM?: number;
   };
   line?: [number, number][];
 }
@@ -264,6 +285,8 @@ export const GIS_METRICS: Record<GisMetricKey, { label: string; unit: string }> 
   heightToWidth: { label: "יחס גובה לרוחב", unit: "" },
   canopyPct: { label: "שיעור חופת העצים", unit: "%" },
   intersectionDistanceM: { label: "מרחק בין צמתים", unit: "מ'" },
+  buildingsPer100m: { label: "בניינים לכל 100 מ' דופן", unit: "" },
+  plotFrontageM: { label: "רוחב חזית המגרש", unit: "מ'" },
 };
 
 /**
@@ -279,54 +302,71 @@ export const CRITERIA_FAMILIES: CriteriaFamily[] = [
   {
     key: "skeleton",
     title: "שלד",
-    text: "הרשת שמחזיקה את הרחוב: רציפות, גודל המקטע ומרחק בין צמתים.",
+    text: "האם מגיעים לרחוב? הרחוב ברשת העירונית — מקום מול תנועה, צמתים ושימושים.",
     criteria: [
       {
-        key: "axis_continuity",
-        name: "רציפות הציר",
-        text: "רחוב שממשיך ומתחבר לרחובות אחרים, בלי קטיעות.",
+        key: "place_and_movement",
+        name: "מקום ותנועה",
+        text:
+          "הרחוב האהוב הוא יעד בפני עצמו, לא רק צינור שעוברים בו. נבדק מיקומו " +
+          "במטריצת מקום–תנועה: כמה הוא מזמין שהייה, וכמה הוא ציר מעבר.",
         familyKey: "skeleton",
-        link: { kind: "open", note: "טרם נקבע אם נמדד בשאלה לתושבים או בשכבת GIS." },
+        link: {
+          kind: "open",
+          note:
+            "המסמך מדרג ידנית במטריצת Link and Place. טרם נקבע אם באשדוד " +
+            "הדירוג ייעשה בשאלה לתושבים או בניתוח של האגף.",
+        },
       },
       {
-        key: "intersection_distance",
-        name: "מרחק בין צמתים",
-        text: "מקטעים קצרים מייצרים יותר אפשרויות בחירה להולך הרגל.",
+        key: "intersection_density",
+        name: "צפיפות צמתים",
+        text:
+          "צמתים קרובים פירושם יותר דרכים להגיע, יותר הליכה ויותר מסחר. " +
+          "נמדד המרחק הממוצע בין צמתים ומגוון אורכי הבלוקים לאורך הרחוב.",
         familyKey: "skeleton",
         link: { kind: "gis", metric: "intersectionDistanceM" },
       },
       {
-        key: "transit_access",
-        name: "חיבור לתחבורה ציבורית",
-        text: "תחנה במרחק הליכה נוח מרוב הכתובות ברחוב.",
+        key: "mixed_use",
+        name: "עירוב שימושים",
+        text:
+          "רחוב \"חי\" הוא רחוב שיש סיבה להגיע אליו בכל שעה. נמדד היחס בין " +
+          "שטחים סחירים לשטחים ציבוריים, וקומת קרקע פעילה.",
         familyKey: "skeleton",
-        link: { kind: "open", note: "טרם נקבע אם נמדד בשאלה לתושבים או בשכבת GIS." },
+        link: { kind: "question", questionKey: "mix" },
       },
     ],
   },
   {
     key: "section",
     title: "חתך",
-    text: "חלוקת רוחב זכות הדרך בין הולכי רגל, עצים, אופניים ורכב.",
+    text: "האם נעים לעמוד בו? רוחב זכות הדרך, הפרופורציות, ולמי מחולק הרוחב.",
     criteria: [
       {
-        key: "sidewalk_width",
-        name: "רוחב מדרכה",
-        text: "מדרכה שמאפשרת שני אנשים זה לצד זה בלי לרדת לכביש.",
+        key: "row_width",
+        name: "רוחב זכות הדרך",
+        text:
+          "צר עובד. חתך צר מאפשר לחצות, לראות את הצד השני ולהרגיש בתוך חלל. " +
+          "נמדד המרחק בין קווי המגרש משני צידי הרחוב.",
         familyKey: "section",
-        link: { kind: "question", questionKey: "walking" },
+        link: { kind: "gis", metric: "rowWidthM" },
       },
       {
-        key: "height_to_width",
-        name: "יחס גובה לרוחב",
-        text: "הפרופורציה בין גובה הבניינים לרוחב הרחוב מגדירה את תחושת המקום.",
+        key: "proportions",
+        name: "פרופורציות ומוגדרות",
+        text:
+          "הרחוב מרגיש כמו חדר כשהבניינים — או העצים — סוגרים עליו. נמדד היחס " +
+          "בין רוחב הרחוב לגובה המבנים, והמרווח בין בניינים שכנים.",
         familyKey: "section",
         link: { kind: "gis", metric: "heightToWidth" },
       },
       {
-        key: "section_split",
-        name: "חלוקת החתך",
-        text: "מקום מוגדר לכל שימוש — הליכה, עצים, ישיבה, אופניים, חנייה.",
+        key: "row_split",
+        name: "חלוקת זכות הדרך",
+        text:
+          "השאלה היא למי שייך הרחוב: לרכב או לאדם. נמדדת חלוקת הרוחב בין " +
+          "מדרכה, מיסעה, חניה ושביל אופניים.",
         familyKey: "section",
         link: { kind: "question", questionKey: "walking" },
       },
@@ -334,61 +374,92 @@ export const CRITERIA_FAMILIES: CriteriaFamily[] = [
   },
   {
     key: "frontage",
-    title: "חזית",
-    text: "הקו שבו הבניין פוגש את הרחוב — מה שקובע אם הרחוב חי.",
+    title: "דופן",
+    text: "האם מעניין ללכת בו? המטר הראשון מהמדרכה, השקיפות, המקצב והשפה.",
     criteria: [
       {
-        key: "frontage_transparency",
-        name: "שקיפות החזית",
-        text: "חלונות וכניסות במפלס הרחוב במקום קירות וחניונים.",
+        key: "plot_street_meeting",
+        name: "מפגש מגרש–רחוב",
+        text:
+          "המטר הראשון מהמדרכה קובע אם הבניין מדבר עם הרחוב. נמדד המרחק בין " +
+          "הבניין לגבול המגרש, ומה נמצא ביניהם: חזית, חצר או גדר.",
+        familyKey: "frontage",
+        link: {
+          kind: "open",
+          note:
+            "דורש קו בניין וחזית לכל מגרש. אינו בשכבת ה-GIS שבידי האגף, " +
+            "וטרם נקבע אם ייאסף בסקר שטח או מהתב\"ע.",
+        },
+      },
+      {
+        key: "transparency",
+        name: "שקיפות וחזית פעילה",
+        text:
+          "חזית שקופה מזמינה סקרנות וביטחון; חזית אטומה מנתקת. נבדקים חלונות " +
+          "ראווה, פתחים וכניסות מול קירות אטומים וקומות חניה.",
         familyKey: "frontage",
         link: { kind: "question", questionKey: "frontages" },
       },
       {
-        key: "entrance_rhythm",
-        name: "מקצב הכניסות",
-        text: "כניסות תכופות מייצרות רחוב מעניין להליכה.",
+        key: "building_rhythm",
+        name: "מקצב בניינים",
+        text:
+          "הרבה בניינים קטנים פירושם הליכה מעניינת וקנה מידה אנושי. נספר מספר " +
+          "הבניינים לכל 100 מ' של דופן, בצד הגבוה מבין השניים.",
         familyKey: "frontage",
-        link: { kind: "question", questionKey: "frontages" },
+        link: { kind: "gis", metric: "buildingsPer100m" },
       },
       {
-        key: "mixed_use",
-        name: "עירוב שימושים",
-        text: "מסחר, שירותים ומגורים באותו ציר.",
+        key: "shared_language",
+        name: "שפה משותפת עם מגוון",
+        text:
+          "מסגרת אחת, הרבה קולות: אחידות בגובה ובחומר, שונות בסגנון. נבדקת " +
+          "לכידות חזותית — גובה ונפח, קו בניין וחומרים דומים — בלי חזרתיות.",
         familyKey: "frontage",
-        link: { kind: "question", questionKey: "mix" },
+        link: {
+          kind: "open",
+          note:
+            "הערכה חזותית ולא מדידה. טרם נקבע אם תיקבע בעין מקצועית באגף או " +
+            "בשאלה נוספת לתושבים.",
+        },
       },
     ],
   },
   {
     key: "texture",
     title: "מרקם ואקלים",
-    text: "מה שהופך רחוב לנעים בפועל, ביום חול בקיץ.",
+    text: "האם יחזיק מעמד וישרוד קיץ? גודל המגרשים, וחופת העצים.",
     criteria: [
       {
+        key: "small_plots",
+        name: "מגרשים קטנים",
+        text:
+          "מגרש קטן מאפשר לרחוב להתחדש בהדרגה במקום להשתנות בבת אחת. נבדק " +
+          "תמהיל גודלי המגרשים לאורך הרחוב, ורוחב חזית המגרש לרחוב.",
+        familyKey: "texture",
+        link: { kind: "gis", metric: "plotFrontageM" },
+      },
+      {
         key: "tree_canopy",
-        name: "חופת עצים",
-        text: "צל רציף לאורך מסלול ההליכה, לא עצים בודדים.",
+        name: "חופת עצים והצללה",
+        text:
+          "באקלים הישראלי הצל הוא תנאי להליכה, לא קישוט. נמדד אחוז שטח הרחוב " +
+          "שמכוסה בחופת עצים, וההצללה מהבינוי.",
         familyKey: "texture",
         link: { kind: "question", questionKey: "shade" },
-      },
-      {
-        key: "staying_place",
-        name: "מקום לשהייה",
-        text: "ספסלים, פינות ישיבה, מרחב לעמוד ולדבר.",
-        familyKey: "texture",
-        link: { kind: "question", questionKey: "staying" },
-      },
-      {
-        key: "furniture_lighting",
-        name: "ריהוט רחוב ותאורה",
-        text: "תאורה בגובה הולך רגל ותחזוקה שוטפת.",
-        familyKey: "texture",
-        link: { kind: "open", note: "טרם נקבע אם נמדד בשאלת התחזוקה, בשאלת הביטחון, או בשכבת GIS." },
       },
     ],
   },
 ];
+
+/**
+ * שלוש השאלות שהמסמך אינו מודד, והאפליקציה כן שואלת.
+ *
+ * המסמך אומר זאת במפורש: "טיפוח וביטחון לא נמדדים במסמך — ודווקא אותם
+ * העירייה יכולה לשפר מהר". השהייה נשאלת מאותה סיבה: היא מה שהתושבים
+ * מתארים, גם כשאין לה מדד.
+ */
+export const LOCAL_QUESTION_KEYS: QuestionKey[] = ["staying", "maintenance", "safety"];
 
 export const CRITERIA: Criterion[] = CRITERIA_FAMILIES.flatMap((f) => f.criteria);
 
@@ -420,37 +491,85 @@ export const TYPOLOGIES: Typology[] = [
     key: "neighborhood_commercial",
     label: "מסחרי שכונתי",
     description: "ציר מסחר קטן שמשרת את השכונה — מכולת, בית קפה, שירותים.",
-    benchmarks: { rowWidth: "16–22 מ'", ratio: "1:1 עד 1:1.5", canopy: "40%+" },
+    benchmarks: {
+      rowWidth: "12–14 מ'",
+      sidewalk: "50%",
+      ratio: "1:1 עד 1:1.2",
+      frontage: "מסחרית, קו בניין 0",
+      buildings: "3–4",
+      canopy: "כ-10%",
+      intersections: "70–90 מ'",
+    },
   },
   {
     key: "main_commercial",
     label: "מסחרי ראשי",
     description: "ציר מסחר עירוני עם תנועה גבוהה ופעילות לאורך היום.",
-    benchmarks: { rowWidth: "24–35 מ'", ratio: "1:1.5 עד 1:2", canopy: "30%+" },
+    benchmarks: {
+      rowWidth: "18–25 מ'",
+      sidewalk: "40%",
+      ratio: "1:1.2 עד 1:1.5",
+      frontage: "מסחרית, קו בניין 0",
+      buildings: "3.5",
+      canopy: "כ-35%",
+      intersections: "80–120 מ'",
+    },
   },
   {
     key: "residential",
     label: "רחוב מגורים",
     description: "רחוב שקט שמשרת בעיקר את תושביו, עם תנועה מקומית.",
-    benchmarks: { rowWidth: "12–18 מ'", ratio: "1:1", canopy: "50%+" },
+    benchmarks: {
+      rowWidth: "11.5–21 מ'",
+      sidewalk: "40%",
+      ratio: "1:1.5 עד 1:1.8",
+      frontage: "חצר וגדר נמוכה",
+      buildings: "2–3.5",
+      canopy: "כ-50%",
+      intersections: "80–125 מ'",
+    },
   },
   {
     key: "boulevard",
-    label: "שדרה",
+    label: "שדרה עירונית",
     description: "ציר רחב עם טיילת מרכזית או שדרת עצים מפרידה.",
-    benchmarks: { rowWidth: "30–50 מ'", ratio: "1:2", canopy: "45%+" },
+    benchmarks: {
+      rowWidth: "30–40 מ'",
+      sidewalk: "55%",
+      ratio: "1:2.5 עד 1:3",
+      frontage: "חצר או מסחרית",
+      buildings: "4–5",
+      canopy: "כ-33%",
+      intersections: "70–105 מ'",
+    },
   },
   {
     key: "pedestrian_mall",
     label: "מדרחוב",
     description: "רחוב להולכי רגל בלבד או בעדיפות מוחלטת להולכי רגל.",
-    benchmarks: { rowWidth: "10–20 מ'", ratio: "1:1", canopy: "50%+" },
+    benchmarks: {
+      rowWidth: "11–18 מ'",
+      sidewalk: "100%",
+      ratio: "כ-1:1",
+      frontage: "מסחרית, קו בניין 0",
+      buildings: "כ-5",
+      canopy: "כ-5%",
+      intersections: "50–105 מ'",
+    },
   },
   {
     key: "linear_park",
-    label: "פארק קווי / ציר נופי",
+    label: "נופי / פארק לינארי",
     description: "ציר ירוק או חופי שמחבר בין חלקי העיר ומשמש גם לפנאי.",
-    benchmarks: { rowWidth: "משתנה", ratio: "פתוח", canopy: "60%+" },
+    benchmarks: {
+      rowWidth: "18–80 מ'",
+      sidewalk: "משתנה",
+      ratio: "משתנה",
+      frontage: "חצר או שטח פתוח",
+      buildings: "2–2.8",
+      canopy: "7–25%",
+      intersections: "125–250 מ'",
+    },
   },
 ];
 
@@ -478,64 +597,132 @@ export interface Example {
    * text does not say, so the filter never promises more than the library has.
    */
   criterionKeys: CriterionKey[];
-  /** Set only where the description states the street type. */
+  /** Set only where the street's own official name states the type. */
   typology: TypologyKey | null;
+  /** המקור שממנו נלקחו הדוגמה והמספר שבה, כולל מספרי עמודים. */
+  source: string;
 }
 
 export const EXAMPLES: Example[] = [
   {
-    key: "rothschild",
-    title: "שדרה עם חופת עצים רציפה",
-    place: "שדרות רוטשילד, תל אביב — Rothschild Boulevard, Tel Aviv, Israel",
-    text: "טיילת מרכזית מוצלת שמייצרת מסלול הליכה עצמאי לאורך הציר, עם ישיבה לכל אורכו.",
-    family: "texture",
-    criterionKeys: ["tree_canopy", "staying_place"],
-    typology: "boulevard",
-  },
-  {
-    key: "lilienblum",
-    title: "חזית מסחרית עם מקצב כניסות צפוף",
-    place: "רחוב לילינבלום, תל אביב — Lilienblum Street, Tel Aviv, Israel",
-    text: "כניסה כל כמה מטרים, חלונות ראווה במפלס הרחוב, כמעט בלי קירות אטומים.",
-    family: "frontage",
-    criterionKeys: ["entrance_rhythm", "frontage_transparency"],
-    typology: null,
-  },
-  {
-    key: "nachalat-binyamin",
-    title: "מדרחוב שכונתי",
-    place: "מדרחוב נחלת בנימין, תל אביב — Nachalat Binyamin, Tel Aviv, Israel",
-    text: "רחוב שמסירת הרכב ממנו הפכה אותו למרחב שהייה, לא רק מעבר.",
-    family: "section",
-    criterionKeys: ["section_split", "staying_place"],
-    typology: "pedestrian_mall",
-  },
-  {
-    key: "ashdod-promenade",
-    title: "ציר חופי כפארק קווי",
-    place: "טיילת אשדוד — Ashdod Beach Promenade, Ashdod, Israel",
-    text: "ציר נופי רציף שמחבר בין הרובעים המערביים לחוף, עם הצללה ונקודות שהייה.",
+    key: "place_and_movement",
+    title: "מקום ועורק תנועה גם יחד",
+    place: "רחוב דיזנגוף, תל אביב — Dizengoff Street, Tel Aviv, Israel",
+    text: "כל 18 הרחובות שנותחו דורגו גבוה כ\"מקום\"; החשיבות התנועתית היא שמשתנה ביניהם. דיזנגוף מחזיק את שניהם בו-זמנית.",
     family: "skeleton",
-    criterionKeys: ["axis_continuity", "tree_canopy", "staying_place"],
-    typology: "linear_park",
-  },
-  {
-    key: "frug",
-    title: "רחוב מגורים עם חתך מחולק",
-    place: "רחוב פרוג, תל אביב — Frug Street, Tel Aviv, Israel",
-    text: "רוחב זכות דרך צנוע שמחולק בבירור בין הליכה, עצים וחנייה.",
-    family: "section",
-    criterionKeys: ["section_split"],
-    typology: "residential",
-  },
-  {
-    key: "virreina",
-    title: "כיכר קטנה כחלק מהרחוב",
-    place: "Plaça de la Virreina, Barcelona, Spain",
-    text: "הרחבה קטנה בתוך רצף הרחוב שמייצרת מקום לשהות בלי לפגוע בתנועה.",
-    family: "texture",
-    criterionKeys: ["staying_place"],
+    criterionKeys: ["place_and_movement"],
     typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 20, 27",
+  },
+  {
+    key: "intersection_density",
+    title: "52 מ' בממוצע בין צמתים",
+    place: "רחוב פלורנטין, תל אביב — Florentin Street, Tel Aviv, Israel",
+    text: "ב-15 מתוך 18 הרחובות המרחק החציוני בין צמתים קטן מ-150 מ'. בפלורנטין הוא 52 מ', והרשת הצפופה היא שמייצרת את ההליכה.",
+    family: "skeleton",
+    criterionKeys: ["intersection_density"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 19, 30",
+  },
+  {
+    key: "mixed_use",
+    title: "שוק לצד עסקים קטנים",
+    place: "רחוב סירקין, הדר הכרמל, חיפה — Syrkin Street, Hadar HaCarmel, Haifa, Israel",
+    text: "שוק תלפיות לצד עסקים קטנים. המילה שחוזרת בנימוקי המשיבים היא \"חי\": מסחר, שירותים ומגורים באותו רחוב, לאורך כל היום.",
+    family: "skeleton",
+    criterionKeys: ["mixed_use"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 21, 42",
+  },
+  {
+    key: "row_width",
+    title: "רוחב 14 מ'",
+    place: "רחוב נחלת בנימין, תל אביב — Nahalat Binyamin Street, Tel Aviv, Israel",
+    text: "11 מתוך 18 הרחובות ברוחב 10–20 מ'. הספרות ממליצה על עד 30 מ', ובשדרות 30–40 מ'.",
+    family: "section",
+    criterionKeys: ["row_width"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 22, 28",
+  },
+  {
+    key: "proportions",
+    title: "העצים מגדירים חלל רחב",
+    place: "שדרות רוטשילד, תל אביב — Rothschild Boulevard, Tel Aviv, Israel",
+    text: "מוגדרות חזקה מתחילה ביחס 1:2 ומטה; ברחובות טובים רבים היחס הוא 1:1 עד 1:1.25. כאן דווקא העצים, ולא הבניינים, סוגרים את החלל.",
+    family: "section",
+    criterionKeys: ["proportions"],
+    typology: "boulevard",
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 23, 25, 29",
+  },
+  {
+    key: "row_split",
+    title: "56% מדרכה, 16% אופניים",
+    place: "רחוב דיזנגוף, תל אביב — Dizengoff Street, Tel Aviv, Israel",
+    text: "ב-11 מתוך 18 הרחובות לפחות מחצית מזכות הדרך היא מדרכה. בשישה מהם יש גם שביל אופניים.",
+    family: "section",
+    criterionKeys: ["row_split"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 22, 33",
+  },
+  {
+    key: "plot_street_meeting",
+    title: "חצר קדמית וגדר נמוכה",
+    place: "רחוב דובנוב, תל אביב — Dubnov Street, Tel Aviv, Israel",
+    text: "ברחובות מסחריים קו הבניין הוא 0 מ'. ברחובות מגורים, חצר קדמית וגדר נמוכה שמאפשרת להציץ.",
+    family: "frontage",
+    criterionKeys: ["plot_street_meeting"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 22, 68",
+  },
+  {
+    key: "transparency",
+    title: "בתי מלאכה וברים נפתחים למדרכה",
+    place: "רחוב פלורנטין, תל אביב — Florentin Street, Tel Aviv, Israel",
+    text: "חזיתות עשירות בפרטים מאטות את ההליכה ומעודדות שהייה. גדרות גבוהות יוצרות מונוטוניות.",
+    family: "frontage",
+    criterionKeys: ["transparency"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 25, 100",
+  },
+  {
+    key: "building_rhythm",
+    title: "5.2 בניינים לכל 100 מ'",
+    place: "שדרות ארלוזורוב, עפולה — Arlozorov Boulevard, Afula, Israel",
+    text: "ברוב הרחובות 3–5 בניינים לכל 100 מ'. במדרחובים ובשדרות עד 5.",
+    family: "frontage",
+    criterionKeys: ["building_rhythm"],
+    typology: "boulevard",
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 24, 90",
+  },
+  {
+    key: "shared_language",
+    title: "אבן ירושלמית כשפה אחת",
+    place: "רחוב עמק רפאים, המושבה הגרמנית, ירושלים — Emek Refaim Street, German Colony, Jerusalem, Israel",
+    text: "ברוב הרחובות יש שפה משותפת, ובתוכה מבנים משניים, סגנונות וגבהים שונים.",
+    family: "frontage",
+    criterionKeys: ["shared_language"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 9, 25, 48",
+  },
+  {
+    key: "small_plots",
+    title: "ריבוי מגרשים קטנים",
+    place: "רחוב ביאליק, רמת גן — Bialik Street, Ramat Gan, Israel",
+    text: "ב-12 מתוך 18 הרחובות, 80% ומעלה מהמגרשים הם עד דונם. רוחב חזית אופייני: 16–37 מ'.",
+    family: "texture",
+    criterionKeys: ["small_plots"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 7, 21, 32",
+  },
+  {
+    key: "tree_canopy",
+    title: "56% חופת עצים",
+    place: "רחוב הנשיא בן צבי, הרצליה — HaNasi Ben Zvi Street, Herzliya, Israel",
+    text: "מחצית מהמשיבים לסקר ציינו עצים והצללה. בשמונה מתוך 18 הרחובות החופה מעל 20%. ברחובות צרים גם הבניינים מצלים.",
+    family: "texture",
+    criterionKeys: ["tree_canopy"],
+    typology: null,
+    source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 9, 21, 31",
   },
 ];
 
@@ -604,3 +791,11 @@ export const QUESTION_MAP = Object.fromEntries(QUESTIONS.map((q) => [q.key, q]))
 export const TYPOLOGY_MAP = Object.fromEntries(TYPOLOGIES.map((t) => [t.key, t]));
 export const QUARTER_MAP = Object.fromEntries(QUARTERS.map((q) => [q.id, q]));
 export const STATUS_MAP = Object.fromEntries(STATUSES.map((s) => [s.key, s]));
+
+/**
+ * הדוגמה של כל קריטריון, לפי מפתח הקריטריון. במסמך יש בדיוק דוגמה אחת
+ * לכל קריטריון, ולכן מפתח הדוגמה זהה לו.
+ */
+export const EXAMPLE_MAP = Object.fromEntries(
+  EXAMPLES.map((e) => [e.key, e]),
+) as Partial<Record<CriterionKey, Example>>;

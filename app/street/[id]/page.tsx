@@ -124,19 +124,20 @@ export default async function StreetPage({
       {typology ? (
         <Section title={`ערכי ייחוס ל${typology.label}`} note={typology.description}>
           <Card>
-            <dl className="grid grid-cols-3 gap-2 text-[13px]">
-              <div>
-                <dt className="text-ink-faint">רוחב זכות דרך</dt>
-                <dd className="text-ink">{typology.benchmarks.rowWidth}</dd>
-              </div>
-              <div>
-                <dt className="text-ink-faint">יחס גובה־רוחב</dt>
-                <dd className="text-ink">{typology.benchmarks.ratio}</dd>
-              </div>
-              <div>
-                <dt className="text-ink-faint">חופת עצים</dt>
-                <dd className="text-ink">{typology.benchmarks.canopy}</dd>
-              </div>
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
+              {[
+                ["רוחב זכות דרך", typology.benchmarks.rowWidth],
+                ["חלק המדרכה", typology.benchmarks.sidewalk],
+                ["יחס רוחב לגובה", typology.benchmarks.ratio],
+                ["בניינים ל-100 מ'", typology.benchmarks.buildings],
+                ["חופת עצים", typology.benchmarks.canopy],
+                ["מרחק בין צמתים", typology.benchmarks.intersections],
+              ].map(([label, value]) => (
+                <div key={label}>
+                  <dt className="text-ink-faint">{label}</dt>
+                  <dd className="text-ink">{value}</dd>
+                </div>
+              ))}
             </dl>
             {street.gis ? (
               <p className="mt-2 border-t border-line pt-2 text-[13px] text-ink-soft">

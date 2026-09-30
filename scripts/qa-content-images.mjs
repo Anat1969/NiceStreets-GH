@@ -119,6 +119,9 @@ const resident = await ctx(null);
   ok("תושב — אין שדה העלאה בעמוד קריטריונים", inputs === 0);
   const empty = await p.getByText("אין עדיין תמונה").count();
   ok("תושב — אין מסגרת ריקה", empty === 0);
+  // תמונות המסמך נשלחות עם הבנייה, ולכן תושב כן רואה אותן.
+  const shipped = await p.locator('main img[src^="/examples/"]').count();
+  ok("תושב — רואה את תמונות הדוגמאות שנשלחו עם הבנייה", shipped > 0, `${shipped}`);
   const r = await p.request.post(`${BASE}/api/admin/content-image`, {
     data: { slot: "criterion:tree_canopy", dataUrl: "data:image/png;base64,AA", alt: "x" },
   });
@@ -145,8 +148,9 @@ const admin = await ctx(ADMIN_CODE);
   const frames = await p.locator('input[type=file]').count();
   ok("מנהלת — יש מסגרות העלאה", frames > 0, `${frames} מסגרות`);
 
-  const before = await p.getByText("— להעלאה").count();
-  ok("מנהלת — מסגרת ריקה מסומנת", before > 0);
+  // לכל אחד מ-12 הקריטריונים יש תמונה מהמסמך, ולכן המסגרת מסומנת כהחלפה.
+  const before = await p.getByText("לחיצה מחליפה").count();
+  ok("מנהלת — המסגרת מסומנת כניתנת להחלפה", before > 0, `${before}`);
 
   await p.setInputFiles('input[type=file] >> nth=0', {
     name: "t.png",
@@ -182,8 +186,9 @@ const admin = await ctx(ADMIN_CODE);
   const remove = p.getByRole("button", { name: "הסרה" }).first();
   await remove.click();
   await p.waitForTimeout(2000);
-  const after = await p.getByText("— להעלאה").count();
-  ok("מנהלת — ההסרה עובדת", after > 0);
+  // אחרי ההסרה חוזרת התמונה שנשלחה עם הבנייה, ולא מסגרת ריקה.
+  const after = await p.locator('main img[src^="/examples/"]').count();
+  ok("מנהלת — ההסרה מחזירה את תמונת המסמך", after > 0, `${after}`);
   await p.close();
 }
 
@@ -203,6 +208,12 @@ const admin = await ctx(ADMIN_CODE);
   ok(
     "מנהלת — מסגרות העלאה בדוגמאות",
     (await p.locator('input[type=file]').count()) > 0,
+  );
+  const withPhotos = await p.locator('main img[src^="/examples/"]').count();
+  ok("דוגמאות — לכל 12 הדוגמאות יש תמונה", withPhotos === 12, `${withPhotos}`);
+  ok(
+    "דוגמאות — מוצג מקור לכל דוגמה",
+    (await p.getByText("מינהל התכנון").count()) >= 12,
   );
   const overflow = await p.evaluate(
     () => document.documentElement.scrollWidth - document.documentElement.clientWidth,

@@ -7,6 +7,7 @@ import {
   GIS_METRICS,
   QUESTION_MAP,
 } from "@/lib/city";
+import { EXAMPLE_MAP } from "@/lib/city";
 import type { Criterion, FamilyKey } from "@/lib/city";
 import { CRITERION_ICONS } from "@/components/icons";
 import { BackLink, PrevNext } from "@/components/learn-nav";
@@ -98,13 +99,22 @@ export default async function FamilyPage({
                     אין עדיין דוגמה בספרייה לקריטריון הזה.
                   </p>
                 )}
+                {/*
+                  לכל קריטריון יש דוגמה אחת במסמך, ומפתח הדוגמה זהה למפתח
+                  הקריטריון. לכן התמונה שנשלחת עם הבנייה משמשת גם כאן.
+                */}
                 <ImageFrame
                   className="mt-3"
                   slot={imageSlot("criterion", criterion.key)}
-                  alt={`${criterion.name} — תמונה להמחשה`}
+                  alt={`${criterion.name} — ${EXAMPLE_MAP[criterion.key]?.place ?? "תמונה להמחשה"}`}
                   hasImage={has.has(imageSlot("criterion", criterion.key))}
                   canEdit={admin}
+                  ratio="16 / 9"
                   emptyLabel="אין עדיין תמונה לקריטריון"
+                  fallbackSrc={
+                    EXAMPLE_MAP[criterion.key] ? `/examples/${criterion.key}.jpg` : undefined
+                  }
+                  credit={EXAMPLE_MAP[criterion.key]?.place}
                 />
               </div>
             </li>

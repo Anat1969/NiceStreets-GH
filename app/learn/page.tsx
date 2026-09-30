@@ -1,4 +1,10 @@
-import { CRITERIA_FAMILIES, TYPOLOGIES } from "@/lib/city";
+import {
+  CRITERIA_FAMILIES,
+  EXAMPLES,
+  LOCAL_QUESTION_KEYS,
+  QUESTION_MAP,
+  TYPOLOGIES,
+} from "@/lib/city";
 import { HUB_ICONS } from "@/components/icons";
 import { IconCard } from "@/components/learn-nav";
 import { Notice } from "@/components/ui";
@@ -22,7 +28,7 @@ export default function LearnPage() {
         <IconCard
           href="/learn/criteria"
           title={`${criteriaCount} הקריטריונים`}
-          text={`${CRITERIA_FAMILIES.length} משפחות, ובכל אחת שלושה קריטריונים. לכל קריטריון כתוב מאיפה מגיע הערך שלו.`}
+          text={`${CRITERIA_FAMILIES.length} משפחות, ובהן ${criteriaCount} קריטריונים. לכל קריטריון כתוב מה נמדד בו ומאיפה מגיע הערך שלו.`}
           icon={HUB_ICONS.criteria}
         />
         <IconCard
@@ -34,7 +40,7 @@ export default function LearnPage() {
         <IconCard
           href="/examples"
           title="ספריית דוגמאות"
-          text="רחובות מהארץ ומהעולם שממחישים קריטריון אחד או יותר, עם סינון."
+          text={`${EXAMPLES.length} הרחובות שהמסמך מביא כדוגמה, אחד לכל קריטריון, עם המספר שנמדד בהם.`}
           icon={HUB_ICONS.examples}
         />
         <IconCard
@@ -45,10 +51,38 @@ export default function LearnPage() {
         />
       </div>
 
+      {/*
+        המסמך עצמו אומר מה אינו מודד, והאפליקציה שואלת בדיוק את זה. זה לא
+        פער — זו הסיבה שיש שאלות לתושבים ולא רק שכבת GIS.
+      */}
+      <section className="mt-6">
+        <h2 className="mb-1 text-[17px] font-semibold text-ink">
+          מה שהמסמך אינו מודד
+        </h2>
+        <p className="mb-3 text-[14px] text-ink-soft">
+          המסמך מודד את הרחוב הבנוי. הוא אינו מודד ניקיון, תאורה, רעש ובטיחות,
+          וכותב זאת במפורש: &quot;טיפוח וביטחון לא נמדדים במסמך — ודווקא אותם
+          העירייה יכולה לשפר מהר&quot;. שלוש השאלות האלה נשאלות כאן דווקא
+          משום כך.
+        </p>
+        <ul className="card divide-y divide-line">
+          {LOCAL_QUESTION_KEYS.map((key) => (
+            <li key={key} className="p-3">
+              <p className="text-[15px] font-medium text-ink">
+                {QUESTION_MAP[key].label}
+              </p>
+              <p className="text-[14px] text-ink-soft">{QUESTION_MAP[key].help}</p>
+            </li>
+          ))}
+        </ul>
+      </section>
+
       <div className="mt-6">
         <Notice>
-          הקריטריונים מבוססים על עקרונות מחקר &quot;רחובות טובים&quot; של מינהל
-          התכנון. יש לאמת את הניסוח והמקור מול המסמך הרשמי לפני פרסום לציבור.
+          הקריטריונים, הדוגמאות וערכי הייחוס לקוחים מ&quot;הרחובות הטובים —
+          זיקוק הקריטריונים&quot;, המבוסס על עבודת מינהל התכנון, היחידה לתכנון
+          אסטרטגי, אוגוסט 2026. המסמך מציין במפורש שאינו מדריך תכנון: המספרים
+          מתארים מה עובד ב-18 רחובות שנותחו, ואינם תקן.
         </Notice>
       </div>
     </>

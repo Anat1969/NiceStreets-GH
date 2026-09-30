@@ -22,11 +22,21 @@ export default function ImageFrame({
   ratio = "4 / 3",
   className = "",
   emptyLabel = "אין עדיין תמונה",
+  fallbackSrc,
+  credit,
 }: {
   slot: string;
   alt: string;
   hasImage: boolean;
   canEdit?: boolean;
+  /**
+   * תמונה שנשלחת עם הבנייה ומוצגת כל עוד לא הועלתה אחרת במקומה. כך
+   * תמונות שמגיעות ממסמך מקור אינן צריכות לעבור דרך מסד הנתונים, והמנהלת
+   * עדיין יכולה להחליף כל אחת מהן באותה מסגרת.
+   */
+  fallbackSrc?: string;
+  /** שורת קרדיט קצרה מתחת לתמונה, כשיש לה מקור חיצוני. */
+  credit?: string;
   /** יחס הצדדים של המסגרת, כדי שהעמוד לא יקפוץ כשתמונה נטענת. */
   ratio?: string;
   className?: string;
@@ -39,7 +49,8 @@ export default function ImageFrame({
   // משתנה אחרי העלאה כדי לעקוף את הקאש של הדפדפן על אותה כתובת.
   const [version, setVersion] = useState(0);
 
-  if (!hasImage && !canEdit) return null;
+  const shown = hasImage || Boolean(fallbackSrc);
+  if (!shown && !canEdit) return null;
 
   async function onFile(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
@@ -84,9 +95,11 @@ export default function ImageFrame({
     }
   }
 
-  const src = `${imageSlotUrl(slot)}${version ? `?v=${version}` : ""}`;
+  const src = hasImage
+    ? `${imageSlotUrl(slot)}${version ? `?v=${version}` : ""}`
+    : (fallbackSrc as string);
 
-  const picture = hasImage ? (
+  const picture = shown ? (
     /* eslint-disable-next-line @next/next/no-img-element */
     <img src={src} alt={alt} className="h-full w-full object-cover" />
   ) : (
@@ -104,7 +117,7 @@ export default function ImageFrame({
         {canEdit ? (
           <label className="block h-full w-full cursor-pointer">
             <span className="sr-only">
-              {hasImage ? `החלפת התמונה: ${alt}` : `העלאת תמונה: ${alt}`}
+              {shown ? `החלפת התמונה: ${alt}` : `העלאת תמונה: ${alt}`}
             </span>
             <input
               ref={input}
@@ -123,7 +136,7 @@ export default function ImageFrame({
 
       {canEdit ? (
         <p className="mt-1 flex items-center gap-2 text-[12px] text-ink-faint">
-          <span>{busy ? "מעלה…" : hasImage ? "לחיצה מחליפה" : "לחיצה מעלה"}</span>
+          <span>{busy ? "מעלה…" : shown ? "לחיצה מחליפה" : "לחיצה מעלה"}</span>
           {hasImage && !busy ? (
             <button
               type="button"
@@ -134,6 +147,10 @@ export default function ImageFrame({
             </button>
           ) : null}
         </p>
+      ) : null}
+
+      {credit && shown ? (
+        <p className="mt-1 text-[12px] text-ink-faint">{credit}</p>
       ) : null}
 
       {error ? (
