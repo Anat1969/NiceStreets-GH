@@ -11,6 +11,7 @@ function describe(value: string | undefined): string {
   const notes: string[] = [`אורך ${trimmed.length}`];
   if (value !== trimmed) notes.push("יש רווחים או שורה מיותרת בקצוות");
   if (/\s/.test(trimmed)) notes.push("יש רווח או ירידת שורה באמצע הערך");
+  if (/^["']|["']$/.test(trimmed)) notes.push("יש מרכאות בקצוות, והן נספרות באורך");
   return notes.join(", ");
 }
 
@@ -36,6 +37,15 @@ export async function GET() {
       SUPABASE_URL_looksLikeUrl: (rawUrl ?? "").trim().startsWith("https://"),
       SUPABASE_SERVICE_ROLE_KEY: describe(rawKey),
       STAFF_CODE: describe(process.env.STAFF_CODE),
+      ADMIN_CODE: describe(process.env.ADMIN_CODE),
+      /*
+        שני הקודים זהים פירושו שקוד הצוות מעניק ממילא את הרשאות המנהלת,
+        ואם הם לא זהים — הקוד שמעלה תמונות הוא ADMIN_CODE ולא STAFF_CODE.
+        זו הייתה סיבה אמיתית ל"הקוד שגוי" במסך אחד ותקין באחר.
+      */
+      codesAreIdentical:
+        Boolean(process.env.STAFF_CODE) &&
+        (process.env.STAFF_CODE ?? "").trim() === (process.env.ADMIN_CODE ?? "").trim(),
       configError,
     };
 

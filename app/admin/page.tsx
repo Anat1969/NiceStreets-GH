@@ -33,9 +33,20 @@ export default async function AdminPage({
           לוח הבקרה של אגף אדריכלות העיר. הכניסה בקוד צוות או בקוד מנהלת.
         </p>
         {error ? (
-          <p role="alert" className="mb-3 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px]">
-            הקוד שגוי.
-          </p>
+          <div role="alert" className="mb-3 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink">
+            <p className="font-medium">הקוד שהוקלד אינו מתאים.</p>
+            <p className="mt-1 text-[13px]">
+              רווחים בקצוות ומרכאות מוסרים אוטומטית, כך שהם אינם הסיבה. מה כן
+              נבדק: אותיות גדולות וקטנות נחשבות שונות, ולהעלאת תמונות צריך את
+              קוד המנהלת (ADMIN_CODE) ולא את קוד הצוות.
+            </p>
+            <p className="mt-1 text-[13px]">
+              <a href="/api/health" className="inline-link underline underline-offset-2">
+                בדיקת מה מוגדר בשרת
+              </a>{" "}
+              מראה אילו קודים קיימים ומה אורכם, בלי לחשוף אותם.
+            </p>
+          </div>
         ) : null}
         {!staffCodeConfigured() ? (
           <Notice>

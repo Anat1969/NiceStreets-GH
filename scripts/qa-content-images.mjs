@@ -90,8 +90,28 @@ async function ctx(code) {
   return c;
 }
 
-// ---- 1. תושב: אין מסגרות העלאה, ואין מסגרת ריקה
+// ---- 0. הכניסה סלחנית לרווחים ולמרכאות, ולא לקוד שגוי
 const resident = await ctx(null);
+{
+  // הקשר חד-פעמי: בדיקת הכניסה מפעילה עוגייה, ואסור שתדבק בהקשר התושב.
+  const scratch = await browser.newContext({ viewport: { width: 390, height: 844 } });
+  const p = await scratch.newPage();
+  async function login(code) {
+    const r = await p.request.post(`${BASE}/api/staff/login`, {
+      form: { code },
+      maxRedirects: 0,
+    });
+    return r.headers()["location"] ?? "";
+  }
+  ok("כניסה — קוד נקי", (await login(ADMIN_CODE)) === "/admin");
+  ok("כניסה — רווח בסוף הקוד", (await login(`${ADMIN_CODE} `)) === "/admin");
+  ok("כניסה — שורה חדשה בקצה", (await login(`\n${ADMIN_CODE}\n`)) === "/admin");
+  ok("כניסה — מרכאות סביב הקוד", (await login(`"${ADMIN_CODE}"`)) === "/admin");
+  ok("כניסה — קוד שגוי נדחה", (await login("no-such-code")) === "/admin?error=1");
+  await scratch.close();
+}
+
+// ---- 1. תושב: אין מסגרות העלאה, ואין מסגרת ריקה
 {
   const p = await resident.newPage();
   await p.goto(`${BASE}/learn/criteria/skeleton`);

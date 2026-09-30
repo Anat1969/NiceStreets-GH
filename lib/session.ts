@@ -26,6 +26,24 @@ export function newResidentId(): string {
  */
 export type Role = "resident" | "staff" | "admin";
 
+/**
+ * מנקה קוד לפני ההשוואה, בשני הקצוות — גם הערך שמוגדר במשתנה הסביבה וגם
+ * מה שהוקלד במסך.
+ *
+ * הסיבה מעשית: ערך שמודבק לתוך Vercel סוחב איתו לא פעם ירידת שורה או
+ * רווח, ומקלדת של נייד מוסיפה רווח אחרי מילה. שניהם בלתי נראים, ושניהם
+ * הפכו קוד נכון ל"הקוד שגוי". גם מרכאות שנכנסו יחד עם הערך מוסרות, וכן
+ * תווים בלתי נראים שמגיעים מהעתקה מדפדפן.
+ */
+function cleanCode(value: string | undefined): string {
+  if (!value) return "";
+  return value
+    .replace(/[​-‏‪-‮﻿]/g, "")
+    .trim()
+    .replace(/^["']|["']$/g, "")
+    .trim();
+}
+
 function roleToken(code: string): string {
   return crypto.createHash("sha256").update(`gs::${code}`).digest("hex").slice(0, 32);
 }
@@ -38,11 +56,11 @@ function sameSecret(given: string, expected: string): boolean {
 }
 
 export function staffCodeConfigured(): boolean {
-  return Boolean(process.env.STAFF_CODE || process.env.ADMIN_CODE);
+  return Boolean(cleanCode(process.env.STAFF_CODE) || cleanCode(process.env.ADMIN_CODE));
 }
 
 export function adminCodeConfigured(): boolean {
-  return Boolean(process.env.ADMIN_CODE);
+  return Boolean(cleanCode(process.env.ADMIN_CODE));
 }
 
 /**
@@ -51,13 +69,14 @@ export function adminCodeConfigured(): boolean {
  * stronger role rather than the weaker one.
  */
 export function verifyCode(code: string): { role: Role; token: string } | null {
-  if (!code) return null;
-  const admin = process.env.ADMIN_CODE;
-  if (admin && sameSecret(code, admin)) {
+  const given = cleanCode(code);
+  if (!given) return null;
+  const admin = cleanCode(process.env.ADMIN_CODE);
+  if (admin && sameSecret(given, admin)) {
     return { role: "admin", token: roleToken(admin) };
   }
-  const staff = process.env.STAFF_CODE;
-  if (staff && sameSecret(code, staff)) {
+  const staff = cleanCode(process.env.STAFF_CODE);
+  if (staff && sameSecret(given, staff)) {
     return { role: "staff", token: roleToken(staff) };
   }
   return null;
@@ -68,10 +87,10 @@ export async function getRole(): Promise<Role> {
   const token = jar.get(STAFF_COOKIE)?.value;
   if (!token) return "resident";
 
-  const admin = process.env.ADMIN_CODE;
+  const admin = cleanCode(process.env.ADMIN_CODE);
   if (admin && sameSecret(token, roleToken(admin))) return "admin";
 
-  const staff = process.env.STAFF_CODE;
+  const staff = cleanCode(process.env.STAFF_CODE);
   if (staff && sameSecret(token, roleToken(staff))) return "staff";
 
   return "resident";
