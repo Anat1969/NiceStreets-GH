@@ -328,6 +328,22 @@ const admin = await ctx(ADMIN_CODE);
       (await p.getByRole("button", { name: /מיפוי קולות לפי רחוב/ }).count()) > 0,
   );
 
+  /*
+   * גובה המפה: הגיליון של maplibre ביטל את ה-absolute שלנו, והמפה קיבלה
+   * גובה 0 — קנבס ריק ותוויות חתוכות, בדיוק כמו "המפה לא עובדת".
+   */
+  await p.waitForTimeout(3500);
+  const mapHeight = await p
+    .locator(".maplibregl-map")
+    .evaluate((el) => Math.round(el.getBoundingClientRect().height))
+    .catch(() => 0);
+  ok("מפה — לקנבס יש גובה אמיתי", mapHeight > 200, `${mapHeight}px`);
+  ok(
+    "מפה — מצוירים סימנים עם מספר",
+    (await p.locator(".maplibregl-marker").count()) > 0,
+    `${await p.locator(".maplibregl-marker").count()} סימנים`,
+  );
+
   await p.goto(`${BASE}/learn`);
   const learn = await p.locator("body").innerText();
   ok("מסך הלימוד מציג את מה שהמסמך אינו מודד", learn.includes("מה שהמסמך אינו מודד"));

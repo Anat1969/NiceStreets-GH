@@ -105,7 +105,7 @@ export class LocalStore implements DataStore {
     return QUARTERS.map((quarter) => {
       const override = placed[quarter.id];
       return override
-        ? { ...quarter, ...override, schematic: false }
+        ? { ...quarter, ...override, schematic: false, centerSource: "staff" as const }
         : { ...quarter };
     });
   }

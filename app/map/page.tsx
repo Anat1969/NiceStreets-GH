@@ -50,6 +50,7 @@ export default async function MapPage() {
             center: q.center,
             votes: stats?.votes ?? 0,
             avgScore: stats?.avgScore ?? null,
+            centerSource: q.centerSource ?? null,
           };
         })}
         unplaced={unplacedQuarters.map((q) => {
@@ -57,7 +58,7 @@ export default async function MapPage() {
           return { id: q.id, name: q.name, votes: stats?.votes ?? 0 };
         })}
         streets={streetStats
-          .filter((s) => s.street.quarterId && s.votes > 0)
+          .filter((s) => s.votes > 0 || staff)
           .map((s) => ({
             id: s.street.id,
             code: s.street.code,
@@ -67,6 +68,7 @@ export default async function MapPage() {
             avgScore: s.avgScore,
             line: s.street.code ? lineByCode.get(s.street.code) : undefined,
             center: s.street.center ?? undefined,
+            centerSource: s.street.centerSource,
           }))}
       />
 

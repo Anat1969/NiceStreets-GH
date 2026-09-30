@@ -14,6 +14,8 @@ interface QuarterPoint {
   center: [number, number];
   votes: number;
   avgScore: number | null;
+  /** מאיפה הגיע המיקום. "approx" מסומן במפה כמשוער. */
+  centerSource?: string | null;
 }
 
 interface StreetFeature {
@@ -27,6 +29,8 @@ interface StreetFeature {
   line?: [number, number][];
   /** מרכז הרחוב מ-OpenStreetMap, כשאין קו. */
   center?: [number, number];
+  /** מאיפה הגיע המיקום. null = טרם מוקם. */
+  centerSource?: string | null;
 }
 
 interface Props {
@@ -115,6 +119,9 @@ export default function MapView({
   const [geocodeMessage, setGeocodeMessage] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState("");
   const calibratingRef = useRef("");
+  /** "quarter" או "street" — מה שומרים בלחיצה הבאה על המפה. */
+  const [placing, setPlacing] = useState<"quarter" | "street">("quarter");
+  const placingRef = useRef<"quarter" | "street">("quarter");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
 
   const maxQuarterVotes = useMemo(
@@ -145,16 +152,34 @@ export default function MapView({
 
   const shown = mode === "quarter" ? quarters.length : placedStreets.length;
 
+  /* מיקום משוער נאמר במפורש במקרא, ולא מוצג כאילו נמדד. */
+  const approx = useMemo(
+    () => quarters.filter((q) => q.centerSource === "approx"),
+    [quarters],
+  );
+  const approxCount = approx.length;
+  const approxNames = approx.map((q) => q.name).join(" · ");
+
   const saveQuarter = useCallback(
-    async (quarterId: string, point: [number, number]) => {
+    async (targetId: string, point: [number, number]) => {
       setSaveMessage(null);
-      const response = await fetch("/api/admin/quarter", {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ quarterId, center: point }),
-      });
+      const street = placingRef.current === "street";
+      const response = await fetch(
+        street ? "/api/admin/street-center" : "/api/admin/quarter",
+        {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(
+            street
+              ? { streetId: targetId, center: point }
+              : { quarterId: targetId, center: point },
+          ),
+        },
+      );
       if (response.ok) {
-        setSaveMessage("הרובע מוקם במפה.");
+        setSaveMessage(
+          placingRef.current === "street" ? "הרחוב מוקם במפה." : "הרובע מוקם במפה.",
+        );
         setCalibrating("");
         calibratingRef.current = "";
         router.refresh();
@@ -189,6 +214,10 @@ export default function MapView({
       setGeocoding(false);
     }
   }, [router]);
+
+  useEffect(() => {
+    placingRef.current = placing;
+  }, [placing]);
 
   useEffect(() => {
     calibratingRef.current = calibrating;
@@ -389,9 +418,16 @@ export default function MapView({
      */
     function addLabels() {
       labels.current.forEach((m) => m.remove());
+      /*
+       * תווית לכל נקודה הפכה את המפה לערמת בועות: 22 רובעים, שרובם בלי
+       * קולות, כיסו זה את זה ואת העיר. תווית מופיעה רק כשיש מה לספור;
+       * מקום בלי קולות נשאר עיגול שקט, ושמו מופיע בהקשה עליו.
+       */
       const items =
         mode === "quarter"
-          ? quarters.map((q) => ({
+          ? quarters
+              .filter((q) => q.votes > 0)
+              .map((q) => ({
               id: q.id,
               name: q.name,
               votes: q.votes,
@@ -401,7 +437,9 @@ export default function MapView({
                 setSelectedStreet(null);
               },
             }))
-          : placedStreets.map((s) => ({
+          : placedStreets
+              .filter((s) => s.votes > 0)
+              .map((s) => ({
               id: s.id,
               name: s.name,
               votes: s.votes,
@@ -453,6 +491,14 @@ export default function MapView({
       instance.fitBounds(bounds, { padding: 64, maxZoom: 15, duration: 0 });
     }
 
+    /*
+     * המפה מודדת את עצמה פעם אחת בעת היצירה. אם המסגרת עוד לא קיבלה
+     * את גובהה הסופי באותו רגע, הקנבס נשאר בגודל השגוי לתמיד. המשקיף
+     * הזה מיישר אותו בכל שינוי גודל — כולל סיבוב מכשיר.
+     */
+    const resizeObserver = new ResizeObserver(() => instance.resize());
+    if (container.current) resizeObserver.observe(container.current);
+
     instance.on("load", () => {
       if (!usedFallback) setBasemap("ready");
       addData();
@@ -482,6 +528,7 @@ export default function MapView({
     });
 
     return () => {
+      resizeObserver.disconnect();
       labels.current.forEach((m) => m.remove());
       labels.current = [];
       instance.remove();
@@ -587,6 +634,12 @@ export default function MapView({
               המיקומים נשלפו מ-OpenStreetMap לפי שם הרחוב או הרובע, ואינם שכבת
               ה-GIS העירונית. רחוב מסומן בנקודה אחת, לא בקו לכל אורכו.
             </p>
+            {approxCount > 0 ? (
+              <p className="mt-1 text-ink-faint">
+                {approxCount} מקומות אינם קיימים ב-OpenStreetMap בשם הזה,
+                ומיקומם כאן משוער עד שיימדד: {approxNames}.
+              </p>
+            ) : null}
             {!streetLinesAvailable ? null : (
               <p className="mt-1 text-ink-faint">
                 שכבת קווי הרחובות העירונית נטענה, ולכן רחוב שיש לו קו מצויר
@@ -714,26 +767,68 @@ export default function MapView({
 
       {canCalibrate ? (
         <div className="card mt-3 p-3">
-          <p className="text-[15px] font-semibold text-ink">מיקום רובעים (צוות)</p>
+          <p className="text-[15px] font-semibold text-ink">מיקום ידני על המפה (צוות)</p>
           <p className="mb-2 text-[13px] text-ink-soft">
-            בחרו רובע ולחצו על המפה במקום שבו הוא נמצא בפועל. מאותו רגע הוא
-            מצויר שם, ונספר בתצוגה.
+            בחרו רחוב או רובע, ואז לחצו על המפה במקום שבו הוא נמצא בפועל.
+            מאותו רגע הוא מצויר שם. כך ממקמים גם מה שהחיפוש האוטומטי לא מצא.
           </p>
+
+          <div className="mb-2 flex gap-2" role="group" aria-label="מה ממקמים">
+            {(
+              [
+                ["street", "רחוב"],
+                ["quarter", "רובע"],
+              ] as ["street" | "quarter", string][]
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={placing === value}
+                onClick={() => {
+                  setPlacing(value);
+                  setCalibrating("");
+                  calibratingRef.current = "";
+                }}
+                className={`pressable flex-1 rounded-[10px] px-3 py-2 text-[14px] ${
+                  placing === value
+                    ? "bg-accent font-semibold text-white"
+                    : "border border-line bg-surface text-ink"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <select
             value={calibrating}
             onChange={(e) => setCalibrating(e.target.value)}
-            aria-label="הרובע שממקמים"
+            aria-label={placing === "street" ? "הרחוב שממקמים" : "הרובע שממקמים"}
             className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px] text-ink"
           >
-            <option value="">בחרו רובע למיקום</option>
-            {[...unplaced.map((q) => ({ ...q, placed: false })),
-              ...quarters.map((q) => ({ id: q.id, name: q.name, placed: true }))].map((q) => (
-              <option key={q.id} value={q.id}>
-                {q.name}
-                {q.placed ? " — מוקם" : " — טרם מוקם"}
-              </option>
-            ))}
+            <option value="">
+              {placing === "street" ? "בחרו רחוב למיקום" : "בחרו רובע למיקום"}
+            </option>
+            {placing === "street"
+              ? [...streets]
+                  .sort((a, b) => Number(Boolean(a.center)) - Number(Boolean(b.center)))
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                      {s.center ? " — מוקם" : " — טרם מוקם"}
+                    </option>
+                  ))
+              : [
+                  ...unplaced.map((q) => ({ ...q, placed: false })),
+                  ...quarters.map((q) => ({ id: q.id, name: q.name, placed: true })),
+                ].map((q) => (
+                  <option key={q.id} value={q.id}>
+                    {q.name}
+                    {q.placed ? " — מוקם" : " — טרם מוקם"}
+                  </option>
+                ))}
           </select>
+
           {calibrating ? (
             <p role="status" className="mt-2 text-[13px] text-accent">
               לחצו עכשיו על המפה במקום המדויק.
@@ -746,6 +841,7 @@ export default function MapView({
           ) : null}
         </div>
       ) : null}
+
     </div>
   );
 }

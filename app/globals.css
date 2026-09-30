@@ -232,16 +232,30 @@
 
 .map-canvas-wrap {
   position: relative;
-  height: calc(100dvh - 210px);
-  min-height: 320px;
+  /* גובה יציב שאינו תלוי בכמה טקסט יש מעל המפה באותו יום. */
+  height: min(62dvh, 520px);
+  min-height: 340px;
   border: 1px solid var(--color-line);
   border-radius: 14px;
   overflow: hidden;
 }
 
-.map-canvas {
+/*
+ * גובה מפורש, ולא רק inset: 0.
+ *
+ * הגיליון של maplibre-gl נטען אחרי הגיליון הזה, ובו כתוב
+ * `.maplibregl-map { position: relative }`. אותה דרגת ספציפיות, והאחרון
+ * מנצח — ולכן ה-absolute כאן בוטל, `inset: 0` הפסיק לקבוע גובה,
+ * והמפה קיבלה גובה 0. הקנבס צויר ריק, והתוויות נחתכו מחוץ למסגרת.
+ * זה נראה בדיוק כמו "המפה לא עובדת".
+ *
+ * width/height של 100% עובדים בשני המצבים, ולכן הם התיקון הנכון.
+ */
+.map-canvas-wrap > .map-canvas {
   position: absolute;
   inset: 0;
+  width: 100%;
+  height: 100%;
 }
 
 .map-legend {

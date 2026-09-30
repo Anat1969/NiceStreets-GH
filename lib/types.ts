@@ -6,6 +6,11 @@ export interface Quarter {
   polygon: [number, number][];
   center: [number, number];
   schematic: boolean;
+  /**
+   * מאיפה הגיע המיקום. "approx" הוא מיקום משוער שנקבע ביד כדי שהרובע
+   * יופיע במפה, והמפה מסמנת אותו ככזה. null = טרם מוקם.
+   */
+  centerSource: "osm" | "streets" | "approx" | "municipal" | "staff" | null;
 }
 
 export interface Street {
@@ -27,7 +32,7 @@ export interface Street {
    * עירונית כשאינו כזה.
    */
   center: [number, number] | null;
-  centerSource: "osm" | "municipal" | "staff" | null;
+  centerSource: "osm" | "approx" | "municipal" | "staff" | null;
   gis: {
     rowWidthM?: number;
     heightToWidth?: number;

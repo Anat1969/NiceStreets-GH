@@ -125,7 +125,12 @@ export class SupabaseStore implements DataStore {
   }): Promise<Quarter> {
     const { data, error } = await this.db
       .from("quarters")
-      .update({ center: input.center, polygon: input.polygon, schematic: false })
+      .update({
+        center: input.center,
+        polygon: input.polygon,
+        schematic: false,
+        center_source: "staff",
+      })
       .eq("id", input.quarterId)
       .select("*")
       .single();
@@ -136,6 +141,7 @@ export class SupabaseStore implements DataStore {
       polygon: data.polygon ?? [],
       center: data.center ?? [0, 0],
       schematic: Boolean(data.schematic),
+      centerSource: data.center_source ?? null,
     };
   }
 

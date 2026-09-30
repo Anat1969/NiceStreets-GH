@@ -141,7 +141,7 @@ export interface Quarter {
   center: [number, number];
   schematic: boolean;
   /** מאיפה הגיע המיקום. null = טרם מוקם. */
-  centerSource?: "osm" | "streets" | "municipal" | "staff" | null;
+  centerSource: "osm" | "streets" | "approx" | "municipal" | "staff" | null;
 }
 
 /**
@@ -815,6 +815,7 @@ export const QUARTERS: Quarter[] = QUARTER_SEED.map((q) => ({
   center: q.center,
   polygon: [],
   schematic: true,
+  centerSource: null,
 }));
 
 
