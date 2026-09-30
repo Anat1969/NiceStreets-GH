@@ -93,6 +93,63 @@
   );
 }
 
+/* ------------------------------------------------------------------- map
+ *
+ * The map fills the screen above the tab bar. On a phone that means the
+ * viewport minus the header and the bar; a chosen desktop layout gets a tall
+ * pane instead, because there the bar is a side column.
+ */
+.map-screen {
+  display: flex;
+  flex-direction: column;
+}
+
+.map-canvas-wrap {
+  position: relative;
+  height: calc(100dvh - 210px);
+  min-height: 320px;
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+.map-canvas {
+  position: absolute;
+  inset: 0;
+}
+
+.map-legend {
+  position: absolute;
+  inset-inline-start: 8px;
+  bottom: 8px;
+  z-index: 2;
+  max-width: min(320px, calc(100% - 16px));
+  background: var(--color-surface);
+}
+
+.map-empty {
+  position: absolute;
+  inset-inline: 16px;
+  top: 16px;
+  z-index: 2;
+  background: var(--color-surface);
+  padding: 12px;
+}
+
+.map-sheet {
+  position: absolute;
+  inset-inline: 8px;
+  bottom: 8px;
+  z-index: 3;
+  background: var(--color-surface);
+}
+
+/* The sheet covers the legend while it is open, so they never overlap. */
+.map-sheet ~ .map-legend,
+.map-canvas-wrap:has(.map-sheet) .map-legend {
+  display: none;
+}
+
 .brand-logo {
   height: 40px;
   width: auto;
@@ -307,16 +364,8 @@ table {
   min-width: 0;
 }
 
-/* Map and its list side by side once there is room for both. */
-:root[data-view="desktop"] .map-shell {
-  display: grid;
-  grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
-  gap: 20px;
-  align-items: start;
-}
-
-:root[data-view="desktop"] .map-canvas {
-  height: 560px;
+:root[data-view="desktop"] .map-canvas-wrap {
+  height: 640px;
 }
 
 @media (min-width: 1024px) {
@@ -373,14 +422,7 @@ table {
     min-width: 0;
   }
 
-  :root[data-view="auto"] .map-shell {
-    display: grid;
-    grid-template-columns: minmax(0, 1.6fr) minmax(260px, 1fr);
-    gap: 20px;
-    align-items: start;
-  }
-
-  :root[data-view="auto"] .map-canvas {
-    height: 560px;
+  :root[data-view="auto"] .map-canvas-wrap {
+    height: 640px;
   }
 }

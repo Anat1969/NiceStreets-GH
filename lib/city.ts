@@ -530,16 +530,18 @@ export const EXAMPLES: Example[] = [
   },
 ];
 
-/** Schematic quarter polygons — a simple grid over Ashdod, for demo only. */
-function ring(lon: number, lat: number, w = 0.016, h = 0.013): [number, number][] {
-  return [
-    [lon - w / 2, lat - h / 2],
-    [lon + w / 2, lat - h / 2],
-    [lon + w / 2, lat + h / 2],
-    [lon - w / 2, lat + h / 2],
-    [lon - w / 2, lat - h / 2],
-  ];
-}
+/*
+ * TODO — שכבות ה-GIS העירוניות אינן במאגר.
+ *
+ * אין כאן פוליגונים. עד גרסה זו נוצר כאן ריבוע לכל רובע, והמפה ציירה אותו
+ * כאילו היה הגבול האמיתי. ריבוע כזה הוא מידע שגוי שנראה כמו מידע נכון,
+ * והוא הוסר.
+ *
+ * ה-`center` שלמטה הוא נקודת פתיחה לכלי המיקום של הצוות בלבד, לא מיקום
+ * אמיתי — ולכן כל רובע מסומן `schematic: true` והמפה אינה מציירת אותו.
+ * רובע מצויר רק אחרי שהצוות מיקם אותו, או אחרי טעינת `data/quarters.geojson`
+ * דרך `npm run import:gis`.
+ */
 
 /**
  * Besides the numbered quarters, the municipal list classifies streets into
@@ -584,7 +586,7 @@ export const QUARTERS: Quarter[] = QUARTER_SEED.map((q) => ({
   id: q.id,
   name: q.name,
   center: q.center,
-  polygon: ring(q.center[0], q.center[1]),
+  polygon: [],
   schematic: true,
 }));
 
