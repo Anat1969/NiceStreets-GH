@@ -3,7 +3,8 @@ import "./globals.css";
 import { CITY } from "@/lib/city";
 import TabBar from "@/components/TabBar";
 import ViewModeToggle from "@/components/ViewModeToggle";
-import { getViewMode, isStaff } from "@/lib/session";
+import PaletteToggle from "@/components/PaletteToggle";
+import { getPalette, getViewMode, isStaff } from "@/lib/session";
 import { getStore } from "@/lib/store";
 import { BUILD_LABEL } from "@/lib/version";
 
@@ -26,7 +27,11 @@ export default async function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const [staff, viewMode] = await Promise.all([isStaff(), getViewMode()]);
+  const [staff, viewMode, palette] = await Promise.all([
+    isStaff(),
+    getViewMode(),
+    getPalette(),
+  ]);
   // Read the queue only for staff; the public pages must not pay for it.
   const pendingPhotos = staff
     ? await getStore()
@@ -36,7 +41,7 @@ export default async function RootLayout({
     : 0;
 
   return (
-    <html lang="he" dir="rtl" data-view={viewMode}>
+    <html lang="he" dir="rtl" data-view={viewMode} data-palette={palette}>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
@@ -65,7 +70,10 @@ export default async function RootLayout({
                     <p className="text-[13px] text-ink-faint">{CITY.authority}</p>
                   </div>
                 </div>
-                <ViewModeToggle current={viewMode} />
+                <div className="flex flex-wrap items-center gap-2">
+                  <PaletteToggle current={palette} />
+                  <ViewModeToggle current={viewMode} />
+                </div>
               </div>
             </header>
             <main id="main" className="app-main">

@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
 import { VIEW_MODE_COOKIE, parseViewMode, type ViewMode } from "./view-mode";
+import { PALETTE_COOKIE, parsePalette, type Palette } from "./palette";
 
 export const RESIDENT_COOKIE = "gs_uid";
 export const STAFF_COOKIE = "gs_staff";
@@ -46,4 +47,10 @@ export async function isStaff(): Promise<boolean> {
 export async function getViewMode(): Promise<ViewMode> {
   const jar = await cookies();
   return parseViewMode(jar.get(VIEW_MODE_COOKIE)?.value);
+}
+
+/** The colour scheme the visitor chose, if any. */
+export async function getPalette(): Promise<Palette> {
+  const jar = await cookies();
+  return parsePalette(jar.get(PALETTE_COOKIE)?.value);
 }

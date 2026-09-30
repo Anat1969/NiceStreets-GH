@@ -54,6 +54,34 @@
   --brand-900: #0c322b;
 }
 
+/*
+ * The blue scheme: dark blue on a light background, chosen from the header.
+ *
+ * Only the chrome changes. The 1–5 scale stays red-to-green and the status
+ * colours stay as they are, because there the colour carries meaning and a
+ * blue scale would erase it.
+ *
+ * Every value below was measured against its background: the lightest text
+ * tone on white is 5.75:1, and white on the accent is 10.4:1.
+ */
+:root[data-palette="blue"] {
+  --color-ink: #10203a;
+  --color-ink-soft: #3d4f6b;
+  --color-ink-faint: #56678a;
+  --color-paper: #f2f5fa;
+  --color-surface: #ffffff;
+  --color-line: #d3dae6;
+  --color-accent: #1b3f78;
+  --color-accent-soft: #e3eaf6;
+
+  --brand-50: #eef2f9;
+  --brand-100: #dbe4f2;
+  --brand-300: #8fa8cf;
+  --brand-500: #1b3f78;
+  --brand-700: #142f5a;
+  --brand-900: #0b1c38;
+}
+
 /* The one branded surface: a saturated rule above a barely-tinted header. */
 .brand-rule {
   height: 3px;
