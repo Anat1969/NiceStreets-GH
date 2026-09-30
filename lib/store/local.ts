@@ -8,7 +8,6 @@ import type {
   Photo,
   PhotoStatus,
   Quarter,
-  Scores,
   Street,
   StreetStatus,
   Vote,

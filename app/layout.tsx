@@ -45,6 +45,11 @@ export default async function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
+        {/*
+          The rule below targets the pages router's _document; in the app
+          router this link is the supported way to load a stylesheet in head.
+        */}
+        {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
           href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&display=swap"
           rel="stylesheet"
