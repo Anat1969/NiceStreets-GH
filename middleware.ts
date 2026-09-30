@@ -8,6 +8,17 @@ import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
  * before the page renders. A visitor with no session passes straight through.
  */
 export async function middleware(request: NextRequest) {
+  // A sign-in link that landed on another page (Supabase falls back to the
+  // Site URL when the return address does not match) still carries its
+  // one-time code: hand it to the callback instead of dropping it.
+  const code = request.nextUrl.searchParams.get("code");
+  if (code && request.nextUrl.pathname !== "/auth/callback") {
+    const target = request.nextUrl.clone();
+    target.pathname = "/auth/callback";
+    target.search = `?code=${encodeURIComponent(code)}`;
+    return NextResponse.redirect(target);
+  }
+
   let response = NextResponse.next({ request });
   const hasSession = request.cookies.getAll().some((c) => c.name.startsWith("sb-"));
   if (!hasSession) return response;

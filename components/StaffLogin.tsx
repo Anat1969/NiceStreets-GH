@@ -19,7 +19,10 @@ export default function StaffLogin() {
     const { error } = await supabaseBrowser().auth.signInWithOtp({
       email: email.trim(),
       options: {
-        emailRedirectTo: `${window.location.origin}/auth/callback?next=/admin`,
+        // Exactly the address in Supabase's Redirect URLs list. Anything
+        // extra (even ?next=) fails the match, and Supabase then silently
+        // sends the link to the project's Site URL instead of back here.
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
         shouldCreateUser: true,
       },
     });
