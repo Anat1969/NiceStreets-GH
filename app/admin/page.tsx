@@ -11,6 +11,8 @@ import PhotoModeration from "@/components/PhotoModeration";
 import { QUARTER_MAP } from "@/lib/city";
 import { contestedThemes } from "@/lib/themes";
 import AdminUpload from "@/components/AdminUpload";
+import AuditRunButton from "@/components/AuditRunButton";
+import { loadAuditOverview } from "@/lib/audit";
 import StreetAssignment from "@/components/StreetAssignment";
 import ImageFrame from "@/components/ImageFrame";
 import { imageSlot } from "@/lib/content-images";
@@ -91,6 +93,7 @@ export default async function AdminPage({
     counts.set(vote.typologySuggestion, (counts.get(vote.typologySuggestion) ?? 0) + 1);
   }
   const unverified = streetStats.filter((s) => !s.street.verified && s.votes > 0);
+  const audits = await loadAuditOverview();
 
   return (
     <>
@@ -176,6 +179,32 @@ export default async function AdminPage({
           </Link>
         </p>
       </section>
+
+      <Section
+        title="בדיקה אוטומטית"
+        note="המערכת מודדת כל רחוב מול היעד לסוג הרחוב, משווה לדירוג התושבים ומנסחת טיוטה. הצוות רק מאשר."
+      >
+        <div className="card grid gap-3 p-4">
+          {audits.error ? (
+            <p className="text-[14px] text-ink">טעינת הבדיקה נכשלה: {audits.error}</p>
+          ) : (
+            <p className="text-[14px] text-ink">
+              {audits.latest.length === 0
+                ? "עוד לא הורצה בדיקה."
+                : `נבדקו ${audits.latest.length} מתוך ${audits.streets.length} רחובות · ` +
+                  `${audits.latest.filter((a) => a.state === "draft").length} טיוטות ממתינות לאישור · ` +
+                  `${audits.latest.filter((a) => a.state === "blocked").length} חסומים בגלל נתונים חסרים`}
+            </p>
+          )}
+          <AuditRunButton label="הרצת בדיקה לכל הרחובות" />
+          <Link
+            href="/admin/audit"
+            className="inline-flex min-h-11 items-center text-[15px] font-medium text-accent underline underline-offset-2"
+          >
+            לתוצאות, לטבלת הקריטריונים ולפערים בנתונים
+          </Link>
+        </div>
+      </Section>
 
       {role === "admin" ? (
         <Section
