@@ -24,6 +24,8 @@ export default function ImageFrame({
   emptyLabel = "אין עדיין תמונה",
   fallbackSrc,
   credit,
+  fit = "cover",
+  caption,
 }: {
   slot: string;
   alt: string;
@@ -37,6 +39,16 @@ export default function ImageFrame({
   fallbackSrc?: string;
   /** שורת קרדיט קצרה מתחת לתמונה, כשיש לה מקור חיצוני. */
   credit?: string;
+  /**
+   * "cover" ממלא את המסגרת וחותך; "contain" מראה את התמונה במלואה.
+   * לוגו חייב contain — חיתוך של סמל עירוני אינו עניין של טעם.
+   */
+  fit?: "cover" | "contain";
+  /**
+   * כותרת שיושבת על התמונה עצמה, על גרדיאנט שיוצא מתחתית המסגרת. כך שם
+   * הרחוב נשאר צמוד לתמונה שלו ולא הופך לשורה נפרדת מתחתיה.
+   */
+  caption?: React.ReactNode;
   /** יחס הצדדים של המסגרת, כדי שהעמוד לא יקפוץ כשתמונה נטענת. */
   ratio?: string;
   className?: string;
@@ -101,7 +113,11 @@ export default function ImageFrame({
 
   const picture = shown ? (
     /* eslint-disable-next-line @next/next/no-img-element */
-    <img src={src} alt={alt} className="h-full w-full object-cover" />
+    <img
+      src={src}
+      alt={alt}
+      className={`h-full w-full ${fit === "contain" ? "object-contain" : "object-cover"}`}
+    />
   ) : (
     <span className="flex h-full w-full items-center justify-center px-3 text-center text-[13px] text-ink-faint">
       {canEdit ? `${emptyLabel} — להעלאה` : emptyLabel}
@@ -111,7 +127,7 @@ export default function ImageFrame({
   return (
     <div className={className}>
       <div
-        className="overflow-hidden rounded-[12px] border border-line bg-paper"
+        className="relative overflow-hidden rounded-[12px] border border-line bg-paper"
         style={{ aspectRatio: ratio }}
       >
         {canEdit ? (
@@ -132,6 +148,15 @@ export default function ImageFrame({
         ) : (
           picture
         )}
+
+        {caption && shown ? (
+          <div className="pointer-events-none absolute inset-x-0 bottom-0">
+            <span className="photo-scrim" aria-hidden="true" />
+            <div className="relative px-3 pb-2 pt-10 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+              {caption}
+            </div>
+          </div>
+        ) : null}
       </div>
 
       {canEdit ? (

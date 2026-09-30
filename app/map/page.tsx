@@ -31,8 +31,8 @@ export default async function MapPage() {
     <>
       <h1 className="mb-1 text-[24px] font-bold text-ink">מפה</h1>
       <p className="mb-3 text-[14px] text-ink-soft">
-        גודל העיגול לפי מספר הקולות, צבעו לפי הציון הממוצע. הקישו על רובע כדי
-        לראות את רחובותיו.
+        בחרו מה למפות: קולות לפי רובע, או קולות לפי רחוב. המספר שעל כל תווית
+        הוא מספר הקולות, גודל העיגול לפיו, וצבעו לפי הציון הממוצע.
       </p>
 
       <MapView
@@ -64,14 +64,15 @@ export default async function MapPage() {
             votes: s.votes,
             avgScore: s.avgScore,
             line: s.street.code ? lineByCode.get(s.street.code) : undefined,
+            center: s.street.center ?? undefined,
           }))}
       />
 
       <div className="mt-4">
         <Notice>
-          מפת הרקע מבוססת OpenStreetMap. גבולות הרובעים וקווי הרחובות יגיעו
-          משכבות ה־GIS של העירייה; עד שיטענו, המפה מציגה נקודה לכל רובע שמוקם
-          ואינה מציירת גבולות.
+          מפת הרקע והמיקומים מבוססים OpenStreetMap (רישיון ODbL). מיקום הרובע
+          והרחוב נשלף משם לפי השם, ואינו שכבת ה-GIS של העירייה: הוא נקודה אחת,
+          לא גבול ולא קו לאורך הרחוב. כששכבות העירייה ייטענו, הן יגברו עליו.
         </Notice>
       </div>
     </>

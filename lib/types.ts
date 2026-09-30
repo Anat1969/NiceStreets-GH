@@ -21,6 +21,13 @@ export interface Street {
   /** Set by staff, not by residents. Null means not classified yet. */
   typology: TypologyKey | null;
   line: [number, number][] | null;
+  /**
+   * מרכז הרחוב על המפה, [lon, lat]. מגיע מ-OpenStreetMap לפי שם הרחוב
+   * והעיר, ולכן `centerSource` שומר מאיפה — כדי שלא ייראה כמו שכבת GIS
+   * עירונית כשאינו כזה.
+   */
+  center: [number, number] | null;
+  centerSource: "osm" | "municipal" | "staff" | null;
   gis: {
     rowWidthM?: number;
     heightToWidth?: number;

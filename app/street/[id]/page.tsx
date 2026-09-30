@@ -1,15 +1,21 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { QUESTIONS, TYPOLOGY_MAP } from "@/lib/city";
+import { QUESTIONS, TYPOLOGY_MAP, STATUS_MAP } from "@/lib/city";
+import type { CriterionKey } from "@/lib/city";
 import { getStore } from "@/lib/store";
 import { buildStreetStats, voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
 import { parseSegmentCode } from "@/lib/segments";
 import { isPublicPhoto } from "@/lib/types";
 import { confirmedTheme } from "@/lib/themes";
-import { Card, Notice, ScoreBar, Section, StatusBadge } from "@/components/ui";
+import { Card, Datum, Notice, ScoreBar, Section, StatusBadge } from "@/components/ui";
 import StatusEditor from "@/components/StatusEditor";
 import PhotoDecision from "@/components/PhotoDecision";
+import StreetPhotoActions from "@/components/StreetPhotoActions";
+import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
+import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
+import { scoreLabel } from "@/lib/hebrew";
+import { summarise } from "@/lib/summary";
 
 export const dynamic = "force-dynamic";
 
@@ -42,6 +48,7 @@ export default async function StreetPage({
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
     .slice(0, 8);
   const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
+  const summary = summarise(stats, reasons.length);
 
   /*
    * A stretch of a crossing boulevard carries its quarter inside the code
@@ -71,47 +78,96 @@ export default async function StreetPage({
         {stats.quarterName} · {typology?.label ?? "טרם סווג"}
       </p>
 
-      <div className="mb-5 flex gap-2">
+      <div className="mb-4 flex gap-2">
         <div className="card flex-1 p-3 text-center">
-          <div className="text-[24px] font-semibold tabular-nums text-accent">{stats.votes}</div>
-          <div className="text-[13px] text-ink-soft">קולות</div>
+          <div className="text-[24px] font-bold tabular-nums text-accent">
+            {stats.votes.toLocaleString("he-IL")}
+          </div>
+          <div className="text-[13px] font-medium text-ink">קולות</div>
+          <div className="mt-1 text-[11px] text-ink-faint">תושבים שדירגו</div>
         </div>
         <div className="card flex-1 p-3 text-center">
-          <div className="text-[24px] font-semibold tabular-nums text-accent">
-            {stats.avgScore === null ? "—" : stats.avgScore.toFixed(1)}
+          <div className="text-[24px] font-bold tabular-nums text-accent">
+            {scoreLabel(stats.avgScore)}
           </div>
-          <div className="text-[13px] text-ink-soft">ציון ממוצע</div>
+          <div className="text-[13px] font-medium text-ink">ציון ממוצע</div>
+          <div className="mt-1 text-[11px] text-ink-faint">מתוך 5</div>
         </div>
         <div className="card flex-1 p-3 text-center">
-          <div className="text-[24px] font-semibold tabular-nums text-accent">
-            {visiblePhotos.filter(isPublicPhoto).length}
+          <div className="text-[24px] font-bold tabular-nums text-accent">
+            {visiblePhotos.filter(isPublicPhoto).length.toLocaleString("he-IL")}
           </div>
-          <div className="text-[13px] text-ink-soft">תמונות</div>
+          <div className="text-[13px] font-medium text-ink">תמונות</div>
+          <div className="mt-1 text-[11px] text-ink-faint">מאושרות</div>
         </div>
       </div>
+
+      {/*
+        סיכום במשפטים: מי שמגיע לכאן מרשימת המובילים רוצה לדעת מה חשבו
+        על הרחוב, לא לקרוא שבעה מדדים ולהרכיב את התמונה בעצמו.
+      */}
+      <Card className="mb-5">
+        <p className="mb-1 text-[13px] font-semibold text-ink-faint">
+          מה התושבים חושבים על הרחוב
+        </p>
+        <p className="text-[15px] leading-relaxed text-ink">{summary}</p>
+      </Card>
 
       {theme ? (
         <div className="mb-5 rounded-[14px] border border-line bg-accent-soft/60 p-4">
           <p className="mb-1 text-[15px] font-semibold text-accent">הידעת?</p>
           <p className="text-[15px] text-ink">
-            שמות הרחובות ב{stats.quarterName} נקבעו סביב נושא אחד:{" "}
-            <span className="font-medium">{theme}</span>.
+            רוב שמות הרחובות ב{stats.quarterName} נקבעו סביב נושא אחד:{" "}
+            <span className="font-semibold">{theme}</span>.
           </p>
           <p className="mt-1 text-[13px] text-ink-soft">
-            לכל רובע באשדוד נושא שמות משלו, והוא נקבע בוועדת השמות של העירייה.
+            זה הכלל, לא חוק: כמעט בכל רובע יש רחוב אחד או שניים שנקראו על שם
+            אחר — לרוב מוקדם יותר מקביעת הנושא, או לציון אדם או אירוע שהעירייה
+            ביקשה להנציח. רחוב שאינו מתאים לנושא אינו טעות; הוא בדרך כלל
+            הסיפור המעניין יותר.
           </p>
         </div>
       ) : null}
 
-      <Section title="פילוח לפי שאלות">
+      <Section
+        title="פילוח לפי שאלות"
+        note="ציון ממוצע לכל שאלה, מ-1 עד 5. ככל שהעמודה ארוכה יותר, כך דירגו גבוה יותר."
+      >
         <Card>
-          {QUESTIONS.map((question) => (
-            <ScoreBar
-              key={question.key}
-              label={question.label}
-              value={stats.perQuestion[question.key]}
-            />
-          ))}
+          <p className="mb-2 text-[13px] font-semibold text-ink-faint">
+            נמדד גם במסמך מינהל התכנון
+          </p>
+          {QUESTIONS.filter((q) => !LOCAL_QUESTION_KEYS.includes(q.key)).map((question) => {
+            const Mark = QUESTION_ICONS[question.key];
+            return (
+              <ScoreBar
+                key={question.key}
+                label={question.label}
+                value={stats.perQuestion[question.key]}
+                icon={Mark ? <Mark /> : undefined}
+              />
+            );
+          })}
+
+          {/*
+            שלוש השאלות שהמסמך אינו מודד מוצגות באפור — לא כי הן פחות
+            חשובות, אלא כדי שיהיה ברור שאין להן ערך ייחוס להשוות אליו.
+          */}
+          <p className="mb-2 mt-4 border-t border-line pt-3 text-[13px] font-semibold text-ink-faint">
+            אינו נמדד במסמך — ודווקא זה מה שהעירייה יכולה לשפר מהר
+          </p>
+          {QUESTIONS.filter((q) => LOCAL_QUESTION_KEYS.includes(q.key)).map((question) => {
+            const Mark = QUESTION_ICONS[question.key];
+            return (
+              <ScoreBar
+                key={question.key}
+                label={question.label}
+                value={stats.perQuestion[question.key]}
+                icon={Mark ? <Mark /> : undefined}
+                muted
+              />
+            );
+          })}
         </Card>
         <p className="mt-2 text-[13px] text-ink-faint">
           כל שאלה מייצגת קריטריונים מקצועיים.{" "}
@@ -124,20 +180,24 @@ export default async function StreetPage({
       {typology ? (
         <Section title={`ערכי ייחוס ל${typology.label}`} note={typology.description}>
           <Card>
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
-              {[
-                ["רוחב זכות דרך", typology.benchmarks.rowWidth],
-                ["חלק המדרכה", typology.benchmarks.sidewalk],
-                ["יחס רוחב לגובה", typology.benchmarks.ratio],
-                ["בניינים ל-100 מ'", typology.benchmarks.buildings],
-                ["חופת עצים", typology.benchmarks.canopy],
-                ["מרחק בין צמתים", typology.benchmarks.intersections],
-              ].map(([label, value]) => (
-                <div key={label}>
-                  <dt className="text-ink-faint">{label}</dt>
-                  <dd className="text-ink">{value}</dd>
-                </div>
-              ))}
+            <dl className="grid grid-cols-2 gap-x-3 gap-y-3 [&_svg]:h-4 [&_svg]:w-4">
+              {(
+                [
+                  ["רוחב זכות דרך", typology.benchmarks.rowWidth, "row_width"],
+                  ["חלק המדרכה", typology.benchmarks.sidewalk, "row_split"],
+                  ["יחס רוחב לגובה", typology.benchmarks.ratio, "proportions"],
+                  ["בניינים ל-100 מ'", typology.benchmarks.buildings, "building_rhythm"],
+                  ["חופת עצים", typology.benchmarks.canopy, "tree_canopy"],
+                  [
+                    "מרחק בין צמתים",
+                    typology.benchmarks.intersections,
+                    "intersection_density",
+                  ],
+                ] as [string, string, CriterionKey][]
+              ).map(([label, value, criterionKey]) => {
+                const Mark = CRITERION_ICONS[criterionKey];
+                return <Datum key={label} label={label} value={value} icon={<Mark />} />;
+              })}
             </dl>
             {street.gis ? (
               <p className="mt-2 border-t border-line pt-2 text-[13px] text-ink-soft">
@@ -161,10 +221,22 @@ export default async function StreetPage({
         </Section>
       ) : null}
 
-      <Section title="גלריה" note={staff ? "הצוות רואה גם תמונות שממתינות לאישור." : undefined}>
+      <Section
+        title="גלריה"
+        note={
+          staff
+            ? "הצוות רואה גם תמונות שממתינות לאישור, ומכריע מתחת לכל אחת."
+            : "תמונות שתושבים צילמו ברחוב, אחרי אישור הצוות."
+        }
+      >
+        <StreetPhotoActions
+          streetId={street.id}
+          streetName={street.name}
+          city={CITY.name}
+        />
         {stats.photosPending > 0 && !staff ? (
           <p className="mb-2 text-[13px] text-ink-soft">
-            {stats.photosPending} תמונות ממתינות לאישור הצוות ויפורסמו לאחר בדיקה.
+            {stats.photosPending} {stats.photosPending === 1 ? "תמונה ממתינה" : "תמונות ממתינות"} לאישור הצוות ויפורסמו לאחר בדיקה.
           </p>
         ) : null}
         {visiblePhotos.length === 0 ? (
@@ -181,17 +253,15 @@ export default async function StreetPage({
                   alt={`תמונה מהרחוב ${street.name}`}
                   className="h-32 w-full object-cover"
                 />
-                {photo.status !== "approved" ? (
-                  <p className="px-2 py-1 text-[12px] text-ink-faint">
-                    {photo.status === "pending" ? "ממתינה לאישור" : "נדחתה"}
-                  </p>
-                ) : null}
-                {photo.source !== "resident" ? (
-                  <p className="px-2 py-1 text-[12px] text-ink-faint">
+                {/*
+                  הציבור רואה תמונה בלבד. הסטטוס וההכרעה הם ענייני הצוות,
+                  והם מוצגים כפס דק מתחת לתמונה ולא כשכבה שמשתלטת עליה.
+                */}
+                {staff && photo.source !== "resident" ? (
+                  <p className="border-t border-line px-2 py-1 text-[12px] text-ink-faint">
                     {photo.source === "example" ? "דוגמה של האגף" : "בדיקה, לא מוצגת לציבור"}
                   </p>
                 ) : null}
-                {/* Staff and admin decide from here too, not only from the queue. */}
                 {staff ? <PhotoDecision photoId={photo.id} status={photo.status} /> : null}
               </li>
             ))}
@@ -218,9 +288,23 @@ export default async function StreetPage({
         )}
       </Section>
 
-      <Section title="סטטוס עירוני">
+      <Section
+        title="סטטוס עירוני"
+        note="מה אגף אדריכלות העיר עושה עם הרחוב הזה. שלושה שלבים בלבד."
+      >
         <Card>
           <StatusBadge status={stats.status?.status ?? null} />
+          {/* מה נבדק בשלב הזה — לא רק שם השלב. */}
+          {stats.status && STATUS_MAP[stats.status.status] ? (
+            <p className="mt-2 text-[14px] text-ink-soft">
+              {STATUS_MAP[stats.status.status].meaning}
+            </p>
+          ) : (
+            <p className="mt-2 text-[14px] text-ink-soft">
+              הרחוב עדיין לא נכנס לבדיקה. האגף עובר על הרחובות שקיבלו קולות
+              לפי סדר, ומעדכן כאן.
+            </p>
+          )}
           {stats.status?.publicNote ? (
             <p className="mt-2 text-[15px] text-ink">{stats.status.publicNote}</p>
           ) : null}

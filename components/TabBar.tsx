@@ -7,7 +7,7 @@ const TABS = [
   { href: "/", label: "בית" },
   { href: "/choose", label: "לבחור" },
   { href: "/map", label: "מפה" },
-  { href: "/streets", label: "רחובות" },
+  { href: "/streets", label: "טבלה" },
   { href: "/examples", label: "דוגמאות" },
   { href: "/learn", label: "ללמוד" },
 ];
@@ -39,7 +39,7 @@ export default function TabBar({
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`${
+                className={`pressable ${
                   active
                     ? "bg-accent-soft font-semibold text-accent"
                     : "text-ink-soft"

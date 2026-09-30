@@ -199,9 +199,10 @@ export default async function AdminPage({
             alt="לוגו עיריית אשדוד"
             hasImage={imageSlots.includes(imageSlot("logo"))}
             canEdit
-            ratio="3 / 1"
+            ratio="13 / 8"
             emptyLabel="אין עדיין לוגו"
             className="max-w-[240px]"
+            fit="contain"
           />
         </Section>
       ) : null}

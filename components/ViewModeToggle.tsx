@@ -3,11 +3,17 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { VIEW_MODE_COOKIE, type ViewMode } from "@/lib/view-mode";
+import { ViewAuto, ViewDesktop, ViewMobile } from "@/components/icons";
 
-const OPTIONS: { value: ViewMode; label: string }[] = [
-  { value: "auto", label: "אוטומטי" },
-  { value: "desktop", label: "תצוגת מחשב" },
-  { value: "mobile", label: "תצוגת נייד" },
+/*
+ * שלוש תוויות טקסט ("אוטומטי", "תצוגת מחשב", "תצוגת נייד") תפסו את רוב
+ * רוחב הכותרת בנייד. כאן הן אייקון אחד כל אחת, באותה שפה של תוכן הלימוד.
+ * השם נשאר נגיש: aria-label לקורא מסך, ו-title לריחוף בעכבר.
+ */
+const OPTIONS: { value: ViewMode; label: string; Icon: () => React.ReactElement }[] = [
+  { value: "auto", label: "תצוגה אוטומטית", Icon: ViewAuto },
+  { value: "desktop", label: "תצוגת מחשב", Icon: ViewDesktop },
+  { value: "mobile", label: "תצוגת נייד", Icon: ViewMobile },
 ];
 
 /**
@@ -27,26 +33,27 @@ export default function ViewModeToggle({ current }: { current: ViewMode }) {
   }
 
   return (
-    <div
-      className="flex gap-1"
-      role="group"
-      aria-label="בחירת תצוגה"
-    >
-      {OPTIONS.map((option) => (
-        <button
-          key={option.value}
-          type="button"
-          aria-pressed={value === option.value}
-          onClick={() => choose(option.value)}
-          className={`min-h-0 rounded-full px-3 py-1 text-[13px] ${
-            value === option.value
-              ? "bg-accent text-white"
-              : "border border-line bg-surface text-ink-soft"
-          }`}
-        >
-          {option.label}
-        </button>
-      ))}
+    <div className="flex gap-1" role="group" aria-label="בחירת תצוגה">
+      {OPTIONS.map(({ value: option, label, Icon }) => {
+        const active = value === option;
+        return (
+          <button
+            key={option}
+            type="button"
+            aria-pressed={active}
+            aria-label={label}
+            title={label}
+            onClick={() => choose(option)}
+            className={`pressable flex h-11 w-11 min-h-11 items-center justify-center rounded-full ${
+              active
+                ? "bg-accent text-white"
+                : "border border-line bg-surface text-ink-soft"
+            }`}
+          >
+            <Icon />
+          </button>
+        );
+      })}
     </div>
   );
 }

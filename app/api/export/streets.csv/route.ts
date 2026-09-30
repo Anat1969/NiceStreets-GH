@@ -58,7 +58,7 @@ export async function GET(request: Request) {
       return value === null ? null : value.toFixed(2);
     }),
     s.photos,
-    s.status ? STATUS_MAP[s.status.status].label : "",
+    s.status ? (STATUS_MAP[s.status.status]?.label ?? s.status.status) : "",
     s.status?.publicNote ?? "",
     s.status?.updatedAt ?? "",
   ]);

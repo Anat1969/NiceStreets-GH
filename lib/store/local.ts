@@ -156,6 +156,8 @@ export class LocalStore implements DataStore {
         quarterId: input.quarterId ?? assignment.quarterId ?? null,
         typology: assignment.typology ?? null,
         line: assignment.line ?? null,
+        center: null,
+        centerSource: null,
         gis: assignment.gis ?? null,
         verified: true,
         createdAt: new Date().toISOString(),
@@ -163,6 +165,21 @@ export class LocalStore implements DataStore {
       snapshot.streets.push(street);
       await persist(snapshot);
       return { ...street };
+    });
+  }
+
+  async setStreetCenter(
+    streetId: string,
+    center: [number, number],
+    source: "osm" | "municipal" | "staff",
+  ): Promise<void> {
+    await withLock(async () => {
+      const snapshot = await load();
+      const street = snapshot.streets.find((s) => s.id === streetId);
+      if (!street) return;
+      street.center = center;
+      street.centerSource = source;
+      await persist(snapshot);
     });
   }
 
@@ -322,6 +339,7 @@ export class LocalStore implements DataStore {
     streetId: string;
     dataUrl: string;
     source: PhotoSource;
+    status?: PhotoStatus;
   }): Promise<Photo> {
     return withLock(async () => {
       const snapshot = await load();
@@ -337,7 +355,7 @@ export class LocalStore implements DataStore {
         voteId: "",
         streetId: input.streetId,
         storagePath,
-        status: "approved",
+        status: input.status ?? "approved",
         source: input.source,
         createdAt: new Date().toISOString(),
         isDemo: input.source === "test",
@@ -411,7 +429,7 @@ export class LocalStore implements DataStore {
       if (snapshot.votes.some((v) => v.isDemo)) return 0;
       const votes = buildDemoVotes(snapshot.streets);
       snapshot.votes.push(...votes);
-      const statusKeys: StatusKey[] = ["received", "under_review", "planned", "in_progress", "done"];
+      const statusKeys: StatusKey[] = ["under_review", "in_progress", "done"];
       snapshot.streets.slice(0, 8).forEach((street, index) => {
         if (snapshot.statuses.some((s) => s.streetId === street.id)) return;
         snapshot.statuses.push({

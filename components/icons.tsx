@@ -329,3 +329,100 @@ export const HUB_ICONS: Record<HubKey, () => React.ReactElement> = {
   examples: HubExamples,
   help: HubHelp,
 };
+
+/* ------------------------------------------------------- אייקוני הממשק
+ *
+ * מעטים ומדודים: רק במקומות שבהם תווית טקסט הייתה תופסת מקום בלי להוסיף
+ * מידע. הניווט נשאר טקסט בלבד. אותה שפה: רשת 24, קו 1.5, בלי מילוי.
+ */
+
+/** תצוגה אוטומטית: שני גדלים, וחץ שמצביע על ההתאמה ביניהם. */
+export const ViewAuto = () => (
+  <Icon>
+    <rect x="2.5" y="6" width="9" height="12" rx="1.5" />
+    <rect x="14" y="8.5" width="7.5" height="7" rx="1" />
+    <path d="M12.5 12h1M18 15.5v2.5M16.5 18h3" />
+  </Icon>
+);
+
+/** תצוגת מחשב: מסך רחב על מעמד. */
+export const ViewDesktop = () => (
+  <Icon>
+    <rect x="2.5" y="4.5" width="19" height="12" rx="1.5" />
+    <path d="M9 20h6M12 16.5V20" />
+  </Icon>
+);
+
+/** תצוגת נייד: מסך צר עם כפתור. */
+export const ViewMobile = () => (
+  <Icon>
+    <rect x="7" y="2.5" width="10" height="19" rx="2" />
+    <path d="M10.5 18.5h3" />
+  </Icon>
+);
+
+/** צילום: עדשה וגוף מצלמה, לכפתור "לצלם את הרחוב". */
+export const Camera = () => (
+  <Icon>
+    <path d="M3 8h3l1.5-2h9L18 8h3v11H3z" />
+    <circle cx="12" cy="13" r="3.4" />
+  </Icon>
+);
+
+/** מפה חיצונית: סימון מקום על גיליון מפה מקופל. */
+export const MapPin = () => (
+  <Icon>
+    <path d="M3 6.5 9 4v13.5L3 20z" />
+    <path d="M9 4l6 2.2" />
+    <path d="M21 6.5V20l-6-2.5" />
+    <path d="M15 6.2a3 3 0 0 1 3 3c0 2.2-3 5-3 5s-3-2.8-3-5a3 3 0 0 1 3-3Z" />
+  </Icon>
+);
+
+/* ------------------------------------------------ שבע השאלות לתושבים
+ *
+ * חמש מהן מצביעות על קריטריון במסמך, ולכן הן נושאות את אותו אייקון —
+ * אותה צורה בדיוק בשאלה, בקריטריון ובערך הייחוס. שלוש האחרונות אינן
+ * במסמך, ויש להן אייקון משלהן; המסכים מציגים אותן באפור.
+ */
+
+/** שהייה: ספסל, ואדם שעוצר לידו. */
+const QStaying = () => (
+  <Icon>
+    <path d="M2 20h20" />
+    <path d="M3 14h10M4 14v4M12 14v4" />
+    <path d="M3 11h10" />
+    <circle cx="18" cy="8" r="1.6" />
+    <path d="M18 10v5M16 20l2-5 2 5" />
+  </Icon>
+);
+
+/** תחזוקה: עמוד תאורה תקין ומדרכה שלמה. */
+const QMaintenance = () => (
+  <Icon>
+    <path d="M2 20h20" />
+    <path d="M8 20V7M8 7h6a2 2 0 0 1 2 2v1" />
+    <path d="M14 10h4l-2 3-2-3Z" />
+    <path d="M3 17h5M11 17h4M18 17h3" />
+  </Icon>
+);
+
+/** ביטחון: עין פקוחה אל הרחוב מן החלון. */
+const QSafety = () => (
+  <Icon>
+    <path d="M2 21h20" />
+    <path d="M4 21V5h16v16" />
+    <path d="M7.5 11c1.6-2 5.4-2 7 0-1.6 2-5.4 2-7 0Z" />
+    <circle cx="11" cy="11" r="1" />
+  </Icon>
+);
+
+export const QUESTION_ICONS: Record<string, () => React.ReactElement> = {
+  shade: TreeCanopy,
+  walking: RowSplit,
+  frontages: Transparency,
+  mix: MixedUse,
+  staying: QStaying,
+  maintenance: QMaintenance,
+  safety: QSafety,
+};

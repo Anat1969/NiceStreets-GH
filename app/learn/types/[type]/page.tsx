@@ -2,9 +2,10 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { EXAMPLES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import type { TypologyKey } from "@/lib/city";
-import { TYPOLOGY_ICONS } from "@/components/icons";
+import { CRITERION_ICONS, TYPOLOGY_ICONS } from "@/components/icons";
+import type { CriterionKey } from "@/lib/city";
 import { BackLink, PrevNext } from "@/components/learn-nav";
-import { Card } from "@/components/ui";
+import { Card, Datum } from "@/components/ui";
 import ImageFrame from "@/components/ImageFrame";
 import { getStore } from "@/lib/store";
 import { imageSlot } from "@/lib/content-images";
@@ -35,7 +36,8 @@ export default async function TypePage({
   const index = TYPOLOGIES.findIndex((t) => t.key === typology.key);
   const prev = TYPOLOGIES[index - 1];
   const next = TYPOLOGIES[index + 1];
-  const hasExamples = EXAMPLES.some((e) => e.typology === typology.key);
+  // הדוגמאות של הסוג הזה מוצגות כאן עצמן, לא רק כקישור לרשימה מסוננת.
+  const typeExamples = EXAMPLES.filter((e) => e.typology === typology.key);
 
   return (
     <>
@@ -60,21 +62,28 @@ export default async function TypePage({
 
       <Card>
         <p className="mb-2 text-[15px] font-medium text-ink">אב הטיפוס במספרים</p>
-        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-[13px]">
-          {[
-            ["רוחב זכות דרך", typology.benchmarks.rowWidth],
-            ["חלק המדרכה", typology.benchmarks.sidewalk],
-            ["יחס רוחב לגובה", typology.benchmarks.ratio],
-            ["מפגש עם הרחוב", typology.benchmarks.frontage],
-            ["בניינים ל-100 מ'", typology.benchmarks.buildings],
-            ["חופת עצים", typology.benchmarks.canopy],
-            ["מרחק בין צמתים", typology.benchmarks.intersections],
-          ].map(([label, value]) => (
-            <div key={label}>
-              <dt className="text-ink-faint">{label}</dt>
-              <dd className="text-ink">{value}</dd>
-            </div>
-          ))}
+        {/*
+          לכל ערך ייחוס האייקון של הקריטריון שהוא מודד — אותו אייקון בדיוק
+          שמופיע בעמוד הקריטריונים, כדי שהזיכרון החזותי יעבוד בין המסכים.
+          הבולט הוא הנתון: כאן משווים מספרים, לא לומדים מה נמדד.
+        */}
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-3 [&_svg]:h-4 [&_svg]:w-4">
+          {(
+            [
+              ["רוחב זכות דרך", typology.benchmarks.rowWidth, "row_width"],
+              ["חלק המדרכה", typology.benchmarks.sidewalk, "row_split"],
+              ["יחס רוחב לגובה", typology.benchmarks.ratio, "proportions"],
+              ["מפגש עם הרחוב", typology.benchmarks.frontage, "plot_street_meeting"],
+              ["בניינים ל-100 מ'", typology.benchmarks.buildings, "building_rhythm"],
+              ["חופת עצים", typology.benchmarks.canopy, "tree_canopy"],
+              ["מרחק בין צמתים", typology.benchmarks.intersections, "intersection_density"],
+            ] as [string, string, CriterionKey][]
+          ).map(([label, value, criterionKey]) => {
+            const Mark = CRITERION_ICONS[criterionKey];
+            return (
+              <Datum key={label} label={label} value={value} icon={<Mark />} />
+            );
+          })}
         </dl>
         <p className="mt-2 text-[13px] text-ink-faint">
           כל אב טיפוס נגזר משלושה רחובות בלבד — כיוון, לא תקן. מקור: מינהל
@@ -82,18 +91,59 @@ export default async function TypePage({
         </p>
       </Card>
 
-      <p className="mt-3 text-[13px]">
-        {hasExamples ? (
-          <Link
-            href={`/examples?typology=${typology.key}`}
-            className="inline-link text-accent underline underline-offset-2"
-          >
-            דוגמאות לרחובות מהסוג הזה
-          </Link>
+      <section className="mt-5">
+        <h2 className="mb-2 text-[17px] font-semibold text-ink">
+          דוגמאות לרחובות מהסוג הזה
+        </h2>
+        {typeExamples.length === 0 ? (
+          <p className="text-[14px] text-ink-faint">
+            המסמך אינו מסווג את רחובות הדוגמה שלו לטיפולוגיות, ולכן אין כאן עדיין
+            דוגמה לסוג הזה.{" "}
+            <Link
+              href="/examples"
+              className="inline-link text-accent underline underline-offset-2"
+            >
+              כל הדוגמאות
+            </Link>
+          </p>
         ) : (
-          <span className="text-ink-faint">אין עדיין דוגמה בספרייה לסוג הזה.</span>
+          <>
+            <ul className="grid gap-3">
+              {typeExamples.map((example) => (
+                <li key={example.key} className="card overflow-hidden p-0">
+                  <Link href={`/examples?criterion=${example.key}`} className="block">
+                    <span className="relative block aspect-[16/9] overflow-hidden">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/examples/${example.key}.jpg`}
+                        alt={example.place}
+                        className="h-full w-full object-cover"
+                      />
+                      <span className="photo-scrim" aria-hidden="true" />
+                      <span className="absolute inset-x-0 bottom-0 px-3 pb-2 text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.8)]">
+                        <span className="block text-[17px] font-bold leading-tight">
+                          {example.place.split(" — ")[0]}
+                        </span>
+                        <span className="block text-[12px] opacity-90">
+                          {example.title}
+                        </span>
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[13px]">
+              <Link
+                href={`/examples?typology=${typology.key}`}
+                className="inline-link text-accent underline underline-offset-2"
+              >
+                לראות אותן בספריית הדוגמאות, עם המספרים
+              </Link>
+            </p>
+          </>
         )}
-      </p>
+      </section>
 
       <PrevNext
         prev={prev ? { href: `/learn/types/${prev.key}`, label: prev.label } : undefined}

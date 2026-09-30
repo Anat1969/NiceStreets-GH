@@ -494,7 +494,7 @@ export default function ChooseFlow({
             </button>
           </div>
           <p className="text-[13px] text-ink-faint">
-            קול אחד לכל רחוב. שליחה חוזרת מעדכנת את הקול הקודם שלכם.
+            לכל רחוב נשמר קול יחיד מכל תושב. שליחה חוזרת מעדכנת את הקול הקודם שלכם.
           </p>
         </section>
       ) : null}

@@ -32,6 +32,13 @@ export interface DataStore {
     name: string;
     quarterId?: string;
   }): Promise<Street>;
+  /** ממקם רחוב על המפה. המקור נשמר לצד הנקודה. */
+  setStreetCenter(
+    streetId: string,
+    center: [number, number],
+    source: "osm" | "municipal" | "staff",
+  ): Promise<void>;
+
   /** Staff assignment of quarter and street type. */
   setStreetAssignment(input: {
     streetId: string;
@@ -61,6 +68,11 @@ export interface DataStore {
     dataUrl: string;
     source: PhotoSource;
     caption?: string;
+    /**
+     * ברירת המחדל היא "approved", כי הנתיב הזה נבנה להעלאה של המנהלת.
+     * תמונה שתושב מצלם מכרטיס הרחוב מגיעה עם "pending" ועוברת בתור.
+     */
+    status?: PhotoStatus;
   }): Promise<Photo>;
   listPhotos(filter?: {
     streetId?: string;

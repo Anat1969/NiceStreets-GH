@@ -39,24 +39,36 @@ export default function PhotoDecision({
     setError(data.error ?? "העדכון נכשל.");
   }
 
+  /*
+   * פס דק מתחת לתמונה, לא כפתורים בגודל מלא שמשתלטים עליה. התמונה היא
+   * מה שבודקים; ההכרעה היא פעולה קטנה שנעשית תוך כדי. הציבור אינו רואה
+   * את הרכיב הזה כלל — הוא מוצג רק לצוות ולמנהלת.
+   */
   return (
-    <div className="px-2 pb-2">
-      <div className="flex gap-1">
+    <div className="border-t border-line bg-paper px-2 py-1">
+      <div className="flex items-center gap-2 text-[12px]">
+        <span className="flex-1 text-ink-faint">
+          {status === "approved"
+            ? "מאושרת"
+            : status === "rejected"
+              ? "נדחתה"
+              : "ממתינה"}
+        </span>
         <button
           type="button"
           disabled={busy || status === "approved"}
           onClick={() => decide("approved")}
-          className="min-h-0 flex-1 rounded-[8px] bg-accent px-2 py-2 text-[13px] text-white disabled:opacity-40"
+          className="min-h-0 rounded-[6px] px-2 py-1 text-[12px] text-accent underline underline-offset-2 disabled:no-underline disabled:opacity-35"
         >
-          {status === "approved" ? "מאושרת" : "אישור"}
+          אישור
         </button>
         <button
           type="button"
           disabled={busy || status === "rejected"}
           onClick={() => decide("rejected")}
-          className="min-h-0 flex-1 rounded-[8px] border border-line px-2 py-2 text-[13px] text-ink disabled:opacity-40"
+          className="min-h-0 rounded-[6px] px-2 py-1 text-[12px] text-warm underline underline-offset-2 disabled:no-underline disabled:opacity-35"
         >
-          {status === "rejected" ? "נדחתה" : "דחייה"}
+          דחייה
         </button>
       </div>
       {error ? (

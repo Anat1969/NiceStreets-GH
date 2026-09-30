@@ -261,6 +261,74 @@ const admin = await ctx(ADMIN_CODE);
   await p.close();
 }
 
+// ---- 8. הנחיות הסבב: מספרים, אייקונים, מפה, לוגו
+{
+  // נתוני הדגמה, כדי שיהיו מובילים ומונים אמיתיים לבדוק עליהם.
+  const seeder = await admin.newPage();
+  await seeder.request.post(`${BASE}/api/admin/demo`, { data: { action: "seed" } });
+  await seeder.close();
+
+  const p = await resident.newPage();
+
+  await p.goto(`${BASE}/`);
+  const body = await p.locator("body").innerText();
+  ok(
+    "מספרים בספרות ולא במילים",
+    !/(^|\s)(קול אחד|שני קולות|תמונה אחת|שתי תמונות|נמצא רחוב אחד)(\s|$|[.,·])/.test(body),
+  );
+  /*
+   * המובילים תלויים בנתונים. במסד מקומי ריק אין מה לבדוק, ולכן הבדיקה
+   * מדלגת במפורש במקום לדווח כישלון על מסך תקין.
+   */
+  const hasLeaders = !body.includes("עדיין אין קולות");
+  if (hasLeaders) {
+    ok("מיקום ברשימת המובילים מסומן במספר ונקודה", /1\./.test(body));
+    ok("למוביל מוצג ציון ממוצע", body.includes("ציון ממוצע"));
+  } else {
+    console.log("SKIP  המובילים — אין קולות במסד המקומי");
+  }
+  ok(
+    "לכל מונה יש כותרת ותת-כותרת",
+    body.includes("דירוגים שנשלחו") &&
+      body.includes("שקיבלו דירוג") &&
+      body.includes("מאושרות"),
+  );
+  ok("לוגו מוצג בכותרת", (await p.locator('header img').count()) > 0);
+  ok(
+    "לשונית הניווט נקראת טבלה",
+    (await p.getByRole("link", { name: "טבלה" }).count()) > 0,
+  );
+  ok(
+    "כפתורי התצוגה הם אייקונים",
+    (await p.getByRole("button", { name: "תצוגת נייד" }).count()) > 0 &&
+      (await p.getByRole("button", { name: "תצוגת נייד" }).first().innerText()).trim() === "",
+  );
+
+  await p.goto(`${BASE}/map`);
+  ok(
+    "מפה — שני כפתורי מיפוי",
+    (await p.getByRole("button", { name: /מיפוי קולות לפי רובע/ }).count()) > 0 &&
+      (await p.getByRole("button", { name: /מיפוי קולות לפי רחוב/ }).count()) > 0,
+  );
+
+  await p.goto(`${BASE}/learn`);
+  const learn = await p.locator("body").innerText();
+  ok("מסך הלימוד מציג את מה שהמסמך אינו מודד", learn.includes("מה שהמסמך אינו מודד"));
+
+  await p.goto(`${BASE}/learn/types/boulevard`);
+  ok(
+    "ערכי ייחוס עם אייקונים",
+    (await p.locator("dl svg").count()) >= 6,
+    `${await p.locator("dl svg").count()} אייקונים`,
+  );
+
+  const overflow = await p.evaluate(
+    () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+  );
+  ok("390 — סוג רחוב בלי גלישה", overflow <= 0, `${overflow}px`);
+  await p.close();
+}
+
 await browser.close();
 const failed = results.filter((r) => !r.pass);
 console.log(`\n${results.length - failed.length}/${results.length} עברו`);

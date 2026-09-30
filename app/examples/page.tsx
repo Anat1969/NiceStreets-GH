@@ -21,9 +21,7 @@ export const metadata = { title: "דוגמאות — הרחובות הטובים
 
 function label(count: number): string {
   if (count === 0) return "אין דוגמאות שתואמות לסינון";
-  if (count === 1) return "דוגמה אחת";
-  if (count === 2) return "שתי דוגמאות";
-  return `${count} דוגמאות`;
+  return `${count} ${count === 1 ? "דוגמה" : "דוגמאות"}`;
 }
 
 export default async function ExamplesPage({
@@ -188,9 +186,18 @@ export default async function ExamplesPage({
               emptyLabel="אין עדיין תמונה לדוגמה"
               fallbackSrc={`/examples/${example.key}.jpg`}
               credit={example.source}
+              caption={
+                <>
+                  <span className="block text-[17px] font-bold leading-tight">
+                    {example.place.split(" — ")[0]}
+                  </span>
+                  <span className="block text-[12px] opacity-90">
+                    {example.place.split(" — ")[1] ?? ""}
+                  </span>
+                </>
+              }
             />
-            <p className="text-[16px] font-medium text-ink">{example.title}</p>
-            <p className="text-[13px] text-ink-faint">{example.place}</p>
+            <p className="text-[16px] font-semibold text-ink">{example.title}</p>
             <p className="mt-1 text-[14px] text-ink-soft">{example.text}</p>
 
             <p className="mt-2 text-[13px] text-ink-faint">

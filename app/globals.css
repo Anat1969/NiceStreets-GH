@@ -276,9 +276,17 @@
   display: none;
 }
 
+/*
+ * הלוגו מוצג במלואו: object-fit: contain, בלי חיתוך ובלי רקע משלו.
+ * הקובץ עצמו שקוף, כך שהוא יושב על נייר בהיר ועל כהה באותה מידה.
+ */
 .brand-logo {
   height: 40px;
   width: auto;
+  max-width: 150px;
+  object-fit: contain;
+  object-position: center;
+  background: transparent;
   flex-shrink: 0;
 }
 
@@ -330,6 +338,84 @@ a.inline-link,
   background: var(--color-surface);
   border: 1px solid var(--color-line);
   border-radius: var(--radius-card);
+}
+
+/* ------------------------------------------------------- מה שנלחץ, מרגיש כך
+ *
+ * כרטיס שהוא קישור נראה בדיוק כמו כרטיס שאינו קישור, ולכן אי אפשר לדעת
+ * מה ייפתח בלחיצה. כאן הוא מקבל צל קל, הרמה קטנה במעבר עכבר, ושקיעה
+ * בלחיצה — אותה שפה בכל מקום: כרטיס, כפתור־קישור ושורה בטבלה.
+ */
+a.card,
+a.pressable,
+button.pressable {
+  transition:
+    box-shadow 140ms ease,
+    transform 140ms ease,
+    border-color 140ms ease;
+}
+
+a.card:hover,
+a.pressable:hover,
+button.pressable:hover {
+  border-color: color-mix(in oklab, var(--color-accent) 45%, var(--color-line));
+  box-shadow: 0 2px 10px rgb(0 0 0 / 9%);
+  transform: translateY(-1px);
+}
+
+a.card:active,
+a.pressable:active,
+button.pressable:active {
+  box-shadow: 0 1px 3px rgb(0 0 0 / 10%);
+  transform: translateY(0) scale(0.995);
+}
+
+/* קישור בתוך משפט: הקו מתעבה, בלי לזוז ובלי לשבור את השורה. */
+a.inline-link {
+  transition: text-decoration-thickness 120ms ease, color 120ms ease;
+}
+
+a.inline-link:hover {
+  text-decoration-thickness: 2px;
+}
+
+/* -------------------------------------------- גרדיאנט שקוף על תמונת רחוב
+ *
+ * שם הרחוב יושב על התמונה, ולכן הוא חייב ניגודיות מובטחת ולא מקרית:
+ * תמונה בהירה הייתה בולעת טקסט לבן. הגרדיאנט יוצא מתחתית המסגרת כלפי
+ * מעלה, שקוף לגמרי בשני השלישים העליונים, כך שהוא מכהה בדיוק את הרצועה
+ * שבה יש טקסט ואינו מפריע לתמונה עצמה.
+ */
+.photo-scrim {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgb(0 0 0 / 72%) 0%,
+    rgb(0 0 0 / 46%) 22%,
+    rgb(0 0 0 / 12%) 45%,
+    rgb(0 0 0 / 0%) 68%
+  );
+}
+
+/* מי שביקש פחות תנועה, מקבל את הצל בלבד. */
+@media (prefers-reduced-motion: reduce) {
+  a.card,
+  a.pressable,
+  button.pressable,
+  a.inline-link {
+    transition: box-shadow 140ms ease;
+  }
+
+  a.card:hover,
+  a.pressable:hover,
+  button.pressable:hover,
+  a.card:active,
+  a.pressable:active,
+  button.pressable:active {
+    transform: none;
+  }
 }
 
 .skip-link {

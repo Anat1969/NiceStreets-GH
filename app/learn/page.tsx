@@ -5,7 +5,7 @@ import {
   QUESTION_MAP,
   TYPOLOGIES,
 } from "@/lib/city";
-import { HUB_ICONS } from "@/components/icons";
+import { HUB_ICONS, QUESTION_ICONS } from "@/components/icons";
 import { IconCard } from "@/components/learn-nav";
 import { Notice } from "@/components/ui";
 
@@ -65,15 +65,30 @@ export default function LearnPage() {
           העירייה יכולה לשפר מהר&quot;. שלוש השאלות האלה נשאלות כאן דווקא
           משום כך.
         </p>
+        {/*
+          האייקונים כאן אפורים ולא בצבע ההדגשה: אותה שפה חזותית, בטון
+          שאומר "נמדד אצלנו ולא במסמך". בלי האייקון הרשימה הזאת נראית
+          כמו טקסט שנשכח, ולא כמו חלק מהמערכת.
+        */}
         <ul className="card divide-y divide-line">
-          {LOCAL_QUESTION_KEYS.map((key) => (
-            <li key={key} className="p-3">
-              <p className="text-[15px] font-medium text-ink">
-                {QUESTION_MAP[key].label}
-              </p>
-              <p className="text-[14px] text-ink-soft">{QUESTION_MAP[key].help}</p>
-            </li>
-          ))}
+          {LOCAL_QUESTION_KEYS.map((key) => {
+            const Mark = QUESTION_ICONS[key];
+            return (
+              <li key={key} className="flex items-start gap-3 p-3">
+                <span className="mt-0.5 shrink-0 text-ink-faint">
+                  {Mark ? <Mark /> : null}
+                </span>
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-semibold text-ink">
+                    {QUESTION_MAP[key].label}
+                  </span>
+                  <span className="block text-[14px] text-ink-soft">
+                    {QUESTION_MAP[key].help}
+                  </span>
+                </span>
+              </li>
+            );
+          })}
         </ul>
       </section>
 

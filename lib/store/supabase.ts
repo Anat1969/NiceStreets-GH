@@ -27,6 +27,8 @@ function toStreet(row: Row): Street {
     quarterId: row.quarter_id ?? null,
     typology: row.typology ?? null,
     line: row.line ?? null,
+    center: row.center ?? null,
+    centerSource: row.center_source ?? null,
     gis: row.gis ?? null,
     verified: Boolean(row.verified),
     createdAt: row.created_at,
@@ -112,6 +114,7 @@ export class SupabaseStore implements DataStore {
       polygon: row.polygon ?? [],
       center: row.center ?? [0, 0],
       schematic: Boolean(row.schematic),
+      centerSource: row.center_source ?? null,
     }));
   }
 
@@ -169,6 +172,18 @@ export class SupabaseStore implements DataStore {
       .single();
     if (error) throw new Error(error.message);
     return toStreet(data);
+  }
+
+  async setStreetCenter(
+    streetId: string,
+    center: [number, number],
+    source: "osm" | "municipal" | "staff",
+  ): Promise<void> {
+    const { error } = await this.db
+      .from("streets")
+      .update({ center, center_source: source })
+      .eq("id", streetId);
+    if (error) throw new Error(error.message);
   }
 
   async setStreetAssignment(input: {
@@ -327,6 +342,7 @@ export class SupabaseStore implements DataStore {
     streetId: string;
     dataUrl: string;
     source: PhotoSource;
+    status?: PhotoStatus;
   }): Promise<Photo> {
     const decoded = decodeDataUrl(input.dataUrl);
     if (!decoded) throw new Error("PHOTO_FORMAT");
@@ -339,7 +355,7 @@ export class SupabaseStore implements DataStore {
         street_id: input.streetId,
         vote_id: null,
         storage_path: storagePath,
-        status: "approved",
+        status: input.status ?? "approved",
         source: input.source,
         is_demo: input.source === "test",
       })
@@ -438,13 +454,7 @@ export class SupabaseStore implements DataStore {
     const { data, error } = await this.db.from("votes").insert(votes).select("id");
     if (error) throw new Error(error.message);
 
-    const statusKeys: StatusKey[] = [
-      "received",
-      "under_review",
-      "planned",
-      "in_progress",
-      "done",
-    ];
+    const statusKeys: StatusKey[] = ["under_review", "in_progress", "done"];
     await this.db.from("street_status").upsert(
       streets.slice(0, 8).map((street, index) => ({
         street_id: street.id,

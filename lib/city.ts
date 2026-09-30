@@ -32,12 +32,18 @@ export type TypologyKey =
   | "pedestrian_mall"
   | "linear_park";
 
-export type StatusKey =
-  | "received"
-  | "under_review"
-  | "planned"
-  | "in_progress"
-  | "done";
+/**
+ * שלושה סטטוסים, ולא חמישה.
+ *
+ * "התקבל" ו"בבדיקה" נראו לתושב כאותו דבר, וכך גם "מתוכנן" ו"בביצוע" —
+ * חמש אפשרויות שבהן הצוות היסס ושהתושב לא ידע לפרש. כאן כל סטטוס עונה
+ * על שאלה אחרת: האם בודקים, האם עושים, והאם נגמר.
+ *
+ * הסטטוס אינו קשור לאישור תמונה. אישור תמונה הוא בדיקה של התמונה
+ * עצמה — שאין בה פנים מזוהות, שהיא מהרחוב הנכון — והוא קורה בתוך יום.
+ * הסטטוס הוא מה שהאגף עושה עם הרחוב, וזה תהליך של חודשים.
+ */
+export type StatusKey = "under_review" | "in_progress" | "done";
 
 export type FamilyKey = "skeleton" | "section" | "frontage" | "texture";
 
@@ -134,6 +140,8 @@ export interface Quarter {
   polygon: [number, number][];
   center: [number, number];
   schematic: boolean;
+  /** מאיפה הגיע המיקום. null = טרם מוקם. */
+  centerSource?: "osm" | "streets" | "municipal" | "staff" | null;
 }
 
 /**
@@ -197,7 +205,7 @@ export const CITY = {
    * file is in the repository: an app must not draw a city's mark from memory.
    * Set it to e.g. "/logo-ashdod.svg" once the file is there.
    */
-  logo: null as string | null,
+  logo: "/logo-ashdod.png" as string | null,
   center: [34.6553, 31.7963] as [number, number],
   zoom: 12.4,
   bounds: [
@@ -577,12 +585,35 @@ export const TYPOLOGIES: Typology[] = [
  * הצבעים נושאים טקסט לבן ב-13px, ולכן כל אחד חייב לעבור 4.5:1 מול לבן.
  * "התקבל" ו"בבדיקה" היו 3.05 ו-3.01 והוכהו; שלושת האחרים עברו כפי שהם.
  */
-export const STATUSES: { key: StatusKey; label: string; color: string }[] = [
-  { key: "received", label: "התקבל", color: "#667283" },
-  { key: "under_review", label: "בבדיקה", color: "#96690F" },
-  { key: "planned", label: "מתוכנן", color: "#2E6FA3" },
-  { key: "in_progress", label: "בביצוע", color: "#1F7A5C" },
-  { key: "done", label: "הושלם", color: "#14603F" },
+export const STATUSES: {
+  key: StatusKey;
+  label: string;
+  color: string;
+  /** מה בדיוק נבדק או נעשה בשלב הזה. מוצג לתושב, לא רק לצוות. */
+  meaning: string;
+}[] = [
+  {
+    key: "under_review",
+    label: "בבדיקה",
+    color: "#96690F",
+    meaning:
+      "האגף בודק את הרחוב מול 12 הקריטריונים ומול אב הטיפוס של הסוג שלו, " +
+      "ומצליב את מה שהתושבים דירגו עם מה שנמדד בשטח.",
+  },
+  {
+    key: "in_progress",
+    label: "בטיפול",
+    color: "#1F7A5C",
+    meaning:
+      "הוחלט על פעולה ברחוב — הצללה, תחזוקה, תאורה, חזיתות או תכנון מחדש — " +
+      "והיא מתוכננת או כבר מתבצעת.",
+  },
+  {
+    key: "done",
+    label: "הושלם",
+    color: "#14603F",
+    meaning: "הפעולה בוצעה. הרחוב פתוח לדירוג מחדש, כדי לראות אם זה הורגש.",
+  },
 ];
 
 export interface Example {

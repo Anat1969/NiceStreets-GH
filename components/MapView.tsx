@@ -25,6 +25,8 @@ interface StreetFeature {
   avgScore: number | null;
   /** קו מה-GIS העירוני, כשהוא קיים. */
   line?: [number, number][];
+  /** מרכז הרחוב מ-OpenStreetMap, כשאין קו. */
+  center?: [number, number];
 }
 
 interface Props {
@@ -52,9 +54,6 @@ const BLANK_STYLE: maplibregl.StyleSpecification = {
     { id: "background", type: "background", paint: { "background-color": "#f1f2f4" } },
   ],
 };
-
-/** הזום שבו עוברים מתצוגת רובעים לתצוגת רחובות. */
-const STREET_ZOOM = 14;
 
 /**
  * סולם רצוף בחמישה שלבים לציון הממוצע, באותם צבעים של סולם 1–5 באפליקציה,
@@ -101,11 +100,19 @@ export default function MapView({
   const map = useRef<MapLibreMap | null>(null);
   const labels = useRef<maplibregl.Marker[]>([]);
 
+  /*
+   * שתי תצוגות, ושני כפתורים: קולות לפי רובע, או קולות לפי רחוב.
+   * קודם לכן המעבר ביניהן היה תלוי בזום, ולכן אי אפשר היה לבקש אותו —
+   * ומי שלא ידע להתקרב מספיק לא ראה רחובות מעולם.
+   */
+  const [mode, setMode] = useState<"quarter" | "street">("quarter");
   const [selectedQuarter, setSelectedQuarter] = useState<string | null>(null);
   const [selectedStreet, setSelectedStreet] = useState<string | null>(null);
   const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
   const [legendOpen, setLegendOpen] = useState(false);
 
+  const [geocoding, setGeocoding] = useState(false);
+  const [geocodeMessage, setGeocodeMessage] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState("");
   const calibratingRef = useRef("");
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
@@ -123,6 +130,20 @@ export default function MapView({
     () => streets.filter((s) => s.line && s.line.length > 1),
     [streets],
   );
+
+  /** רחוב מגיע למפה רק אם יש לו מיקום אמיתי — קו מה-GIS או נקודה מ-OSM. */
+  const placedStreets = useMemo(
+    () => streets.filter((s) => s.center || (s.line && s.line.length > 1)),
+    [streets],
+  );
+
+  const streetPoint = useCallback(
+    (s: StreetFeature): [number, number] =>
+      s.center ?? (s.line as [number, number][])[Math.floor((s.line as []).length / 2)],
+    [],
+  );
+
+  const shown = mode === "quarter" ? quarters.length : placedStreets.length;
 
   const saveQuarter = useCallback(
     async (quarterId: string, point: [number, number]) => {
@@ -144,6 +165,30 @@ export default function MapView({
     },
     [router],
   );
+
+  const runGeocode = useCallback(async () => {
+    setGeocoding(true);
+    setGeocodeMessage(null);
+    try {
+      const response = await fetch("/api/admin/geocode", { method: "POST" });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(data.error ?? "החיפוש נכשל");
+      const placed = (data.placed as string[] | undefined) ?? [];
+      const failed = (data.failed as string[] | undefined) ?? [];
+      setGeocodeMessage(
+        placed.length === 0 && failed.length === 0
+          ? "כל הרחובות כבר ממוקמים."
+          : `מוקמו ${placed.length}${
+              failed.length > 0 ? `; לא נמצאו ${failed.length}: ${failed.join(", ")}` : ""
+            }.`,
+      );
+      router.refresh();
+    } catch (error) {
+      setGeocodeMessage(error instanceof Error ? error.message : "החיפוש נכשל");
+    } finally {
+      setGeocoding(false);
+    }
+  }, [router]);
 
   useEffect(() => {
     calibratingRef.current = calibrating;
@@ -173,7 +218,12 @@ export default function MapView({
     let usedFallback = false;
 
     function addData() {
-      if (instance.getSource("quarters")) return;
+      if (instance.getSource("quarters") || instance.getSource("street-points")) return;
+
+      if (mode === "street") {
+        addStreetPoints();
+        return;
+      }
 
       instance.addSource("quarters", {
         type: "geojson",
@@ -202,7 +252,6 @@ export default function MapView({
         id: "quarter-circles",
         type: "circle",
         source: "quarters",
-        maxzoom: STREET_ZOOM,
         paint: {
           "circle-radius": [
             "interpolate",
@@ -215,53 +264,9 @@ export default function MapView({
           "circle-opacity": 0.85,
           "circle-stroke-width": 1.5,
           "circle-stroke-color": "#16202b",
-          // דעיכה אל תצוגת הרחובות במקום היעלמות פתאומית.
-          "circle-stroke-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0.9, 14, 0],
+          "circle-stroke-opacity": 0.9,
         },
       });
-
-      if (linedStreets.length > 0) {
-        instance.addSource("streets", {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: linedStreets.map((s) => ({
-              type: "Feature",
-              id: s.id,
-              geometry: { type: "LineString", coordinates: s.line as [number, number][] },
-              properties: { id: s.id, name: s.name, votes: s.votes, color: scoreColor(s.avgScore) },
-            })),
-          },
-        });
-
-        instance.addLayer({
-          id: "street-lines",
-          type: "line",
-          source: "streets",
-          minzoom: STREET_ZOOM - 1,
-          layout: { "line-cap": "round", "line-join": "round" },
-          paint: {
-            "line-color": ["get", "color"],
-            "line-width": [
-              "interpolate",
-              ["linear"],
-              ["sqrt", ["get", "votes"]],
-              0, 3,
-              Math.sqrt(maxStreetVotes), 12,
-            ],
-            "line-opacity": ["interpolate", ["linear"], ["zoom"], 13, 0, 14, 0.9],
-          },
-        });
-
-        instance.on("click", "street-lines", (event) => {
-          if (calibratingRef.current) return;
-          const id = event.features?.[0]?.properties?.id as string | undefined;
-          if (id) {
-            setSelectedStreet(id);
-            setSelectedQuarter(null);
-          }
-        });
-      }
 
       instance.on("click", "quarter-circles", (event) => {
         if (calibratingRef.current) return;
@@ -280,47 +285,180 @@ export default function MapView({
     }
 
     /**
+     * תצוגת הרחובות: קו כשיש שכבת GIS עירונית, ואחרת נקודה מ-OpenStreetMap.
+     * בשני המקרים העובי או הגודל הם מספר הקולות, והצבע הוא הציון הממוצע —
+     * אותה משמעות בדיוק כמו בתצוגת הרובעים.
+     */
+    function addStreetPoints() {
+      if (linedStreets.length > 0) {
+        instance.addSource("street-lines-src", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: linedStreets.map((s) => ({
+              type: "Feature",
+              id: s.id,
+              geometry: { type: "LineString", coordinates: s.line as [number, number][] },
+              properties: { id: s.id, name: s.name, votes: s.votes, color: scoreColor(s.avgScore) },
+            })),
+          },
+        });
+        instance.addLayer({
+          id: "street-lines",
+          type: "line",
+          source: "street-lines-src",
+          layout: { "line-cap": "round", "line-join": "round" },
+          paint: {
+            "line-color": ["get", "color"],
+            "line-width": [
+              "interpolate",
+              ["linear"],
+              ["sqrt", ["get", "votes"]],
+              0, 3,
+              Math.sqrt(maxStreetVotes), 12,
+            ],
+            "line-opacity": 0.9,
+          },
+        });
+        instance.on("click", "street-lines", (event) => {
+          if (calibratingRef.current) return;
+          const id = event.features?.[0]?.properties?.id as string | undefined;
+          if (id) {
+            setSelectedStreet(id);
+            setSelectedQuarter(null);
+          }
+        });
+      }
+
+      instance.addSource("street-points", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: placedStreets.map((s) => ({
+            type: "Feature",
+            id: s.id,
+            geometry: { type: "Point", coordinates: streetPoint(s) },
+            properties: {
+              id: s.id,
+              name: s.name,
+              votes: s.votes,
+              color: scoreColor(s.avgScore),
+            },
+          })),
+        },
+      });
+
+      instance.addLayer({
+        id: "street-circles",
+        type: "circle",
+        source: "street-points",
+        paint: {
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["sqrt", ["get", "votes"]],
+            0, 9,
+            Math.sqrt(maxStreetVotes), 26,
+          ],
+          "circle-color": ["get", "color"],
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#16202b",
+        },
+      });
+
+      instance.on("click", "street-circles", (event) => {
+        if (calibratingRef.current) return;
+        const id = event.features?.[0]?.properties?.id as string | undefined;
+        if (id) {
+          setSelectedStreet(id);
+          setSelectedQuarter(null);
+        }
+      });
+      instance.on("mouseenter", "street-circles", () => {
+        if (!calibratingRef.current) instance.getCanvas().style.cursor = "pointer";
+      });
+      instance.on("mouseleave", "street-circles", () => {
+        if (!calibratingRef.current) instance.getCanvas().style.cursor = "";
+      });
+    }
+
+    /**
      * תוויות הרובעים הן HTML ולא גליפים של המפה: הדפדפן מסדר עברית נכון
      * בעצמו, והתוויות שורדות גם רקע בלי שרת גליפים.
      */
     function addLabels() {
       labels.current.forEach((m) => m.remove());
-      labels.current = quarters.map((quarter) => {
+      const items =
+        mode === "quarter"
+          ? quarters.map((q) => ({
+              id: q.id,
+              name: q.name,
+              votes: q.votes,
+              at: q.center,
+              pick: () => {
+                setSelectedQuarter(q.id);
+                setSelectedStreet(null);
+              },
+            }))
+          : placedStreets.map((s) => ({
+              id: s.id,
+              name: s.name,
+              votes: s.votes,
+              at: streetPoint(s),
+              pick: () => {
+                setSelectedStreet(s.id);
+                setSelectedQuarter(null);
+              },
+            }));
+
+      labels.current = items.map((item) => {
         const el = document.createElement("button");
         el.type = "button";
         el.dir = "rtl";
-        el.textContent = quarter.name;
-        el.setAttribute("aria-label", `${quarter.name}, ${votesLabel(quarter.votes)}`);
+        /*
+         * השם והמספר יחד, על הנקודה עצמה. מפה שמראה עיגול בלי מספר
+         * מחייבת להקיש כדי לדעת כמה — וזה בדיוק מה שהמפה אמורה לחסוך.
+         */
         el.className =
-          "rounded-full border border-line bg-surface/90 px-2 py-[2px] text-[12px] font-medium text-ink shadow-sm";
+          "flex items-center gap-1.5 rounded-full border border-line bg-surface/95 px-2 py-[3px] text-[12px] text-ink shadow-sm";
+        const name = document.createElement("span");
+        name.textContent = item.name;
+        const count = document.createElement("span");
+        count.textContent = String(item.votes);
+        count.className = "font-bold tabular-nums text-accent";
+        el.append(name, count);
+        el.setAttribute("aria-label", `${item.name}, ${votesLabel(item.votes)}`);
         el.addEventListener("click", (event) => {
           event.stopPropagation();
-          if (!calibratingRef.current) {
-            setSelectedQuarter(quarter.id);
-            setSelectedStreet(null);
-          }
+          if (!calibratingRef.current) item.pick();
         });
         return new maplibregl.Marker({ element: el, offset: [0, -26] })
-          .setLngLat(quarter.center)
+          .setLngLat(item.at)
           .addTo(instance);
       });
     }
 
-    /** התוויות שייכות לתצוגת הרובעים בלבד. */
-    function syncLabelVisibility() {
-      const visible = instance.getZoom() < STREET_ZOOM;
-      for (const marker of labels.current) {
-        marker.getElement().style.display = visible ? "" : "none";
-      }
+    /** המפה נפתחת על מה שיש עליה, ולא על מרכז קבוע שאולי ריק. */
+    function fitToData() {
+      const points =
+        mode === "quarter"
+          ? quarters.map((q) => q.center)
+          : placedStreets.map((s) => streetPoint(s));
+      if (points.length < 2) return;
+      const bounds = points.reduce(
+        (b, p) => b.extend(p),
+        new maplibregl.LngLatBounds(points[0], points[0]),
+      );
+      instance.fitBounds(bounds, { padding: 64, maxZoom: 15, duration: 0 });
     }
 
     instance.on("load", () => {
       if (!usedFallback) setBasemap("ready");
       addData();
       addLabels();
-      syncLabelVisibility();
+      fitToData();
     });
-    instance.on("zoomend", syncLabelVisibility);
 
     instance.on("error", (event) => {
       const message = String(event?.error?.message ?? "");
@@ -332,7 +470,7 @@ export default function MapView({
         instance.once("styledata", () => {
           addData();
           addLabels();
-          syncLabelVisibility();
+          fitToData();
         });
       }
     });
@@ -349,7 +487,18 @@ export default function MapView({
       instance.remove();
       map.current = null;
     };
-  }, [center, zoom, quarters, linedStreets, maxQuarterVotes, maxStreetVotes, saveQuarter]);
+  }, [
+    center,
+    zoom,
+    mode,
+    quarters,
+    linedStreets,
+    placedStreets,
+    streetPoint,
+    maxQuarterVotes,
+    maxStreetVotes,
+    saveQuarter,
+  ]);
 
   const quarter = quarters.find((q) => q.id === selectedQuarter) ?? null;
   const street = streets.find((s) => s.id === selectedStreet) ?? null;
@@ -363,6 +512,39 @@ export default function MapView({
 
   return (
     <div className="map-screen">
+      {/* שני כפתורים, לא תלות בזום: מה סופרים ואיפה מציגים את המספר. */}
+      <div
+        className="mb-2 flex gap-2"
+        role="group"
+        aria-label="מה מוצג על המפה"
+      >
+        {(
+          [
+            ["quarter", "מיפוי קולות לפי רובע", quarters.length],
+            ["street", "מיפוי קולות לפי רחוב", placedStreets.length],
+          ] as ["quarter" | "street", string, number][]
+        ).map(([value, label, count]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={mode === value}
+            onClick={() => {
+              setMode(value);
+              setSelectedQuarter(null);
+              setSelectedStreet(null);
+            }}
+            className={`pressable flex-1 rounded-[12px] px-3 py-2 text-[14px] ${
+              mode === value
+                ? "bg-accent font-semibold text-white"
+                : "border border-line bg-surface text-ink"
+            }`}
+          >
+            {label}
+            <span className="mr-1 tabular-nums opacity-80">({count})</span>
+          </button>
+        ))}
+      </div>
+
       <div className="map-canvas-wrap">
         <div
           ref={container}
@@ -372,12 +554,14 @@ export default function MapView({
         />
 
         {/* אין מה לצייר: נאמר במפורש, במקום להשאיר רקע ריק בלי הסבר. */}
-        {quarters.length === 0 ? (
+        {shown === 0 ? (
           <div className="map-empty card">
             <p className="text-[15px] font-medium text-ink">עדיין אין נתונים על המפה</p>
             <p className="mt-1 text-[13px] text-ink-soft">
-              אף רובע לא מוקם עדיין במקומו האמיתי, ולכן אין מה לצייר. הרשימה
-              והדירוגים עובדים כרגיל במסך הרחובות.
+              {mode === "quarter"
+                ? "אף רובע לא מוקם עדיין במקומו האמיתי."
+                : "אף רחוב שקיבל קולות לא מוקם עדיין במקומו האמיתי."}{" "}
+              הרשימה והדירוגים עובדים כרגיל במסך הטבלה.
             </p>
           </div>
         ) : null}
@@ -392,20 +576,23 @@ export default function MapView({
             מקרא
           </summary>
           <div className="border-t border-line px-3 py-2 text-[13px] text-ink-soft">
-            <p>עיגול = רובע. הגודל לפי מספר הקולות, הצבע לפי הציון הממוצע.</p>
+            <p>
+              עיגול = {mode === "quarter" ? "רובע" : "רחוב"}. הגודל לפי מספר
+              הקולות, הצבע לפי הציון הממוצע. המספר שעל התווית הוא מספר הקולות.
+            </p>
             <p className="mt-1">
               הצבעים, מהנמוך לגבוה: גרוע · חלש · בינוני · טוב · מצוין. אפור = אין עדיין ציון.
             </p>
-            <p className="mt-1">
-              בהתקרבות מעבר לזום {STREET_ZOOM} העיגולים נעלמים ובמקומם מופיעים
-              קווי הרחובות, בעובי לפי מספר הקולות.
+            <p className="mt-1 text-ink-faint">
+              המיקומים נשלפו מ-OpenStreetMap לפי שם הרחוב או הרובע, ואינם שכבת
+              ה-GIS העירונית. רחוב מסומן בנקודה אחת, לא בקו לכל אורכו.
             </p>
-            {!streetLinesAvailable ? (
+            {!streetLinesAvailable ? null : (
               <p className="mt-1 text-ink-faint">
-                שכבת קווי הרחובות מה-GIS העירוני עדיין לא נטענה, ולכן בהתקרבות
-                לא יופיעו קווים.
+                שכבת קווי הרחובות העירונית נטענה, ולכן רחוב שיש לו קו מצויר
+                כקו ולא כנקודה.
               </p>
-            ) : null}
+            )}
             {basemap === "none" ? (
               <p className="mt-1 text-ink-faint">מפת הרקע לא נטענה. הנתונים על רקע ריק.</p>
             ) : null}
@@ -503,7 +690,31 @@ export default function MapView({
 
       {canCalibrate ? (
         <div className="card mt-3 p-3">
-          <p className="text-[15px] font-medium text-ink">מיקום רובעים (צוות)</p>
+          <p className="text-[15px] font-semibold text-ink">מיקום רחובות מ-OpenStreetMap</p>
+          <p className="mb-2 text-[13px] text-ink-soft">
+            רחוב חדש שקיבל קול מגיע בלי מיקום. הכפתור מחפש כל רחוב כזה
+            ב-OpenStreetMap לפי שמו ולפי אשדוד, ושומר את הנקודה. רחוב שלא נמצא
+            נשאר בלי מיקום ואינו מצויר — ולא מקבל ניחוש.
+          </p>
+          <button
+            type="button"
+            onClick={runGeocode}
+            disabled={geocoding}
+            className="pressable rounded-[12px] border border-line bg-surface px-4 py-2 text-[14px] text-ink disabled:opacity-50"
+          >
+            {geocoding ? "מחפש…" : "למקם רחובות חסרים"}
+          </button>
+          {geocodeMessage ? (
+            <p role="status" className="mt-2 text-[13px] text-ink-soft">
+              {geocodeMessage}
+            </p>
+          ) : null}
+        </div>
+      ) : null}
+
+      {canCalibrate ? (
+        <div className="card mt-3 p-3">
+          <p className="text-[15px] font-semibold text-ink">מיקום רובעים (צוות)</p>
           <p className="mb-2 text-[13px] text-ink-soft">
             בחרו רובע ולחצו על המפה במקום שבו הוא נמצא בפועל. מאותו רגע הוא
             מצויר שם, ונספר בתצוגה.

@@ -31,14 +31,19 @@ export function Card({
 }
 
 export function StatusBadge({ status }: { status: StatusKey | null }) {
-  if (!status) {
+  /*
+   * סטטוס שאינו מוכר מתנהג כמו "אין סטטוס", ואינו מפיל את המסך.
+   * צמצום הסטטוסים מחמישה לשלושה הותיר בשדה רשומות עם ערך ישן, ובלי
+   * השורה הזאת עמוד שלם החזיר שגיאה בגלל מילה אחת בטבלה.
+   */
+  const meta = status ? STATUS_MAP[status] : undefined;
+  if (!meta) {
     return (
       <span className="inline-block rounded-full border border-line px-3 py-1 text-[13px] text-ink-faint">
         טרם התקבל עדכון
       </span>
     );
   }
-  const meta = STATUS_MAP[status];
   return (
     <span
       className="inline-block rounded-full px-3 py-1 text-[13px] font-medium text-white"
@@ -49,21 +54,37 @@ export function StatusBadge({ status }: { status: StatusKey | null }) {
   );
 }
 
+/**
+ * ציון של שאלה אחת, עם האייקון שלה.
+ *
+ * האייקון קיים לזיכרון חזותי: אותה צורה מופיעה בשאלה בזמן הדירוג,
+ * בקריטריון במסך הלימוד ובערך הייחוס של סוג הרחוב. `muted` מציג אותה
+ * באפור, לשאלות שאינן נמדדות במסמך.
+ */
 export function ScoreBar({
   label,
   value,
   max = 5,
+  icon,
+  muted = false,
 }: {
   label: string;
   value: number | null;
   max?: number;
+  icon?: React.ReactNode;
+  muted?: boolean;
 }) {
   const pct = value === null ? 0 : Math.max(0, Math.min(1, value / max)) * 100;
   return (
     <div className="mb-2">
-      <div className="mb-1 flex items-baseline justify-between text-[14px]">
-        <span className="text-ink">{label}</span>
-        <span className="text-ink-faint tabular-nums">
+      <div className="mb-1 flex items-baseline justify-between gap-2 text-[14px]">
+        <span className="flex items-center gap-2 text-ink">
+          {icon ? (
+            <span className={muted ? "text-ink-faint" : "text-accent"}>{icon}</span>
+          ) : null}
+          {label}
+        </span>
+        <span className="tabular-nums font-semibold text-ink">
           {value === null ? "אין נתונים" : value.toFixed(1)}
         </span>
       </div>
@@ -72,12 +93,21 @@ export function ScoreBar({
         role="img"
         aria-label={`${label}: ${value === null ? "אין נתונים" : `${value.toFixed(1)} מתוך ${max}`}`}
       >
-        <div className="h-2 rounded-full bg-accent" style={{ width: `${pct}%` }} />
+        <div
+          className={`h-2 rounded-full ${muted ? "bg-ink-faint" : "bg-accent"}`}
+          style={{ width: `${pct}%` }}
+        />
       </div>
     </div>
   );
 }
 
+/**
+ * מספר אחד עם הכותרת שלו.
+ *
+ * מספר בלי כותרת אינו אומר דבר, ולכן `label` חובה. `note` הוא ההסבר
+ * הקטן מתחתיו — מה בדיוק נספר — ולא מספר נוסף בלי שם.
+ */
 export function Counter({
   value,
   label,
@@ -89,11 +119,48 @@ export function Counter({
 }) {
   return (
     <div className="card flex-1 p-3 text-center">
-      <div className="text-[24px] font-semibold tabular-nums text-accent">
+      <div className="text-[24px] font-bold tabular-nums text-accent">
         {value.toLocaleString("he-IL")}
       </div>
-      <div className="text-[13px] text-ink-soft">{label}</div>
+      <div className="text-[13px] font-medium text-ink">{label}</div>
       {note ? <div className="mt-1 text-[12px] text-ink-faint">{note}</div> : null}
+    </div>
+  );
+}
+
+/**
+ * זוג פרמטר–נתון בשורה אחת.
+ *
+ * הבולט הוא מה שמחפשים: בטבלת השוואה מחפשים את הנתון, ולכן הוא הבולט
+ * והפרמטר חיוור. `emphasis="label"` הופך את הסדר, כשהשאלה היא מה נמדד
+ * ולא כמה יצא.
+ */
+export function Datum({
+  label,
+  value,
+  emphasis = "value",
+  icon,
+}: {
+  label: string;
+  value: React.ReactNode;
+  emphasis?: "value" | "label";
+  icon?: React.ReactNode;
+}) {
+  const labelClass =
+    emphasis === "label"
+      ? "text-[13px] font-semibold text-ink"
+      : "text-[13px] text-ink-faint";
+  const valueClass =
+    emphasis === "label"
+      ? "text-[14px] text-ink-soft"
+      : "text-[15px] font-semibold tabular-nums text-ink";
+  return (
+    <div>
+      <dt className={`flex items-center gap-1.5 ${labelClass}`}>
+        {icon ? <span className="text-ink-faint">{icon}</span> : null}
+        {label}
+      </dt>
+      <dd className={valueClass}>{value}</dd>
     </div>
   );
 }
@@ -114,7 +181,7 @@ export function ButtonLink({
   return (
     <Link
       href={href}
-      className={`flex items-center justify-center rounded-[14px] px-5 py-3 text-[16px] font-medium ${style}`}
+      className={`pressable flex items-center justify-center rounded-[14px] px-5 py-3 text-[16px] font-medium ${style}`}
     >
       {children}
     </Link>

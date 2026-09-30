@@ -269,7 +269,7 @@ export default function StreetsTable({
                       </td>
                       <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.photos}</td>
                       <td className="px-2 py-2 text-[13px] text-ink-soft">
-                        {row.status ? STATUS_MAP[row.status].label : "—"}
+                        {row.status ? (STATUS_MAP[row.status]?.label ?? "—") : "—"}
                       </td>
                     </tr>
                   ))}

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { CITY, PRINCIPLES, STATUSES } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { topStreets } from "@/lib/stats";
-import { votesLabel } from "@/lib/hebrew";
+import { scoreLabel } from "@/lib/hebrew";
 import { ButtonLink, Card, Counter, Notice, Section, StatusBadge } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
@@ -52,23 +52,29 @@ export default async function HomePage() {
         </div>
       </Section>
 
-      <Section title="מה קורה עכשיו">
+      <Section
+        title="מה קורה עכשיו"
+        note="כל המספרים מאז פתיחת האפליקציה, ומתעדכנים מיד."
+      >
         <div className="flex gap-2">
-          <Counter value={totals.votes} label="קולות" />
-          <Counter value={totals.streets} label="רחובות" />
+          <Counter value={totals.votes} label="קולות" note="דירוגים שנשלחו" />
+          <Counter value={totals.streets} label="רחובות" note="שקיבלו דירוג" />
           <Counter
             value={totals.photos}
             label="תמונות"
             note={
               totals.photosPending > 0
-                ? `${totals.photosPending} ממתינות לאישור`
-                : undefined
+                ? `מאושרות · ${totals.photosPending} ממתינות`
+                : "מאושרות ומוצגות"
             }
           />
         </div>
       </Section>
 
-      <Section title="חמשת המובילים" note="לפי מספר הקולות, ואז לפי הציון הממוצע.">
+      <Section
+        title="5 המובילים"
+        note="מדורגים לפי מספר הקולות, ובשוויון לפי הציון הממוצע."
+      >
         {leaders.length === 0 ? (
           <Card>
             <p className="text-[15px] text-ink-soft">
@@ -83,31 +89,51 @@ export default async function HomePage() {
                   href={`/street/${row.street.id}`}
                   className="card flex items-stretch gap-3 overflow-hidden p-0"
                 >
-                  {/* Decorative: the street name beside it carries the meaning. */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={
-                      row.latestPhotoId
-                        ? `/api/photos/${row.latestPhotoId}`
-                        : "/street-placeholder.svg"
-                    }
-                    alt=""
-                    className="h-[88px] w-[112px] shrink-0 object-cover"
-                  />
-                  <span className="flex flex-1 items-center gap-3 py-3 pl-3">
-                    <span className="w-6 text-[18px] font-bold tabular-nums text-accent">
-                      {index + 1}
+                  {/*
+                    התמונה נושאת את שם הרחוב עליה, על גרדיאנט שקוף שנולד
+                    מהמסגרת עצמה. השם הוא הדבר החשוב בשורה, ולכן הוא
+                    מודגש ויושב על הכהה ביותר בגרדיאנט.
+                  */}
+                  <span className="relative h-[88px] w-[112px] shrink-0 overflow-hidden">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={
+                        row.latestPhotoId
+                          ? `/api/photos/${row.latestPhotoId}`
+                          : "/street-placeholder.svg"
+                      }
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                    <span className="photo-scrim" aria-hidden="true" />
+                    <span className="absolute inset-x-0 bottom-0 px-2 pb-1.5 text-[13px] font-semibold leading-tight text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.75)]">
+                      {row.street.name}
                     </span>
-                    <span className="flex-1">
-                      <span className="block text-[16px] font-medium text-ink">
+                  </span>
+
+                  <span className="flex flex-1 items-center gap-3 py-3 pl-3">
+                    <span className="w-7 shrink-0 text-[18px] font-bold tabular-nums text-accent">
+                      {index + 1}.
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[16px] font-semibold text-ink">
                         {row.street.name}
                       </span>
                       <span className="block text-[13px] text-ink-faint">
-                        {row.quarterName} · {votesLabel(row.votes)}
+                        {row.quarterName}
+                      </span>
+                      <span className="mt-0.5 block text-[13px] text-ink-soft">
+                        <span className="font-semibold tabular-nums text-ink">
+                          {row.votes.toLocaleString("he-IL")}
+                        </span>{" "}
+                        {row.votes === 1 ? "קול" : "קולות"}
                       </span>
                     </span>
-                    <span className="text-[17px] font-semibold tabular-nums text-ink">
-                      {row.avgScore === null ? "—" : row.avgScore.toFixed(1)}
+                    <span className="shrink-0 text-center">
+                      <span className="block text-[19px] font-bold tabular-nums text-ink">
+                        {scoreLabel(row.avgScore)}
+                      </span>
+                      <span className="block text-[11px] text-ink-faint">ציון ממוצע</span>
                     </span>
                   </span>
                 </Link>
@@ -169,7 +195,8 @@ export default async function HomePage() {
       </Section>
 
       <Notice>
-        רשימת הרחובות והגבולות במפה הם נתוני הדגמה עד לחיבור שכבות ה־GIS העירוניות.
+        גבולות הרובעים במפה עדיין אינם שכבת ה-GIS העירונית. רשימת הרחובות היא
+        המרשם הארצי.
       </Notice>
     </>
   );

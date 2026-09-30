@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { STATUSES } from "@/lib/city";
+import { STATUSES, STATUS_MAP } from "@/lib/city";
 import type { StatusKey } from "@/lib/city";
 
 export default function StatusEditor({
@@ -15,7 +15,7 @@ export default function StatusEditor({
   note: string;
 }) {
   const router = useRouter();
-  const [status, setStatus] = useState<StatusKey>(current ?? "received");
+  const [status, setStatus] = useState<StatusKey>(current ?? "under_review");
   const [publicNote, setPublicNote] = useState(note);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
@@ -40,7 +40,11 @@ export default function StatusEditor({
 
   return (
     <div className="grid gap-2">
-      <p className="text-[14px] font-medium text-ink">עדכון סטטוס (צוות בלבד)</p>
+      <p className="text-[14px] font-semibold text-ink">עדכון סטטוס (צוות בלבד)</p>
+      <p className="text-[13px] text-ink-soft">
+        הסטטוס אומר מה האגף עושה עם הרחוב. הוא אינו קשור לאישור תמונה: אישור
+        תמונה הוא בדיקה של התמונה עצמה, ונעשה בגלריה.
+      </p>
       <label className="text-[13px] text-ink-soft">
         סטטוס
         <select
@@ -55,6 +59,10 @@ export default function StatusEditor({
           ))}
         </select>
       </label>
+      {/* מה נבדק בשלב שנבחר — כדי שלא יהיה צריך לנחש מה המילה אומרת. */}
+      <p className="rounded-[10px] bg-accent-soft/60 px-3 py-2 text-[13px] text-ink">
+        {STATUS_MAP[status]?.meaning}
+      </p>
       <label className="text-[13px] text-ink-soft">
         הערה לציבור
         <textarea
