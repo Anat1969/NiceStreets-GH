@@ -9,6 +9,8 @@ interface Item {
   streetId: string;
   streetName: string;
   createdAt: string;
+  /** What the resident wrote with the vote the photo came with, if anything. */
+  reason?: string;
   status?: PhotoStatus;
 }
 
@@ -79,11 +81,25 @@ export default function PhotoModeration({
               className="h-48 w-full bg-paper object-cover"
             />
             <div className="p-3">
-              <p className="text-[15px] font-medium text-ink">{photo.streetName}</p>
-              <p className="mb-3 text-[13px] text-ink-faint">
+              <p className="text-[15px] font-medium text-ink">
+                <a href={`/street/${photo.streetId}`} className="inline-link underline underline-offset-2">
+                  {photo.streetName}
+                </a>
+              </p>
+              <p className="text-[13px] text-ink-faint">
                 הועלתה ב־{hebrewDate(photo.createdAt)}
                 {decided && photo.status ? ` · ${STATUS_LABEL[photo.status]}` : ""}
               </p>
+              {/* The words that came with the photo are part of the decision. */}
+              {photo.reason ? (
+                <p className="mb-3 mt-1 border-e-2 border-line pe-2 text-[14px] text-ink-soft">
+                  {photo.reason}
+                </p>
+              ) : (
+                <p className="mb-3 mt-1 text-[13px] text-ink-faint">
+                  התמונה הועלתה בלי נימוק.
+                </p>
+              )}
 
               <div className="flex gap-2">
                 <button

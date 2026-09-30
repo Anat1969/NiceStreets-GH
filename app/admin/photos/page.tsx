@@ -13,11 +13,15 @@ export default async function PhotoQueuePage() {
   if (!(await isStaff())) notFound();
 
   const store = getStore();
-  const [photos, streets] = await Promise.all([
+  const [photos, streets, votes] = await Promise.all([
     store.listPhotos().catch(() => []),
     store.listStreets().catch(() => []),
+    store.listVotes().catch(() => []),
   ]);
   const streetName = new Map(streets.map((s) => [s.id, s.name]));
+  const reasonByVote = new Map(votes.map((v) => [v.id, v.reason]));
+  const reasonOf = (voteId: string) =>
+    (reasonByVote.get(voteId) ?? "").trim() || undefined;
 
   const pending = photos
     .filter((p) => p.status === "pending")
@@ -50,6 +54,7 @@ export default async function PhotoQueuePage() {
             streetId: p.streetId,
             streetName: streetName.get(p.streetId) ?? "רחוב לא ידוע",
             createdAt: p.createdAt,
+            reason: reasonOf(p.voteId),
           }))}
         />
       </Section>
@@ -67,6 +72,7 @@ export default async function PhotoQueuePage() {
               streetId: p.streetId,
               streetName: streetName.get(p.streetId) ?? "רחוב לא ידוע",
               createdAt: p.createdAt,
+              reason: reasonOf(p.voteId),
               status: p.status,
             }))}
           />
