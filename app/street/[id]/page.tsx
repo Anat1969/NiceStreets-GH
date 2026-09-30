@@ -8,7 +8,15 @@ import { isStaff } from "@/lib/session";
 import { parseSegmentCode } from "@/lib/segments";
 import { isPublicPhoto } from "@/lib/types";
 import { confirmedTheme } from "@/lib/themes";
-import { Card, Datum, Notice, ScoreBar, Section, StatusBadge } from "@/components/ui";
+import {
+  Card,
+  Datum,
+  DemoBanner,
+  Notice,
+  ScoreBar,
+  Section,
+  StatusBadge,
+} from "@/components/ui";
 import StatusEditor from "@/components/StatusEditor";
 import PhotoDecision from "@/components/PhotoDecision";
 import StreetPhotoActions from "@/components/StreetPhotoActions";
@@ -73,6 +81,8 @@ export default async function StreetPage({
         </p>
       ) : null}
 
+      <DemoBanner demoVotes={stats.demoVotes} totalVotes={stats.votes} />
+
       <h1 className="text-[26px] font-bold text-ink">{street.name}</h1>
       <p className="mb-4 text-[14px] text-ink-soft">
         {stats.quarterName} · {typology?.label ?? "טרם סווג"}
@@ -131,11 +141,15 @@ export default async function StreetPage({
 
       <Section
         title="פילוח לפי שאלות"
-        note="ציון ממוצע לכל שאלה, מ-1 עד 5. ככל שהעמודה ארוכה יותר, כך דירגו גבוה יותר."
+        note="כל שבע השאלות נענות על ידי התושבים, באותו סולם 1 עד 5. ההבדל בין שתי הקבוצות הוא במה שאפשר להשוות אליו."
       >
         <Card>
-          <p className="mb-2 text-[13px] font-semibold text-ink-faint">
-            נמדד גם במסמך מינהל התכנון
+          <p className="mb-1 text-[13px] font-semibold text-ink">
+            יש להן גם מדידה מקצועית
+          </p>
+          <p className="mb-2 text-[12px] text-ink-faint">
+            לצד ציון התושבים יש למסמך מדד וערך ייחוס לסוג הרחוב, ולכן אפשר
+            לבדוק אם התחושה והמדידה מסכימות.
           </p>
           {QUESTIONS.filter((q) => !LOCAL_QUESTION_KEYS.includes(q.key)).map((question) => {
             const Mark = QUESTION_ICONS[question.key];
@@ -150,11 +164,16 @@ export default async function StreetPage({
           })}
 
           {/*
-            שלוש השאלות שהמסמך אינו מודד מוצגות באפור — לא כי הן פחות
-            חשובות, אלא כדי שיהיה ברור שאין להן ערך ייחוס להשוות אליו.
+            אפור אינו "פחות חשוב" ואינו "לא מנוקד": הציון מגיע מהתושבים
+            כמו בכל השאר. הוא מסמן שאין ערך ייחוס מקצועי להשוות אליו.
           */}
-          <p className="mb-2 mt-4 border-t border-line pt-3 text-[13px] font-semibold text-ink-faint">
-            אינו נמדד במסמך — ודווקא זה מה שהעירייה יכולה לשפר מהר
+          <p className="mb-1 mt-4 border-t border-line pt-3 text-[13px] font-semibold text-ink">
+            ציון התושבים בלבד
+          </p>
+          <p className="mb-2 text-[12px] text-ink-faint">
+            הציון כאן מגיע מהתושבים בדיוק כמו למעלה. מה שאין לו הוא מדד
+            מקצועי וערך ייחוס במסמך — ולכן אין למה להשוות אותו. דווקא אלה
+            הדברים שהעירייה יכולה לשפר מהר.
           </p>
           {QUESTIONS.filter((q) => LOCAL_QUESTION_KEYS.includes(q.key)).map((question) => {
             const Mark = QUESTION_ICONS[question.key];

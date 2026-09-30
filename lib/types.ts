@@ -99,6 +99,14 @@ export interface StreetStats {
   street: Street;
   quarterName: string;
   votes: number;
+  /**
+   * כמה מתוך `votes` הם נתוני הדגמה.
+   *
+   * קודם לכן הדגל `isDemo` היה קיים על הקול ולא נספר בשום מקום, וכך
+   * 115 קולות הדגמה הוצגו במסכים הציבוריים כדעת תושבים. מספר שמוצג
+   * לציבור חייב לדעת לומר כמה ממנו אמיתי.
+   */
+  demoVotes: number;
   avgScore: number | null;
   perQuestion: Record<QuestionKey, number | null>;
   /** Approved photos, the ones the public sees. */
@@ -119,6 +127,8 @@ export interface QuarterStats {
 
 export interface Totals {
   votes: number;
+  /** כמה מתוך `votes` הם נתוני הדגמה. ראו StreetStats.demoVotes. */
+  demoVotes: number;
   streets: number;
   photos: number;
   photosPending: number;

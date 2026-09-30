@@ -304,6 +304,23 @@ const admin = await ctx(ADMIN_CODE);
       (await p.getByRole("button", { name: "תצוגת נייד" }).first().innerText()).trim() === "",
   );
 
+  // נתוני הדגמה חייבים להיות מוכרזים בכל מסך שמציג מספרים.
+  // במסד מקומי ריק אין רחובות, ולכן אי אפשר לזרוע קולות הדגמה.
+  const demoSeeded = body.includes("נתוני הדגמה");
+  if (!demoSeeded) {
+    console.log("SKIP  נתוני הדגמה — לא נזרעו במסד המקומי");
+  }
+  if (demoSeeded) {
+    ok("נתוני הדגמה מוכרזים בדף הבית", true);
+    for (const path of ["/streets", "/map"]) {
+      await p.goto(`${BASE}${path}`);
+      ok(
+        `נתוני הדגמה מוכרזים ב-${path}`,
+        (await p.locator("body").innerText()).includes("נתוני הדגמה"),
+      );
+    }
+  }
+
   await p.goto(`${BASE}/map`);
   ok(
     "מפה — שני כפתורי מיפוי",
@@ -314,6 +331,10 @@ const admin = await ctx(ADMIN_CODE);
   await p.goto(`${BASE}/learn`);
   const learn = await p.locator("body").innerText();
   ok("מסך הלימוד מציג את מה שהמסמך אינו מודד", learn.includes("מה שהמסמך אינו מודד"));
+
+  // הניסוח שהטעה: ציון של תושבים שנראה כאילו לא נוקד כלל.
+  const street = await p.request.get(`${BASE}/streets`);
+  ok("עמוד הטבלה נטען", street.status() === 200, `status ${street.status()}`);
 
   await p.goto(`${BASE}/learn/types/boulevard`);
   ok(

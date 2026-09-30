@@ -61,6 +61,7 @@ export function buildStreetStats(
         ? (quarterName.get(street.quarterId) ?? street.quarterId)
         : "טרם שויך רובע",
       votes: streetVotes.length,
+      demoVotes: streetVotes.filter((v) => v.isDemo).length,
       avgScore: mean(streetVotes.map(voteScore)),
       perQuestion,
       photos: streetApproved.length,
@@ -113,6 +114,7 @@ export function buildTotals(
 
   return {
     votes: votes.length,
+    demoVotes: votes.filter((v) => v.isDemo).length,
     streets: votedStreetIds.size,
     photos: photos.filter(isPublicPhoto).length,
     photosPending: photos.filter((p) => p.status === "pending").length,

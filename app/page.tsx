@@ -3,7 +3,15 @@ import { CITY, PRINCIPLES, STATUSES } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { topStreets } from "@/lib/stats";
 import { scoreLabel } from "@/lib/hebrew";
-import { ButtonLink, Card, Counter, Notice, Section, StatusBadge } from "@/components/ui";
+import {
+  ButtonLink,
+  Card,
+  Counter,
+  DemoBanner,
+  Notice,
+  Section,
+  StatusBadge,
+} from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -28,6 +36,8 @@ export default async function HomePage() {
           .
         </p>
       ) : null}
+      <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
+
       <section className="mb-6">
         <h1 className="mb-2 text-[26px] font-bold leading-tight text-ink">
           {CITY.homeQuestion}

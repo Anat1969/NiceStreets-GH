@@ -188,6 +188,36 @@ export function ButtonLink({
   );
 }
 
+/**
+ * אזהרת נתוני הדגמה.
+ *
+ * כל עוד יש במסד קולות שנזרעו לבדיקה, אסור שמסך ציבורי יציג מספר בלי
+ * לומר זאת. הרכיב הזה מופיע בכל מסך שמציג מספרים, ונעלם מעצמו ברגע
+ * שנתוני ההדגמה נמחקים — בלי שצריך לזכור להסיר אותו.
+ */
+export function DemoBanner({
+  demoVotes,
+  totalVotes,
+}: {
+  demoVotes: number;
+  totalVotes: number;
+}) {
+  if (demoVotes === 0) return null;
+  const real = totalVotes - demoVotes;
+  return (
+    <p
+      role="status"
+      className="mb-4 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[13px] text-ink"
+    >
+      <span className="font-semibold">המספרים כאן אינם אמיתיים עדיין.</span>{" "}
+      {demoVotes.toLocaleString("he-IL")} מתוך {totalVotes.toLocaleString("he-IL")}{" "}
+      הקולות הם נתוני הדגמה שנזרעו לבדיקה, ורק {real.toLocaleString("he-IL")}{" "}
+      {real === 1 ? "קול הוא" : "קולות הם"} של תושבים. הצוות מוחק אותם בלוח
+      הבקרה לפני הפתיחה לציבור.
+    </p>
+  );
+}
+
 export function Notice({ children }: { children: React.ReactNode }) {
   return (
     <p className="rounded-[12px] border border-line bg-warm-soft px-3 py-2 text-[13px] text-ink-soft">

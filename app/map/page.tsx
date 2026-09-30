@@ -4,12 +4,12 @@ import { loadCityData } from "@/lib/data";
 import { loadStreetLines, streetLinesAvailable } from "@/lib/geo";
 import { getStore } from "@/lib/store";
 import { isStaff } from "@/lib/session";
-import { Notice } from "@/components/ui";
+import { DemoBanner, Notice } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
 export default async function MapPage() {
-  const [{ streetStats, quarterStats }, quarters, staff] = await Promise.all([
+  const [{ streetStats, quarterStats, totals }, quarters, staff] = await Promise.all([
     loadCityData(),
     getStore()
       .listQuarters()
@@ -29,6 +29,8 @@ export default async function MapPage() {
 
   return (
     <>
+      <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
+
       <h1 className="mb-1 text-[24px] font-bold text-ink">מפה</h1>
       <p className="mb-3 text-[14px] text-ink-soft">
         בחרו מה למפות: קולות לפי רובע, או קולות לפי רחוב. המספר שעל כל תווית

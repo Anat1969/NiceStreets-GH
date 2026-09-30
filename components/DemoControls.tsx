@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-export default function DemoControls() {
+export default function DemoControls({
+  demoVotes = 0,
+  totalVotes = 0,
+}: {
+  demoVotes?: number;
+  totalVotes?: number;
+}) {
   const router = useRouter();
   const [message, setMessage] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -31,9 +37,25 @@ export default function DemoControls() {
 
   return (
     <div className="card p-4">
-      <p className="mb-3 text-[14px] text-ink-soft">
-        נתוני הדגמה מסומנים בנפרד ואינם מעורבבים בקולות אמיתיים. לפני פתיחה לציבור יש למחוק אותם.
-      </p>
+      {/*
+        הטקסט הקודם כאן אמר שנתוני ההדגמה "אינם מעורבבים בקולות אמיתיים".
+        זה לא היה נכון: הם נספרו בכל מספר במסכים הציבוריים. עכשיו הם
+        נספרים בנפרד, מסומנים בכל מסך, והמספר האמיתי מופיע כאן.
+      */}
+      {demoVotes > 0 ? (
+        <p className="mb-3 rounded-[10px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink">
+          <span className="font-semibold">
+            {demoVotes.toLocaleString("he-IL")} מתוך {totalVotes.toLocaleString("he-IL")} הקולות
+            הם נתוני הדגמה.
+          </span>{" "}
+          הם נספרים בכל המספרים במסכים הציבוריים, ולכן מוצגת שם אזהרה. לפני
+          פתיחה לציבור יש למחוק אותם, והאזהרה תיעלם מעצמה.
+        </p>
+      ) : (
+        <p className="mb-3 text-[14px] text-ink-soft">
+          אין כרגע נתוני הדגמה במסד. כל הקולות הם של תושבים.
+        </p>
+      )}
       <div className="flex gap-2">
         <button
           type="button"

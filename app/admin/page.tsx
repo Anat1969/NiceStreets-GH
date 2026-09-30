@@ -123,7 +123,15 @@ export default async function AdminPage({
       <Section title="מצב כללי">
         <Card>
           <ul className="grid gap-1 text-[15px] text-ink">
-            <li>קולות: {totals.votes}</li>
+            <li>
+              קולות: {totals.votes.toLocaleString("he-IL")}
+              {totals.demoVotes > 0 ? (
+                <span className="text-ink-faint">
+                  {" "}
+                  — מתוכם {totals.demoVotes.toLocaleString("he-IL")} נתוני הדגמה
+                </span>
+              ) : null}
+            </li>
             <li>רחובות עם קולות: {totals.streets}</li>
             <li>תמונות מאושרות: {totals.photos}</li>
             <li>תמונות שממתינות לאישור: {totals.photosPending}</li>

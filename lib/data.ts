@@ -15,6 +15,7 @@ export interface CityData {
 function emptyTotals(): Totals {
   return {
     votes: 0,
+    demoVotes: 0,
     streets: 0,
     photos: 0,
     photosPending: 0,

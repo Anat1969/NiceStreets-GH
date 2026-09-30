@@ -3,6 +3,7 @@ import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { isStaff } from "@/lib/session";
 import { parseStreetFilter } from "@/lib/street-filter";
+import { DemoBanner } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function StreetsPage({
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }) {
   const params = await searchParams;
-  const [{ streetStats, quarterStats }, staff] = await Promise.all([
+  const [{ streetStats, quarterStats, totals }, staff] = await Promise.all([
     loadCityData(),
     isStaff(),
   ]);
@@ -28,7 +29,9 @@ export default async function StreetsPage({
 
   return (
     <>
-      <h1 className="mb-1 text-[24px] font-bold text-ink">רחובות</h1>
+      <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
+
+      <h1 className="mb-1 text-[24px] font-bold text-ink">טבלת הרחובות</h1>
       <p className="mb-4 text-[14px] text-ink-soft">
         סננו וממיינו בחלק העליון, והתוצאות מופיעות מתחת.
       </p>

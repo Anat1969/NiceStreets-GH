@@ -15,8 +15,21 @@ export function summarise(stats: StreetStats, reasonCount: number): string {
   }
 
   const parts: string[] = [];
+
+  /*
+   * סיכום שנשען על נתוני הדגמה חייב לומר זאת במשפט הראשון, לא בהערה
+   * קטנה במקום אחר. משפט שמתאר "מה התושבים חושבים" על סמך קולות זרועים
+   * הוא בדיוק סוג המשפט שאסור שיֵצא מכאן.
+   */
+  if (stats.demoVotes > 0) {
+    parts.push(
+      stats.demoVotes === stats.votes
+        ? "כל הקולות על הרחוב הזה הם עדיין נתוני הדגמה, ולא דעת תושבים."
+        : `${stats.demoVotes.toLocaleString("he-IL")} מתוך ${stats.votes.toLocaleString("he-IL")} הקולות כאן הם נתוני הדגמה, והסיכום שלהלן כולל אותם.`,
+    );
+  }
   const votes = stats.votes.toLocaleString("he-IL");
-  const noun = stats.votes === 1 ? "תושב אחד דירג" : `${votes} תושבים דירגו`;
+  const noun = `${votes} ${stats.votes === 1 ? "תושב דירג" : "תושבים דירגו"}`;
   const avg = stats.avgScore;
 
   parts.push(
@@ -49,17 +62,17 @@ export function summarise(stats: StreetStats, reasonCount: number): string {
 
   if (reasonCount > 0) {
     parts.push(
-      reasonCount === 1
-        ? "תושב אחד גם הסביר במילים למה, ואפשר לקרוא אותו למטה."
-        : `${reasonCount.toLocaleString("he-IL")} מהם גם הסבירו במילים למה, ואפשר לקרוא אותם למטה.`,
+      `${reasonCount.toLocaleString("he-IL")} ${
+        reasonCount === 1 ? "מהם גם הסביר" : "מהם גם הסבירו"
+      } במילים למה, ואפשר לקרוא למטה.`,
     );
   }
 
   if (stats.photos > 0) {
     parts.push(
-      stats.photos === 1
-        ? "יש גם תמונה אחת מאושרת מהרחוב."
-        : `יש גם ${stats.photos.toLocaleString("he-IL")} תמונות מאושרות מהרחוב.`,
+      `יש גם ${stats.photos.toLocaleString("he-IL")} ${
+        stats.photos === 1 ? "תמונה מאושרת" : "תמונות מאושרות"
+      } מהרחוב.`,
     );
   }
 
