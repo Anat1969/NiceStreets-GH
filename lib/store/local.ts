@@ -270,6 +270,17 @@ export class LocalStore implements DataStore {
         if (!decoded) throw new Error("PHOTO_FORMAT");
         if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
         await fs.mkdir(PHOTO_DIR, { recursive: true });
+        // תמונה אחת לכל קול: שליחה חוזרת מחליפה ולא מוסיפה. ראו
+        // supabase/migrations/20261001150000_one_photo_per_vote.sql.
+        if (existing) {
+          const stale = snapshot.photos.filter((p) => p.voteId === existing.id);
+          snapshot.photos = snapshot.photos.filter((p) => p.voteId !== existing.id);
+          for (const photo of stale) {
+            await fs
+              .unlink(path.join(PHOTO_DIR, photo.storagePath))
+              .catch(() => undefined);
+          }
+        }
         const newPhotoId = id("p");
         const storagePath = `${newPhotoId}.${decoded.ext}`;
         await fs.writeFile(path.join(PHOTO_DIR, storagePath), decoded.body);

@@ -85,6 +85,12 @@ create table if not exists photos (
 
 create index if not exists photos_street_idx on photos (street_id, status);
 
+-- תמונה אחת לכל קול. קול הוא דעה אחת, והתמונה היא הראיה שלה; כמה תמונות
+-- על אותו קול רק גורמות לתושב אחד להיראות כמו כמה. שליחה חוזרת של הדירוג
+-- מחליפה את התמונה במקום להוסיף לה.
+create unique index if not exists photos_one_per_vote
+  on photos (vote_id) where vote_id is not null;
+
 -- The image bytes, base64-encoded, so the entire dataset is one database to
 -- back up, restore and move between projects. Nothing reads this table with an
 -- anon key: the app serves images through its own route, which checks the

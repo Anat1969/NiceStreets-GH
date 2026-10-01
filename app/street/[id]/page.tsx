@@ -87,22 +87,13 @@ export default async function StreetPage({
     : 0;
 
   /*
-   * כל התמונות של הקול, ולא אחת.
-   *
-   * קודם לכן נבנתה כאן מפה של תמונה אחת לכל קול, וכשתושב צילם את אותו
-   * רחוב כמה פעמים — ברוגוזין, חמש תמונות על קול אחד — ארבע מהן פשוט
-   * נעלמו מהמסך בעוד המונה סופר אותן. מספר שסופר משהו שאי אפשר לראות
-   * הוא מספר שבור.
+   * התמונה של כל קול. אחת, ולא יותר: המסד אוכף את זה באינדקס ייחודי,
+   * ושליחה חוזרת של הדירוג מחליפה את התמונה במקום להוסיף לה.
+   * ראו supabase/migrations/20261001150000_one_photo_per_vote.sql.
    */
-  const photosByVote = new Map<string, Photo[]>();
+  const photoByVote = new Map<string, Photo>();
   for (const photo of photos.filter(isPublicPhoto)) {
-    if (!photo.voteId) continue;
-    const list = photosByVote.get(photo.voteId);
-    if (list) list.push(photo);
-    else photosByVote.set(photo.voteId, [photo]);
-  }
-  for (const list of photosByVote.values()) {
-    list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    if (photo.voteId) photoByVote.set(photo.voteId, photo);
   }
 
   /*
@@ -193,14 +184,14 @@ export default async function StreetPage({
       </div>
 
       {/*
-        ברוגוזין יש קול אחד וחמש תמונות, כי אותו תושב צילם חמש פעמים.
-        בלי השורה הזאת המספרים נראים כאילו חלק מהמצלמים לא דירגו.
+        לא כל תמונה הגיעה עם דירוג: מכרטיס הרחוב אפשר לצלם בלי לדרג,
+        ואלה תמונות של הרחוב בלי קול מאחוריהן. בלי השורה הזאת נראה
+        כאילו מספר התמונות ומספר הקולות אמורים להיות שווים.
       */}
-      {photosByVote.size > 0 && stats.photos > photosByVote.size ? (
+      {stats.photos > photoByVote.size ? (
         <p className="-mt-2 mb-4 text-[12px] text-ink-faint">
-          {stats.photos} התמונות הגיעו מ-{photosByVote.size}{" "}
-          {photosByVote.size === 1 ? "קול" : "קולות"} — אפשר לצרף כמה תמונות
-          לאותו רחוב.
+          מתוך {stats.photos} התמונות, {photoByVote.size} צורפו לקול
+          ו-{stats.photos - photoByVote.size} צולמו בלי דירוג.
         </p>
       ) : null}
 
@@ -445,53 +436,23 @@ export default async function StreetPage({
           */
           <ul className="grid gap-3">
             {reasons.map((vote) => {
-              const votePhotos = photosByVote.get(vote.id) ?? [];
+              const votePhoto = photoByVote.get(vote.id) ?? null;
               return (
                 <li key={vote.id} className="card overflow-hidden">
-                  {votePhotos.length === 1 ? (
+                  {votePhoto ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={`/api/photos/${votePhotos[0].id}`}
+                      src={`/api/photos/${votePhoto.id}`}
                       alt={`תמונה שצורפה לקול על ${street.name}`}
                       className="aspect-[16/10] w-full object-cover"
                       loading="lazy"
                     />
-                  ) : votePhotos.length > 1 ? (
-                    /*
-                      כמה תמונות של אותו תושב: הראשונה גדולה, והשאר ברצועה
-                      מתחתיה. כך רואים שיש עוד, בלי שהקול יתפוס מסך שלם.
-                    */
-                    <>
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={`/api/photos/${votePhotos[0].id}`}
-                        alt={`תמונה שצורפה לקול על ${street.name}`}
-                        className="aspect-[16/10] w-full object-cover"
-                        loading="lazy"
-                      />
-                      <ul className="flex gap-[2px]">
-                        {votePhotos.slice(1).map((photo) => (
-                          <li key={photo.id} className="min-w-0 flex-1">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={`/api/photos/${photo.id}`}
-                              alt={`תמונה נוספת שצורפה לאותו קול על ${street.name}`}
-                              className="h-20 w-full object-cover"
-                              loading="lazy"
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                    </>
                   ) : null}
                   <div className="p-3">
                     <p className="text-[15px] text-ink">{vote.reason}</p>
                     <p className="mt-1 text-[12px] text-ink-faint">
                       ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10 ·{" "}
                       {new Date(vote.updatedAt).toLocaleDateString("he-IL")}
-                      {votePhotos.length > 1
-                        ? ` · ${votePhotos.length} תמונות מאותו תושב`
-                        : ""}
                     </p>
                   </div>
                 </li>

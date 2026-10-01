@@ -86,12 +86,12 @@ export default async function HomePage() {
         </div>
         {/*
           שלושת המספרים אינם מאותו סוג, וזה נראה כמו סתירה כשלא אומרים
-          את זה: יש יותר תמונות מקולות, כי תושב אחד יכול לצלם כמה פעמים
-          את אותו רחוב, ויש יותר רחובות במערכת מרחובות שדורגו.
+          את זה: חלק מהתמונות צולמו מכרטיס הרחוב בלי דירוג, ויש יותר
+          רחובות במערכת מרחובות שדורגו.
         */}
         <p className="mt-2 text-[13px] text-ink-faint">
-          {totals.photos > 0
-            ? `${totals.photos} התמונות הגיעו מ-${totals.photoVotes} קולות — אפשר לצרף כמה תמונות לאותו רחוב. `
+          {totals.photos > totals.photoVotes
+            ? `מתוך ${totals.photos} התמונות, ${totals.photoVotes} צורפו לקול ו-${totals.photos - totals.photoVotes} צולמו בלי דירוג. `
             : ""}
           {totals.streetsKnown > totals.streets
             ? `${totals.streetsKnown} רחובות כבר במערכת, ${totals.streets} מהם קיבלו דירוג. הבדיקה האוטומטית של האגף עוברת על כולם.`

@@ -305,6 +305,16 @@ export class SupabaseStore implements DataStore {
 
     if (!decoded) return vote;
 
+    /*
+     * תמונה אחת לכל קול: שליחה חוזרת מחליפה ולא מוסיפה.
+     *
+     * קודם לכן כל שליחה חוזרת עם תמונה הוסיפה שורה, והקודמות נשארו —
+     * כך נוצרו ברוגוזין 5 תמונות על קול אחד, ותושב אחד נראה כמו חמישה.
+     * המחיקה קודמת להוספה כי אינדקס ייחודי במסד אוסר על השתיים להתקיים
+     * יחד, והיא מותרת לתושב על התמונות שהוא עצמו יצר.
+     */
+    await db.from("photos").delete().eq("vote_id", vote.id);
+
     const storagePath = `${input.streetId}/${crypto.randomUUID()}.${decoded.ext}`;
     const photo = await db
       .from("photos")
