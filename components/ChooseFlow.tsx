@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { resizeImage } from "@/lib/image";
@@ -67,6 +67,17 @@ export default function ChooseFlow({
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const fileInput = useRef<HTMLInputElement>(null);
+  /*
+   * בנייד פותחים את המצלמה האחורית ישר, כי התושב עומד ברחוב. במחשב אין
+   * מצלמה שימושית, ולכן שם זו בחירת קובץ. הזיהוי נעשה אחרי הטעינה ולא
+   * בשרת: אותו HTML מוגש לשניהם, ורק הלקוח יודע אם יש כאן מצלמה.
+   */
+  const [hasCamera, setHasCamera] = useState<boolean | null>(null);
+  useEffect(() => {
+    const probe = document.createElement("input");
+    probe.type = "file";
+    setHasCamera("capture" in probe && window.matchMedia("(pointer: coarse)").matches);
+  }, []);
 
   /** Matches the official name and the registry's other spellings. */
   const matches = useMemo(() => {
@@ -231,10 +242,23 @@ export default function ChooseFlow({
                 ))}
               </ul>
             ) : query.trim().length > 0 ? (
-              <p className="mt-2 text-[13px] text-ink-soft">
-                לא נמצא רחוב בשם הזה ברשימת הרחובות הרשמית של אשדוד. בדקו את
-                האיות, או נסו חלק מהשם.
-              </p>
+              <div className="mt-2 text-[13px] text-ink-soft">
+                <p>
+                  לא נמצא רחוב בשם הזה ברשימת הרחובות הרשמית של אשדוד. בדקו את
+                  האיות, או נסו חלק מהשם.
+                </p>
+                {/*
+                  יש מקומות שיש להם שם בפי התושבים ואין להם שורה במרשם
+                  הלאומי. עד כה המסך נגמר כאן, והתושב שידע על מקום כזה פשוט
+                  יצא. שם המקום שהקליד עובר איתו לטופס ההצעה.
+                */}
+                <Link
+                  href={`/suggest?name=${encodeURIComponent(query.trim())}`}
+                  className="inline-link mt-1 inline-block text-accent underline underline-offset-2"
+                >
+                  להציע את {query.trim()} כרחוב שאינו ברשימה
+                </Link>
+              </div>
             ) : null}
 
             <p className="mt-2 text-[12px] text-ink-faint">
@@ -440,21 +464,32 @@ export default function ChooseFlow({
           </div>
 
           <div>
-            <p className="mb-1 text-[15px] font-medium text-ink">תמונה אחת (לא חובה)</p>
+            <p className="mb-1 text-[15px] font-medium text-ink">
+              {hasCamera ? "צלמו את הרחוב" : "תמונה אחת של הרחוב"} — לא חובה
+            </p>
+            <p className="text-[14px] text-ink-soft">
+              תמונה עוזרת לעירייה לראות מה אתם רואים.
+            </p>
+            <p className="mt-1 text-[13px] text-ink-faint">
+              התמונה מוקטנת במכשיר לפני השליחה, נתוני ה־EXIF נמחקים, והיא מתפרסמת רק
+              אחרי אישור הצוות. אנא הימנעו מצילום פנים ולוחיות רישוי.
+            </p>
+            {/*
+              האינפוט עצמו מוסתר, והכפתור למטה פותח אותו. כך שני המסלולים —
+              לצלם ולשלוח בלי תמונה — נראים בדיוק אותו דבר, ולא כפתור אחד
+              גדול ליד שדה קובץ קטן.
+            */}
             <input
               ref={fileInput}
               id="photo"
               type="file"
               accept="image/*"
+              {...(hasCamera ? { capture: "environment" as const } : {})}
               onChange={onPhoto}
-              className="w-full rounded-[12px] border border-line bg-surface px-3 py-2 text-[15px]"
+              className="sr-only"
             />
-            <p className="mt-1 text-[13px] text-ink-soft">
-              התמונה מוקטנת במכשיר לפני השליחה, נתוני ה־EXIF נמחקים, והיא מתפרסמת רק
-              אחרי אישור הצוות. אנא הימנעו מצילום פנים ולוחיות רישוי.
-            </p>
             {photo ? (
-              <div className="mt-2">
+              <div className="mt-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={photo}
@@ -468,7 +503,7 @@ export default function ChooseFlow({
                     setPhotoName("");
                     if (fileInput.current) fileInput.current.value = "";
                   }}
-                  className="mt-2 text-[14px] text-ink-soft underline"
+                  className="mt-2 min-h-11 text-[14px] text-ink-soft underline"
                 >
                   הסרת התמונה
                 </button>
@@ -476,25 +511,53 @@ export default function ChooseFlow({
             ) : null}
           </div>
 
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(2)}
-              className="flex-1 rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px]"
-            >
-              חזרה
-            </button>
+          {/*
+            שני מסלולים שווים במשקל.
+            קודם לכן היה כאן כפתור שליחה אחד ליד שדה קובץ, וכך "בלי תמונה"
+            לא היה מסלול אלא השארת שדה ריק. מי שאין לו תמונה צריך לראות
+            כפתור משלו באותו גודל, ולא להרגיש שהוא מדלג על משהו.
+          */}
+          {photo ? (
             <button
               type="button"
               disabled={busy}
               onClick={submit}
-              className="flex-1 rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white disabled:opacity-40"
+              className="pressable rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white disabled:opacity-40"
             >
-              {busy ? "שולח…" : "שליחת הקול"}
+              {busy ? "שולח…" : "שליחת הקול עם התמונה"}
             </button>
-          </div>
+          ) : (
+            <div className="flex gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => fileInput.current?.click()}
+                className="pressable flex-1 rounded-[14px] border-2 border-accent bg-surface px-3 py-3 text-[16px] font-medium text-accent"
+              >
+                {hasCamera ? "לצלם את הרחוב" : "לבחור תמונה"}
+              </button>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={submit}
+                className="pressable flex-1 rounded-[14px] bg-accent px-3 py-3 text-[16px] font-medium text-white disabled:opacity-40"
+              >
+                {busy ? "שולח…" : "לשלוח בלי תמונה"}
+              </button>
+            </div>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setStep(2)}
+            className="pressable rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px]"
+          >
+            חזרה לשאלות
+          </button>
+
           <p className="text-[13px] text-ink-faint">
-            לכל רחוב נשמר קול יחיד מכל תושב. שליחה חוזרת מעדכנת את הקול הקודם שלכם.
+            קול בלי תמונה נספר בדיוק כמו קול עם תמונה. לכל רחוב נשמר קול יחיד מכל
+            תושב, ושליחה חוזרת מעדכנת את הקול הקודם שלכם.
           </p>
         </section>
       ) : null}

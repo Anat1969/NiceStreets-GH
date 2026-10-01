@@ -123,6 +123,75 @@ export function buildTotals(
   };
 }
 
+export interface PhotoShareRow {
+  quarterId: string | null;
+  quarterName: string;
+  votes: number;
+  withPhoto: number;
+  /** 0–1, או null כשאין קולות אמיתיים ברובע. */
+  share: number | null;
+}
+
+/**
+ * שיעור הקולות שצורפה להם תמונה, לפי רובע.
+ *
+ * למה זה נמדד: התמונה בדירוג היא רשות, ובכוונה. המחיר של רשות הוא שהיא
+ * אינה מתחלקת שווה — רובע שבו מצלמים יותר ייראה מתועד יותר, ואם מישהו
+ * יסתכל על התמונות כעל מדגם הוא יסיק מהן מה שאין בהן. המספר הזה הוא
+ * ההגנה: הוא מראה איפה הפער, כדי שההחלטות יישענו על הקולות ולא על
+ * התמונות.
+ *
+ * נתוני הדגמה אינם נספרים כאן. הם נוצרו בלי תמונות, והיו מדללים כל רובע
+ * שיש בהם.
+ */
+export function photoShareByQuarter(
+  votes: Vote[],
+  photos: Photo[],
+  streets: Street[],
+  quarters: Quarter[],
+): PhotoShareRow[] {
+  const quarterOfStreet = new Map(streets.map((s) => [s.id, s.quarterId]));
+  const votesWithPhoto = new Set(
+    photos.map((p) => p.voteId).filter((id): id is string => Boolean(id)),
+  );
+  const real = votes.filter((v) => !v.isDemo);
+
+  const rows: PhotoShareRow[] = quarters.map((quarter) => {
+    const inQuarter = real.filter(
+      (v) => (v.quarterId ?? quarterOfStreet.get(v.streetId) ?? null) === quarter.id,
+    );
+    const withPhoto = inQuarter.filter(
+      (v) => v.photoId !== null || votesWithPhoto.has(v.id),
+    ).length;
+    return {
+      quarterId: quarter.id,
+      quarterName: quarter.name,
+      votes: inQuarter.length,
+      withPhoto,
+      share: inQuarter.length === 0 ? null : withPhoto / inQuarter.length,
+    };
+  });
+
+  // קולות ברחוב שטרם שויך לרובע אינם נעלמים מהמדד.
+  const unassigned = real.filter(
+    (v) => !(v.quarterId ?? quarterOfStreet.get(v.streetId) ?? null),
+  );
+  if (unassigned.length > 0) {
+    const withPhoto = unassigned.filter(
+      (v) => v.photoId !== null || votesWithPhoto.has(v.id),
+    ).length;
+    rows.push({
+      quarterId: null,
+      quarterName: "טרם שויך רובע",
+      votes: unassigned.length,
+      withPhoto,
+      share: withPhoto / unassigned.length,
+    });
+  }
+
+  return rows.sort((a, b) => b.votes - a.votes);
+}
+
 export function topStreets(streetStats: StreetStats[], limit = 5): StreetStats[] {
   return [...streetStats]
     .filter((s) => s.votes > 0)

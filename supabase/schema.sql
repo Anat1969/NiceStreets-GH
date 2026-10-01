@@ -123,6 +123,37 @@ create table if not exists street_status (
   updated_at   timestamptz not null default now()
 );
 
+-- ------------------------------------------------ דיווחים והצעות רחוב
+--
+-- שני המסלולים היחידים שבהם תמונה היא חובה. בדירוג התמונה היא רשות, כי קול
+-- בלי תמונה הוא קול מלא, ומי שנדרש לצלם פשוט לא ישלח. כאן התמונה היא הדיווח
+-- עצמו: מדרכה שבורה בלי תמונה אינה דיווח, ורחוב שאינו ברשימה הרשמית אינו
+-- ניתן לזיהוי בלעדיה.
+--
+-- דיווח אינו קול: אינו נספר בציון, אינו מופיע בשום מסך ציבורי, והתמונה שלו
+-- אינה עוברת בתור אישור התמונות הציבוריות. לכן היא כאן ולא ב-photos.
+
+create table if not exists reports (
+  id          uuid primary key default gen_random_uuid(),
+  kind        text not null check (kind in ('issue','street_suggestion')),
+  street_id   uuid references streets(id) on delete set null,
+  street_name text not null default '',
+  quarter_id  text references quarters(id),
+  body        text not null default '',
+  user_id     text not null default '',
+  handled     boolean not null default false,
+  created_at  timestamptz not null default now()
+);
+
+create index if not exists reports_open_idx on reports (handled, created_at desc);
+
+create table if not exists report_photos (
+  report_id    uuid primary key references reports(id) on delete cascade,
+  content_type text not null default 'image/jpeg',
+  data_base64  text not null,
+  created_at   timestamptz not null default now()
+);
+
 -- ------------------------------------------------------------------ staff role
 
 -- A user is staff when their auth uid appears here. Populate it manually for
@@ -147,6 +178,8 @@ alter table photos        enable row level security;
 alter table photo_blobs   enable row level security;
 alter table content_images enable row level security;
 alter table street_status enable row level security;
+alter table reports       enable row level security;
+alter table report_photos enable row level security;
 alter table staff         enable row level security;
 
 -- Reference data is public.
@@ -253,6 +286,21 @@ create policy app_content_images_write on content_images for all to anon
 
 drop policy if exists app_status_write on street_status;
 create policy app_status_write on street_status for all to anon
+  using (true) with check (true);
+
+-- דיווחים: הציבור אינו קורא אותם, גם לא את שלו. אלה פניות לאגף ולא תוכן האתר.
+drop policy if exists reports_staff_read on reports;
+create policy reports_staff_read on reports for select using (is_staff());
+
+drop policy if exists report_photos_staff_read on report_photos;
+create policy report_photos_staff_read on report_photos for select using (is_staff());
+
+drop policy if exists app_reports_write on reports;
+create policy app_reports_write on reports for all to anon
+  using (true) with check (true);
+
+drop policy if exists app_report_photos_write on report_photos;
+create policy app_report_photos_write on report_photos for all to anon
   using (true) with check (true);
 
 -- ------------------------------------------------------------------ רובעים

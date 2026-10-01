@@ -92,6 +92,35 @@ export function isPublicPhoto(photo: Pick<Photo, "status" | "source">): boolean 
   return photo.status === "approved" && photo.source !== "test";
 }
 
+/**
+ * שני המסלולים שבהם תמונה היא חובה.
+ *
+ * "issue" — דיווח לעירייה על משהו שקרה ברחוב: מדרכה שבורה, עץ שנכרת,
+ * מקום שאי אפשר לעבור בו. התמונה כאן היא הדיווח עצמו.
+ * "street_suggestion" — תושב מציע רחוב שאינו ברשימת הרחובות הרשמית.
+ * התמונה היא מה שמאפשר לצוות לזהות על איזה מקום מדובר.
+ *
+ * דיווח אינו קול, אינו נספר בציון ואינו מתפרסם. התמונה שלו היא ראיה
+ * לצוות, ולכן אינה עוברת בתור אישור התמונות הציבוריות.
+ */
+export type ReportKind = "issue" | "street_suggestion";
+
+export interface Report {
+  id: string;
+  kind: ReportKind;
+  /** לדיווח: הרחוב שהדיווח עליו. להצעה: null, הרחוב עוד אינו קיים. */
+  streetId: string | null;
+  /** להצעה: השם שהתושב כתב. לדיווח: שם הרחוב, כפי שהיה בזמן הדיווח. */
+  streetName: string;
+  /** להצעה: הרובע שהתושב בחר. */
+  quarterId: string | null;
+  body: string;
+  userId: string;
+  /** הצוות סימן שטופל. אין כאן "נדחה": דיווח שנקרא וטופל הוא דיווח שנגמר. */
+  handled: boolean;
+  createdAt: string;
+}
+
 export interface StreetStatus {
   streetId: string;
   status: StatusKey;

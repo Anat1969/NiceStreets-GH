@@ -2,6 +2,7 @@ import Link from "next/link";
 import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
+import { photoShareByQuarter } from "@/lib/stats";
 import { votesLabel } from "@/lib/hebrew";
 import { getRole, staffCodeConfigured } from "@/lib/session";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
@@ -79,13 +80,31 @@ export default async function AdminPage({
   }
 
   const store = getStore();
-  const [{ streetStats, totals, error: dataError }, allVotes, allPhotos, imageSlots] =
-    await Promise.all([
-      loadCityData(),
-      store.listVotes().catch(() => []),
-      store.listPhotos({ status: "pending" }).catch(() => []),
-      store.listContentImageSlots().catch(() => [] as string[]),
-    ]);
+  const [
+    { streetStats, totals, error: dataError },
+    allVotes,
+    everyPhoto,
+    imageSlots,
+    openReports,
+  ] = await Promise.all([
+    loadCityData(),
+    store.listVotes().catch(() => []),
+    store.listPhotos().catch(() => []),
+    store.listContentImageSlots().catch(() => [] as string[]),
+    store
+      .listReports({ handled: false })
+      .catch(() => [] as Awaited<ReturnType<typeof store.listReports>>),
+  ]);
+  const allPhotos = everyPhoto.filter((p) => p.status === "pending");
+
+  const photoShare = photoShareByQuarter(
+    allVotes,
+    everyPhoto,
+    streetStats.map((row) => row.street),
+    QUARTERS,
+  ).filter((row) => row.votes > 0);
+  const realVotes = allVotes.filter((v) => !v.isDemo).length;
+  const realVotesWithPhoto = photoShare.reduce((sum, row) => sum + row.withPhoto, 0);
 
   // The words the resident wrote with the vote the photo came with.
   const reasonByVote = new Map(allVotes.map((v) => [v.id, v.reason]));
@@ -196,6 +215,83 @@ export default async function AdminPage({
           </Link>
         </p>
       </section>
+
+      {/*
+        דיווחים אינם קולות, ולכן הם מדור נפרד ולא עוד מספר ב"מצב כללי":
+        בקול אין מה לעשות, ובדיווח כן.
+      */}
+      <section className="mb-6">
+        <div className="mb-2 flex items-center gap-2">
+          <h2 className="text-[19px] font-semibold text-ink">דיווחים והצעות</h2>
+          {openReports.length > 0 ? (
+            <span
+              className="rounded-full bg-warm px-3 py-[2px] text-[14px] font-semibold text-white"
+              aria-label={`${openReports.length} דיווחים פתוחים`}
+            >
+              {openReports.length}
+            </span>
+          ) : null}
+        </div>
+        <p className="mb-2 text-[14px] text-ink-soft">
+          שני המסלולים שבהם התושב חייב לצרף תמונה: דיווח על משהו שקרה ברחוב, והצעת
+          רחוב שאינו ברשימה הרשמית.
+        </p>
+        <p className="text-[13px]">
+          <Link
+            href="/admin/reports"
+            className="inline-link text-accent underline underline-offset-2"
+          >
+            {openReports.length > 0
+              ? `${openReports.length} פתוחים — לטיפול`
+              : "אין דיווחים פתוחים. לכל הדיווחים"}
+          </Link>
+        </p>
+      </section>
+
+      <Section
+        title="שיעור הקולות עם תמונה"
+        note="התמונה בדירוג היא רשות, ולכן היא אינה מתחלקת שווה בין הרובעים. המספר הזה מראה איפה הפער, כדי שההחלטות יישענו על הקולות ולא על התמונות. נתוני הדגמה אינם נספרים כאן."
+      >
+        {photoShare.length === 0 ? (
+          <Card>
+            <p className="text-[14px] text-ink-soft">אין עדיין קולות של תושבים.</p>
+          </Card>
+        ) : (
+          <div className="card divide-y divide-line">
+            <div className="p-3">
+              <p className="text-[15px] font-medium text-ink">
+                בכל העיר: {realVotesWithPhoto} מתוך {realVotes}{" "}
+                {realVotes > 0
+                  ? `(${Math.round((realVotesWithPhoto / realVotes) * 100)}%)`
+                  : ""}
+              </p>
+            </div>
+            {photoShare.map((row) => (
+              <div key={row.quarterId ?? "none"} className="p-3">
+                <div className="flex items-baseline justify-between gap-2">
+                  <p className="text-[15px] text-ink">{row.quarterName}</p>
+                  <p className="text-[15px] font-medium text-ink">
+                    {row.share === null ? "—" : `${Math.round(row.share * 100)}%`}
+                  </p>
+                </div>
+                <p className="text-[13px] text-ink-faint">
+                  {row.withPhoto} מתוך {votesLabel(row.votes)} עם תמונה
+                </p>
+                {/* פס פשוט, כדי שהפער בין רובעים ייראה בעין ולא ייקרא שורה-שורה. */}
+                <div
+                  className="mt-1 h-2 overflow-hidden rounded-full bg-line"
+                  role="presentation"
+                >
+                  <div
+                    className="h-full rounded-full bg-accent"
+                    style={{ width: `${Math.round((row.share ?? 0) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Section>
 
       {role === "admin" ? (
         <Section

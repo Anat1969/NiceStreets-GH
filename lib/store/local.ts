@@ -9,6 +9,8 @@ import type {
   PhotoSource,
   PhotoStatus,
   Quarter,
+  Report,
+  ReportKind,
   Street,
   StreetStatus,
   Vote,
@@ -25,6 +27,8 @@ interface Snapshot {
   votes: Vote[];
   photos: Photo[];
   statuses: StreetStatus[];
+  /** דיווחים לעירייה והצעות רחוב. ראו createReport. */
+  reports?: Report[];
   /** תמונות תוכן, לפי מפתח המקום. */
   contentImages?: Record<string, { contentType: string; dataBase64: string; alt: string }>;
 }
@@ -41,6 +45,7 @@ const DATA_DIR = process.env.LOCAL_DATA_DIR
     : path.join(process.cwd(), ".data");
 const FILE = path.join(DATA_DIR, "store.json");
 const PHOTO_DIR = path.join(DATA_DIR, "photos");
+const REPORT_DIR = path.join(DATA_DIR, "reports");
 
 function emptySnapshot(): Snapshot {
   // Streets are created from the national registry the first time someone
@@ -391,6 +396,80 @@ export class LocalStore implements DataStore {
     await withLock(async () => {
       const snapshot = await load();
       snapshot.photos = snapshot.photos.map((p) => (p.id === photoId ? { ...p, status } : p));
+      await persist(snapshot);
+    });
+  }
+
+  async createReport(input: {
+    kind: ReportKind;
+    streetId?: string | null;
+    streetName: string;
+    quarterId?: string | null;
+    body: string;
+    userId: string;
+    dataUrl: string;
+  }): Promise<Report> {
+    return withLock(async () => {
+      const snapshot = await load();
+      const decoded = decodeDataUrl(input.dataUrl);
+      if (!decoded) throw new Error("PHOTO_FORMAT");
+      if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
+      await fs.mkdir(REPORT_DIR, { recursive: true });
+      const reportId = id("r");
+      await fs.writeFile(
+        path.join(REPORT_DIR, `${reportId}.${decoded.ext}`),
+        decoded.body,
+      );
+      const report: Report = {
+        id: reportId,
+        kind: input.kind,
+        streetId: input.streetId ?? null,
+        streetName: input.streetName,
+        quarterId: input.quarterId ?? null,
+        body: input.body,
+        userId: input.userId,
+        handled: false,
+        createdAt: new Date().toISOString(),
+      };
+      snapshot.reports = [...(snapshot.reports ?? []), report];
+      await persist(snapshot);
+      return { ...report };
+    });
+  }
+
+  async listReports(filter?: { kind?: ReportKind; handled?: boolean }): Promise<Report[]> {
+    const snapshot = await withLock(load);
+    return (snapshot.reports ?? [])
+      .filter((r) => !filter?.kind || r.kind === filter.kind)
+      .filter((r) => filter?.handled === undefined || r.handled === filter.handled)
+      .map((r) => ({ ...r }))
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
+
+  async readReportPhoto(
+    reportId: string,
+  ): Promise<{ body: Buffer; contentType: string } | null> {
+    for (const ext of ["jpg", "png", "webp"]) {
+      try {
+        const body = await fs.readFile(path.join(REPORT_DIR, `${reportId}.${ext}`));
+        return {
+          body,
+          contentType:
+            ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg",
+        };
+      } catch {
+        // הסיומת הבאה.
+      }
+    }
+    return null;
+  }
+
+  async setReportHandled(reportId: string, handled: boolean): Promise<void> {
+    await withLock(async () => {
+      const snapshot = await load();
+      snapshot.reports = (snapshot.reports ?? []).map((r) =>
+        r.id === reportId ? { ...r, handled } : r,
+      );
       await persist(snapshot);
     });
   }

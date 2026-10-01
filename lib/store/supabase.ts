@@ -6,6 +6,8 @@ import type {
   PhotoSource,
   PhotoStatus,
   Quarter,
+  Report,
+  ReportKind,
   Street,
   StreetStatus,
   Vote,
@@ -72,6 +74,20 @@ function toStatus(row: Row): StreetStatus {
     publicNote: row.public_note ?? "",
     updatedBy: row.updated_by ?? "",
     updatedAt: row.updated_at,
+  };
+}
+
+function toReport(row: Row): Report {
+  return {
+    id: row.id,
+    kind: row.kind,
+    streetId: row.street_id ?? null,
+    streetName: row.street_name ?? "",
+    quarterId: row.quarter_id ?? null,
+    body: row.body ?? "",
+    userId: row.user_id ?? "",
+    handled: Boolean(row.handled),
+    createdAt: row.created_at,
   };
 }
 
@@ -406,6 +422,76 @@ export class SupabaseStore implements DataStore {
 
   async setPhotoStatus(photoId: string, status: PhotoStatus): Promise<void> {
     const { error } = await this.db.from("photos").update({ status }).eq("id", photoId);
+    if (error) throw new Error(error.message);
+  }
+
+  async createReport(input: {
+    kind: ReportKind;
+    streetId?: string | null;
+    streetName: string;
+    quarterId?: string | null;
+    body: string;
+    userId: string;
+    dataUrl: string;
+  }): Promise<Report> {
+    const decoded = decodeDataUrl(input.dataUrl);
+    if (!decoded) throw new Error("PHOTO_FORMAT");
+    if (decoded.body.byteLength > MAX_PHOTO_BYTES) throw new Error("PHOTO_TOO_LARGE");
+
+    const { data, error } = await this.db
+      .from("reports")
+      .insert({
+        kind: input.kind,
+        street_id: input.streetId ?? null,
+        street_name: input.streetName,
+        quarter_id: input.quarterId ?? null,
+        body: input.body,
+        user_id: input.userId,
+      })
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+
+    // אין דיווח בלי תמונה: אם הראיה לא נשמרה, גם השורה לא נשארת.
+    const blob = await this.db.from("report_photos").insert({
+      report_id: data.id,
+      content_type: decoded.mime,
+      data_base64: decoded.body.toString("base64"),
+    });
+    if (blob.error) {
+      await this.db.from("reports").delete().eq("id", data.id);
+      throw new Error(blob.error.message);
+    }
+    return toReport(data);
+  }
+
+  async listReports(filter?: { kind?: ReportKind; handled?: boolean }): Promise<Report[]> {
+    const rows = await this.rows("reports", (q) => {
+      let query = q;
+      if (filter?.kind) query = query.eq("kind", filter.kind);
+      if (filter?.handled !== undefined) query = query.eq("handled", filter.handled);
+      return query.order("created_at", { ascending: false });
+    });
+    return rows.map(toReport);
+  }
+
+  async readReportPhoto(
+    reportId: string,
+  ): Promise<{ body: Buffer; contentType: string } | null> {
+    const { data, error } = await this.db
+      .from("report_photos")
+      .select("content_type, data_base64")
+      .eq("report_id", reportId)
+      .maybeSingle();
+    if (error || !data?.data_base64) return null;
+    return {
+      body: Buffer.from(data.data_base64, "base64"),
+      contentType: data.content_type ?? "image/jpeg",
+    };
+  }
+
+  async setReportHandled(reportId: string, handled: boolean): Promise<void> {
+    const { error } = await this.db.from("reports").update({ handled }).eq("id", reportId);
     if (error) throw new Error(error.message);
   }
 

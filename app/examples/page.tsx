@@ -4,6 +4,7 @@ import {
   CRITERION_MAP,
   EXAMPLES,
   FAMILY_MAP,
+  PHOTO_POLICY,
   TYPOLOGY_MAP,
   TYPOLOGIES,
   criterionHref,
@@ -14,6 +15,7 @@ import { getStore } from "@/lib/store";
 import ImageFrame from "@/components/ImageFrame";
 import { imageSlot } from "@/lib/content-images";
 import { isAdmin } from "@/lib/session";
+import { isPublicPhoto } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
@@ -31,22 +33,36 @@ export default async function ExamplesPage({
 }) {
   const params = await searchParams;
 
-  /*
-   * Photos the admin uploaded as examples. They belong to a street, so the
-   * library shows them beside the written examples rather than instead of
-   * them: one is a picture of a street in Ashdod, the other is a description
-   * of a street elsewhere that explains a criterion.
-   */
   const store = getStore();
   const [slots, admin] = await Promise.all([
     store.listContentImageSlots().catch(() => [] as string[]),
     isAdmin(),
   ]);
-  const [examplePhotos, streets] = await Promise.all([
-    store.listPhotos().then((rows) => rows.filter((p) => p.source === "example")).catch(() => []),
+  const [allPhotos, streets] = await Promise.all([
+    store.listPhotos().catch(() => []),
     store.listStreets().catch(() => []),
   ]);
-  const streetById = new Map(streets.map((s) => [s.id, s]));
+
+  /*
+   * רחובות מאשדוד שנכנסו לספריית הדוגמאות.
+   *
+   * תמונה אחת מאושרת היא רגע — מישהו עבר שם פעם אחת וצילם. לכן רחוב
+   * נכנס לכאן רק אחרי PHOTO_POLICY.photosForExample תמונות מאושרות,
+   * או כשהמנהלת העלתה לו תמונה כדוגמה: העלאה כזאת היא החלטה של האגף
+   * ולא צבירה של קולות, והסף אינו חל עליה.
+   */
+  const cityStreets = streets
+    .map((street) => {
+      const shown = allPhotos
+        .filter((p) => p.streetId === street.id && isPublicPhoto(p))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const curated = shown.some((p) => p.source === "example");
+      return { street, shown, curated };
+    })
+    .filter(
+      (row) => row.curated || row.shown.length >= PHOTO_POLICY.photosForExample,
+    )
+    .sort((a, b) => b.shown.length - a.shown.length);
 
   const criterion =
     params.criterion && params.criterion in CRITERION_MAP
@@ -56,6 +72,10 @@ export default async function ExamplesPage({
     params.typology && params.typology in TYPOLOGY_MAP
       ? (params.typology as TypologyKey)
       : "";
+
+  const cityStreetRows = typology
+    ? cityStreets.filter((row) => row.street.typology === typology)
+    : cityStreets;
 
   const results = EXAMPLES.filter(
     (e) =>
@@ -141,35 +161,58 @@ export default async function ExamplesPage({
         {typology ? ` · ${TYPOLOGY_MAP[typology].label}` : ""}
       </p>
 
-      {/* Only on the unfiltered view: these photos carry no criterion tag. */}
-      {!criterion && !typology && examplePhotos.length > 0 ? (
-        <section aria-labelledby="photo-examples" className="mb-5">
-          <h2 id="photo-examples" className="mb-2 text-[17px] font-semibold text-ink">
-            תמונות מהעיר
+      {/*
+        רחובות מאשדוד. הסינון לפי קריטריון אינו חל עליהם — לרחוב אמיתי אין
+        תג קריטריון אחד — ולכן בסינון כזה החלק הזה נסגר, ובסינון לפי סוג
+        רחוב הוא מצטמצם לסוג שנבחר.
+      */}
+      {!criterion ? (
+        <section aria-labelledby="city-streets" className="mb-5">
+          <h2 id="city-streets" className="mb-1 text-[17px] font-semibold text-ink">
+            רחובות מאשדוד
           </h2>
-          <ul className="grid grid-cols-2 gap-2">
-            {examplePhotos.map((photo) => {
-              const street = streetById.get(photo.streetId);
-              return (
-                <li key={photo.id} className="overflow-hidden rounded-[12px] border border-line">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img
-                    src={`/api/photos/${photo.id}`}
-                    alt={street ? `${street.name}, אשדוד` : "דוגמה מאשדוד"}
-                    className="h-32 w-full object-cover"
-                  />
-                  {street ? (
+          <p className="mb-2 text-[13px] text-ink-faint">
+            רחוב נכנס לכאן אחרי {PHOTO_POLICY.photosForExample} תמונות שהצוות אישר,
+            כדי שמה שרואים יהיה הרחוב ולא רגע אחד בו.
+          </p>
+          {cityStreetRows.length === 0 ? (
+            <Notice>
+              עדיין אין רחוב באשדוד עם {PHOTO_POLICY.photosForExample} תמונות מאושרות.
+              כל תמונה שתושב מצרף לקול שלו מקרבת רחוב לכאן.
+            </Notice>
+          ) : (
+            <ul className="grid gap-2">
+              {cityStreetRows.map(({ street, shown }) => (
+                <li key={street.id} className="overflow-hidden rounded-[12px] border border-line">
+                  <ul className="flex">
+                    {shown.slice(0, 3).map((photo) => (
+                      <li key={photo.id} className="min-w-0 flex-1">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/api/photos/${photo.id}`}
+                          alt={`${street.name}, אשדוד`}
+                          className="h-28 w-full object-cover"
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                  <div className="flex items-baseline justify-between gap-2 px-3 py-2">
                     <Link
                       href={`/street/${street.id}`}
-                      className="inline-link block px-2 py-2 text-[13px] text-accent underline underline-offset-2"
+                      className="inline-link text-[15px] font-medium text-accent underline underline-offset-2"
                     >
                       {street.name}
                     </Link>
-                  ) : null}
+                    <span className="text-[13px] text-ink-faint">
+                      {shown.length}{" "}
+                      {shown.length === 1 ? "תמונה מאושרת" : "תמונות מאושרות"}
+                      {street.typology ? ` · ${TYPOLOGY_MAP[street.typology].label}` : ""}
+                    </span>
+                  </div>
                 </li>
-              );
-            })}
-          </ul>
+              ))}
+            </ul>
+          )}
         </section>
       ) : null}
 

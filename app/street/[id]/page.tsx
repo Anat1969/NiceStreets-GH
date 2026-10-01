@@ -485,6 +485,17 @@ export default async function StreetPage({
             ? `רחובות נוספים ב${stats.quarterName}`
             : "חזרה לרשימת הרחובות"}
         </Link>
+        {/*
+          דיווח אינו דירוג. דירוג הוא דעה על הרחוב, ודיווח הוא בקשה לטפל
+          במשהו שקרה בו — ולכן הוא כפתור נפרד, ושם התמונה היא חובה: בלעדיה
+          אין לאגף מה לבדוק.
+        */}
+        <Link
+          href={`/report?street=${street.id}`}
+          className="flex items-center justify-center rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px] text-ink"
+        >
+          לדווח לעירייה על משהו ברחוב
+        </Link>
       </div>
 
       {!street.verified ? (
