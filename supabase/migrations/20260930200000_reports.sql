@@ -37,20 +37,10 @@ create table if not exists report_photos (
 alter table reports       enable row level security;
 alter table report_photos enable row level security;
 
--- הציבור אינו קורא דיווחים, גם לא את שלו: אלה פניות לאגף ולא תוכן האתר.
-drop policy if exists reports_staff_read on reports;
-create policy reports_staff_read on reports for select using (is_staff());
-
-drop policy if exists report_photos_staff_read on report_photos;
-create policy report_photos_staff_read on report_photos for select using (is_staff());
-
--- כל עוד האפליקציה עובדת עם מפתח כפוף ל-RLS, המדיניות כאן חייבת לאפשר לה
--- את כל הפעולות: המסד אינו יכול להבחין בין השרת לבין גולש. מי רואה מה
--- נאכף בקוד האפליקציה, לפי התפקיד שבעוגייה.
-drop policy if exists app_reports_write on reports;
-create policy app_reports_write on reports for all to anon
-  using (true) with check (true);
-
-drop policy if exists app_report_photos_write on report_photos;
-create policy app_report_photos_write on report_photos for all to anon
-  using (true) with check (true);
+-- ההרשאות עצמן נקבעות בהגירה שאחריה,
+-- 20261001130000_reports_permissions.sql, לפי מודל ההרשאות של Stage 0:
+-- anon כלום, התושב שולח וקורא את שלו, הצוות רואה הכול.
+--
+-- ההגירה הזאת רצה במסד הייצור לפני שההרשאות ננעלו, ולכן יצרה בזמנו
+-- מדיניות גורפת ל-anon. היא הוסרה כאן כדי שמסד חדש שיוקם מאפס לא יקבל
+-- אותה אפילו לרגע.

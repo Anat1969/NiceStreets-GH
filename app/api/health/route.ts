@@ -1,19 +1,11 @@
 import { NextResponse } from "next/server";
+import { SUPABASE_PUBLISHABLE_KEY, SUPABASE_URL } from "@/lib/supabase/config";
+import { getRole } from "@/lib/session";
 import { getStore, getStoreConfigError } from "@/lib/store";
 import { BUILD_SHA } from "@/lib/version";
 
 export const dynamic = "force-dynamic";
 
-function describe(value: string | undefined): string {
-  if (value === undefined) return "לא מוגדר";
-  const trimmed = value.trim();
-  if (trimmed === "") return "מוגדר אך ריק";
-  const notes: string[] = [`אורך ${trimmed.length}`];
-  if (value !== trimmed) notes.push("יש רווחים או שורה מיותרת בקצוות");
-  if (/\s/.test(trimmed)) notes.push("יש רווח או ירידת שורה באמצע הערך");
-  if (/^["']|["']$/.test(trimmed)) notes.push("יש מרכאות בקצוות, והן נספרות באורך");
-  return notes.join(", ");
-}
 
 /**
  * Diagnostics for the deployment. Open /api/health in a browser.
@@ -27,25 +19,15 @@ export async function GET() {
     const store = getStore();
     const configError = getStoreConfigError();
 
-    const rawUrl = process.env.SUPABASE_URL ?? process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const rawKey = process.env.SUPABASE_SERVICE_ROLE_KEY ?? process.env.SUPABASE_KEY;
-
     const config = {
       backend: store.kind,
       build: BUILD_SHA || "לא ידוע (הרצה מקומית)",
-      SUPABASE_URL: describe(rawUrl),
-      SUPABASE_URL_looksLikeUrl: (rawUrl ?? "").trim().startsWith("https://"),
-      SUPABASE_SERVICE_ROLE_KEY: describe(rawKey),
-      STAFF_CODE: describe(process.env.STAFF_CODE),
-      ADMIN_CODE: describe(process.env.ADMIN_CODE),
-      /*
-        שני הקודים זהים פירושו שקוד הצוות מעניק ממילא את הרשאות המנהלת,
-        ואם הם לא זהים — הקוד שמעלה תמונות הוא ADMIN_CODE ולא STAFF_CODE.
-        זו הייתה סיבה אמיתית ל"הקוד שגוי" במסך אחד ותקין באחר.
-      */
-      codesAreIdentical:
-        Boolean(process.env.STAFF_CODE) &&
-        (process.env.STAFF_CODE ?? "").trim() === (process.env.ADMIN_CODE ?? "").trim(),
+      supabaseUrl: SUPABASE_URL,
+      // The publishable key is public by design; showing its prefix helps
+      // tell a legacy anon key from the new format at a glance.
+      publishableKey: `${SUPABASE_PUBLISHABLE_KEY.slice(0, 15)}…`,
+      auth: "Supabase Auth — תושבים: כניסה אנונימית, צוות: קישור במייל",
+      role: await getRole(),
       configError,
     };
 

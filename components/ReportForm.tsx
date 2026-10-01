@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { ensureResidentSession } from "@/lib/supabase/browser";
 import { resizeImage } from "@/lib/image";
 import { joinHebrew } from "@/lib/hebrew";
 import type { ReportKind } from "@/lib/types";
@@ -58,6 +59,8 @@ export default function ReportForm({
     setBusy(true);
     setError(null);
     try {
+      // כמו בדירוג: הזהות האנונימית נפתחת בדפדפן לפני הכתיבה הראשונה.
+      await ensureResidentSession();
       const response = await fetch("/api/reports", {
         method: "POST",
         headers: { "content-type": "application/json" },

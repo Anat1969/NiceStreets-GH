@@ -1,20 +1,20 @@
 import { NextResponse } from "next/server";
-import { STAFF_COOKIE } from "@/lib/session";
+import { supabaseServer } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /**
- * יציאה מהצוות. קיימת כדי שאפשר יהיה לראות את האפליקציה בעיני תושב בלי
- * לנקות עוגיות ביד, ובלי להישאר מחובר במכשיר משותף.
+ * יציאה מהצוות. קיימת כדי שאפשר יהיה לראות את האפליקציה בעיני תושב, ובלי
+ * להישאר מחובר במכשיר משותף. ה-session נמחק בשרת של Supabase ובעוגיות.
  *
- * `Location` יחסי, מאותה סיבה שבכניסה: כתובת מוחלטת שנבנית מ-request.url
- * עלולה לשאת מארח אחר, והעוגייה שמתבטלת כאן שייכת למארח שממנו הגיע הגולש.
+ * `Location` יחסי: כתובת מוחלטת שנבנית מ-request.url עלולה לשאת מארח אחר.
  */
 export async function POST() {
-  const response = new NextResponse(null, {
-    status: 303,
-    headers: { Location: "/" },
-  });
-  response.cookies.set(STAFF_COOKIE, "", { path: "/", maxAge: 0 });
-  return response;
+  try {
+    const supabase = await supabaseServer();
+    await supabase.auth.signOut();
+  } catch {
+    // Signing out of a session that is already gone is still a sign-out.
+  }
+  return new NextResponse(null, { status: 303, headers: { Location: "/" } });
 }

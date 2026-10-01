@@ -9,7 +9,7 @@ import {
   segmentName,
   segmentQuarters,
 } from "@/lib/segments";
-import { RESIDENT_COOKIE, getResidentId, newResidentId } from "@/lib/session";
+import { getResidentId } from "@/lib/session";
 import type { Scores } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -82,8 +82,15 @@ export async function POST(request: Request) {
 
   const reason = (body.reason ?? "").toString().trim().slice(0, 600);
   const store = getStore();
-  const existingId = await getResidentId();
-  const userId = existingId ?? newResidentId();
+  // The browser signs the resident in anonymously before sending; the vote
+  // is theirs by that identity, and the database only lets them touch it.
+  const userId = await getResidentId();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "הזיהוי האנונימי חסר. רעננו את הדף ונסו שוב.", needSession: true },
+      { status: 401 },
+    );
+  }
 
   try {
     const street = await store.createStreet(
@@ -103,21 +110,11 @@ export async function POST(request: Request) {
       typologySuggestion: (suggestion as TypologyKey) ?? null,
       photo: body.photo ? { dataUrl: body.photo } : null,
     });
-    const response = NextResponse.json({
+    return NextResponse.json({
       ok: true,
       streetId: vote.streetId,
       updated: vote.createdAt !== vote.updatedAt,
     });
-    if (!existingId) {
-      response.cookies.set(RESIDENT_COOKIE, userId, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-        secure: process.env.NODE_ENV === "production",
-      });
-    }
-    return response;
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNKNOWN";
     const messages: Record<string, string> = {

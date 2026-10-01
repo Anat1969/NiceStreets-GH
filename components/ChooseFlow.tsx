@@ -1,5 +1,6 @@
 "use client";
 
+import { ensureResidentSession } from "@/lib/supabase/browser";
 import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -132,6 +133,7 @@ export default function ChooseFlow({
     setBusy(true);
     setError(null);
     try {
+      await ensureResidentSession();
       const response = await fetch("/api/votes", {
         method: "POST",
         headers: { "content-type": "application/json" },

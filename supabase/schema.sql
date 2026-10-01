@@ -288,20 +288,44 @@ drop policy if exists app_status_write on street_status;
 create policy app_status_write on street_status for all to anon
   using (true) with check (true);
 
--- דיווחים: הציבור אינו קורא אותם, גם לא את שלו. אלה פניות לאגף ולא תוכן האתר.
-drop policy if exists reports_staff_read on reports;
-create policy reports_staff_read on reports for select using (is_staff());
+-- דיווחים: אינם תוכן ציבורי. הזהות מגיעה מ-Supabase Auth, כמו בקולות
+-- ובתמונות — התושב שולח וקורא רק את שלו, והצוות רואה הכול ומסמן כטופל.
+-- ראו supabase/migrations/20261001130000_reports_permissions.sql.
+revoke select, insert, update, delete on public.reports from anon;
+revoke select, insert, update, delete on public.report_photos from anon;
+
+drop policy if exists reports_read_own_or_staff on reports;
+create policy reports_read_own_or_staff on reports for select to authenticated
+  using (user_id = auth.uid()::text or is_staff());
+
+drop policy if exists reports_insert_own on reports;
+create policy reports_insert_own on reports for insert to authenticated
+  with check (user_id = auth.uid()::text and handled = false);
+
+drop policy if exists reports_staff_update on reports;
+create policy reports_staff_update on reports for update to authenticated
+  using (is_staff()) with check (is_staff());
+
+drop policy if exists reports_staff_delete on reports;
+create policy reports_staff_delete on reports for delete to authenticated
+  using (is_staff());
 
 drop policy if exists report_photos_staff_read on report_photos;
-create policy report_photos_staff_read on report_photos for select using (is_staff());
+create policy report_photos_staff_read on report_photos for select to authenticated
+  using (is_staff());
 
-drop policy if exists app_reports_write on reports;
-create policy app_reports_write on reports for all to anon
-  using (true) with check (true);
+drop policy if exists report_photos_insert on report_photos;
+create policy report_photos_insert on report_photos for insert to authenticated
+  with check (
+    exists (
+      select 1 from reports r
+      where r.id = report_id and r.user_id = auth.uid()::text
+    )
+  );
 
-drop policy if exists app_report_photos_write on report_photos;
-create policy app_report_photos_write on report_photos for all to anon
-  using (true) with check (true);
+drop policy if exists report_photos_staff_delete on report_photos;
+create policy report_photos_staff_delete on report_photos for delete to authenticated
+  using (is_staff());
 
 -- ------------------------------------------------------------------ רובעים
 --

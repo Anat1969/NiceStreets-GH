@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { QUARTER_MAP } from "@/lib/city";
 import { getStore } from "@/lib/store";
-import { RESIDENT_COOKIE, getResidentId, newResidentId } from "@/lib/session";
+import { getResidentId } from "@/lib/session";
 import type { ReportKind } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
@@ -73,8 +73,14 @@ export async function POST(request: Request) {
   const quarterId =
     body.quarterId && body.quarterId in QUARTER_MAP ? body.quarterId : null;
 
-  const existingId = await getResidentId();
-  const userId = existingId ?? newResidentId();
+  // הדפדפן מחבר את התושב אנונימית לפני השליחה, והדיווח שייך לזהות הזאת.
+  const userId = await getResidentId();
+  if (!userId) {
+    return NextResponse.json(
+      { error: "הזיהוי האנונימי חסר. רעננו את הדף ונסו שוב.", needSession: true },
+      { status: 401 },
+    );
+  }
 
   try {
     const report = await store.createReport({
@@ -86,17 +92,7 @@ export async function POST(request: Request) {
       userId,
       dataUrl: body.dataUrl,
     });
-    const response = NextResponse.json({ ok: true, reportId: report.id });
-    if (!existingId) {
-      response.cookies.set(RESIDENT_COOKIE, userId, {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-        secure: process.env.NODE_ENV === "production",
-      });
-    }
-    return response;
+    return NextResponse.json({ ok: true, reportId: report.id });
   } catch (error) {
     const code = error instanceof Error ? error.message : "UNKNOWN";
     const messages: Record<string, string> = {

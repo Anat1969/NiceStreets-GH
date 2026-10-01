@@ -4,13 +4,16 @@ import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { photoShareByQuarter } from "@/lib/stats";
 import { votesLabel } from "@/lib/hebrew";
-import { getRole, staffCodeConfigured } from "@/lib/session";
+import { getRole, getSignedInEmail } from "@/lib/session";
+import StaffLogin from "@/components/StaffLogin";
 import { Card, Notice, Section, StatusBadge } from "@/components/ui";
 import DemoControls from "@/components/DemoControls";
 import PhotoModeration from "@/components/PhotoModeration";
 import { QUARTER_MAP } from "@/lib/city";
 import { contestedThemes } from "@/lib/themes";
 import AdminUpload from "@/components/AdminUpload";
+import AuditRunButton from "@/components/AuditRunButton";
+import { loadAuditOverview } from "@/lib/audit";
 import StreetAssignment from "@/components/StreetAssignment";
 import ImageFrame from "@/components/ImageFrame";
 import { imageSlot } from "@/lib/content-images";
@@ -23,58 +26,37 @@ export default async function AdminPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const role = await getRole();
+  const [role, signedInEmail] = await Promise.all([getRole(), getSignedInEmail()]);
   const staff = role !== "resident";
 
   if (!staff) {
     return (
       <>
         <h1 className="mb-1 text-[24px] font-bold text-ink">כניסת צוות</h1>
-        <p className="mb-4 text-[14px] text-ink-soft">
-          לוח הבקרה של אגף אדריכלות העיר. הכניסה בקוד צוות או בקוד מנהלת.
-        </p>
-        {error ? (
+        {signedInEmail ? (
           <div role="alert" className="mb-3 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink">
-            <p className="font-medium">הקוד שהוקלד אינו מתאים.</p>
-            <p className="mt-1 text-[13px]">
-              רווחים בקצוות ומרכאות מוסרים אוטומטית, כך שהם אינם הסיבה. מה כן
-              נבדק: אותיות גדולות וקטנות נחשבות שונות, ולהעלאת תמונות צריך את
-              קוד המנהלת (ADMIN_CODE) ולא את קוד הצוות.
+            <p className="font-medium">
+              נכנסתם בכתובת <span dir="ltr">{signedInEmail}</span>, והיא אינה רשומה כצוות.
             </p>
             <p className="mt-1 text-[13px]">
-              <a href="/api/health" className="inline-link underline underline-offset-2">
-                בדיקת מה מוגדר בשרת
-              </a>{" "}
-              מראה אילו קודים קיימים ומה אורכם, בלי לחשוף אותם.
+              הוספת איש צוות נעשית על ידי אדריכלית העיר. אחרי ההוספה צריך לבקש קישור כניסה חדש.
             </p>
           </div>
         ) : null}
-        {!staffCodeConfigured() ? (
-          <Notice>
-            לא הוגדר קוד בשרת. יש להגדיר את משתנה הסביבה STAFF_CODE, ואת
-            ADMIN_CODE לכניסת המנהלת, לפני השימוש.
-          </Notice>
-        ) : (
-          <form action="/api/staff/login" method="post" className="grid gap-2">
-            <label htmlFor="code" className="text-[15px] text-ink">
-              קוד כניסה
-            </label>
-            <input
-              id="code"
-              name="code"
-              type="password"
-              required
-              autoComplete="current-password"
-              className="rounded-[12px] border border-line bg-surface px-3 py-3 text-[16px]"
-            />
-            <button
-              type="submit"
-              className="rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white"
-            >
-              כניסה
-            </button>
-          </form>
-        )}
+        <p className="mb-4 text-[14px] text-ink-soft">
+          לוח הבקרה של אגף אדריכלות העיר. הכניסה בקישור שנשלח למייל של איש
+          הצוות, בלי סיסמה.
+        </p>
+        {error ? (
+          <div role="alert" className="mb-3 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink">
+            <p className="font-medium">קישור הכניסה לא עבד.</p>
+            <p className="mt-1 text-[13px]">
+              קישור תקף פעם אחת ולזמן מוגבל, ורק בדפדפן שבו ביקשתם אותו. אפשר
+              לבקש קישור חדש כאן.
+            </p>
+          </div>
+        ) : null}
+        <StaffLogin />
       </>
     );
   }
@@ -130,6 +112,7 @@ export default async function AdminPage({
     counts.set(vote.typologySuggestion, (counts.get(vote.typologySuggestion) ?? 0) + 1);
   }
   const unverified = streetStats.filter((s) => !s.street.verified && s.votes > 0);
+  const audits = await loadAuditOverview();
 
   return (
     <>
@@ -180,7 +163,7 @@ export default async function AdminPage({
           ) : (
             <Notice>
               אחסון זמני: הנתונים נשמרים בקבצים מקומיים ועלולים להימחק בפריסה מחדש.
-              יש להגדיר SUPABASE_URL ו־SUPABASE_SERVICE_ROLE_KEY.
+              LOCAL_STORE=1 מוגדר, ולכן האפליקציה אינה מחוברת ל-Supabase.
             </Notice>
           )}
         </div>
@@ -291,6 +274,32 @@ export default async function AdminPage({
             ))}
           </div>
         )}
+      </Section>
+
+      <Section
+        title="בדיקה אוטומטית"
+        note="המערכת מודדת כל רחוב מול היעד לסוג הרחוב, משווה לדירוג התושבים ומנסחת טיוטה. הצוות רק מאשר."
+      >
+        <div className="card grid gap-3 p-4">
+          {audits.error ? (
+            <p className="text-[14px] text-ink">טעינת הבדיקה נכשלה: {audits.error}</p>
+          ) : (
+            <p className="text-[14px] text-ink">
+              {audits.latest.length === 0
+                ? "עוד לא הורצה בדיקה."
+                : `נבדקו ${audits.latest.length} מתוך ${audits.streets.length} רחובות · ` +
+                  `${audits.latest.filter((a) => a.state === "draft").length} טיוטות ממתינות לאישור · ` +
+                  `${audits.latest.filter((a) => a.state === "blocked").length} חסומים בגלל נתונים חסרים`}
+            </p>
+          )}
+          <AuditRunButton label="הרצת בדיקה לכל הרחובות" />
+          <Link
+            href="/admin/audit"
+            className="inline-flex min-h-11 items-center text-[15px] font-medium text-accent underline underline-offset-2"
+          >
+            לתוצאות, לטבלת הקריטריונים ולפערים בנתונים
+          </Link>
+        </div>
       </Section>
 
       {role === "admin" ? (
