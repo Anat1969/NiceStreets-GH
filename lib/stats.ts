@@ -39,11 +39,29 @@ export function buildStreetStats(
   const approvedPhotos = photos.filter(isPublicPhoto);
   const pendingPhotos = photos.filter((p) => p.status === "pending");
 
+  const voteById = new Map(votes.map((v) => [v.id, v]));
+
   return streets.map((street) => {
     const streetVotes = votes.filter((v) => v.streetId === street.id);
+    /*
+     * סדר התמונות של הרחוב: קודם אלה שהגיעו עם קול, לפי הקול האחרון,
+     * ורק אחריהן תמונות שצולמו מכרטיס הרחוב בלי דירוג.
+     *
+     * התמונה הראשונה כאן היא הפנים של הרחוב בכל המסכים, ולכן עדיף
+     * שתהיה תמונה שמישהו צירף לדעה שכתב: יש מאחוריה משפט וציון,
+     * ואפשר להגיע מהן אליו.
+     */
     const streetApproved = approvedPhotos
       .filter((p) => p.streetId === street.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => {
+        const va = voteById.get(a.voteId);
+        const vb = voteById.get(b.voteId);
+        if (Boolean(va) !== Boolean(vb)) return va ? -1 : 1;
+        if (va && vb && va.updatedAt !== vb.updatedAt) {
+          return vb.updatedAt.localeCompare(va.updatedAt);
+        }
+        return b.createdAt.localeCompare(a.createdAt);
+      });
     const perQuestion = Object.fromEntries(
       QUESTIONS.map((q) => [
         q.key,
@@ -112,11 +130,26 @@ export function buildTotals(
   const knownStreetIds = new Set(streetStats.map((s) => s.street.id));
   const votedStreetIds = new Set(votes.map((v) => v.streetId));
 
+  /*
+   * כמה קולות התמונות האלה מייצגות.
+   *
+   * ברוגוזין יש 5 תמונות מאושרות וקול אחד: אותו תושב צילם חמש פעמים
+   * מכרטיס הרחוב, וכל תמונה נתלתה על הקול הקיים שלו. "7 תמונות" ליד
+   * "3 קולות" נראה כמו סתירה, והוא אינו — אבל מספר שדורש הסבר בעל פה
+   * אינו מספר שאפשר להציג לציבור. המספר הזה הוא ההסבר.
+   */
+  const publicPhotos = photos.filter(isPublicPhoto);
+  const voteIdsWithPhoto = new Set(
+    publicPhotos.map((p) => p.voteId).filter((id): id is string => Boolean(id)),
+  );
+
   return {
     votes: votes.length,
     demoVotes: votes.filter((v) => v.isDemo).length,
     streets: votedStreetIds.size,
-    photos: photos.filter(isPublicPhoto).length,
+    streetsKnown: streetStats.length,
+    photos: publicPhotos.length,
+    photoVotes: voteIdsWithPhoto.size,
     photosPending: photos.filter((p) => p.status === "pending").length,
     orphanVotes: votes.filter((v) => !knownStreetIds.has(v.streetId)).length,
     byStatus,

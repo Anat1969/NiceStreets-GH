@@ -7,6 +7,7 @@ import { buildStreetStats, voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
 import { parseSegmentCode } from "@/lib/segments";
 import { isPublicPhoto } from "@/lib/types";
+import type { Photo } from "@/lib/types";
 import { confirmedTheme } from "@/lib/themes";
 import {
   Card,
@@ -54,9 +55,23 @@ export default async function StreetPage({
   const visiblePhotos = photos
     .filter((p) => isPublicPhoto(p) || staff)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  /*
+   * קול שיש לו תמונה עולה לראש.
+   *
+   * המילים והתמונה הן אותה עדות, ומי שטרח לצלם נתן את החלק שאפשר
+   * לראות. בתוך כל קבוצה הסדר הוא הקול האחרון קודם.
+   */
+  const voteIdsWithPhoto = new Set(
+    photos.filter(isPublicPhoto).map((p) => p.voteId).filter(Boolean),
+  );
   const reasons = votes
     .filter((v) => v.reason.trim().length > 0)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .sort((a, b) => {
+      const pa = voteIdsWithPhoto.has(a.id);
+      const pb = voteIdsWithPhoto.has(b.id);
+      if (pa !== pb) return pa ? -1 : 1;
+      return b.updatedAt.localeCompare(a.updatedAt);
+    })
     .slice(0, 8);
   const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
   const summary = summarise(stats, reasons.length);
@@ -71,9 +86,24 @@ export default async function StreetPage({
     ? EXAMPLES.filter((e) => e.typology === street.typology).length
     : 0;
 
-  const photoByVote = new Map(
-    photos.filter(isPublicPhoto).map((p) => [p.voteId, p]),
-  );
+  /*
+   * כל התמונות של הקול, ולא אחת.
+   *
+   * קודם לכן נבנתה כאן מפה של תמונה אחת לכל קול, וכשתושב צילם את אותו
+   * רחוב כמה פעמים — ברוגוזין, חמש תמונות על קול אחד — ארבע מהן פשוט
+   * נעלמו מהמסך בעוד המונה סופר אותן. מספר שסופר משהו שאי אפשר לראות
+   * הוא מספר שבור.
+   */
+  const photosByVote = new Map<string, Photo[]>();
+  for (const photo of photos.filter(isPublicPhoto)) {
+    if (!photo.voteId) continue;
+    const list = photosByVote.get(photo.voteId);
+    if (list) list.push(photo);
+    else photosByVote.set(photo.voteId, [photo]);
+  }
+  for (const list of photosByVote.values()) {
+    list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
 
   /*
    * הקול שכל תמונה הגיעה איתו, לפי מזהה. כך כל תמונה בגלריה נושאת את
@@ -161,6 +191,18 @@ export default async function StreetPage({
           <div className="mt-1 text-[11px] text-ink-faint">מאושרות</div>
         </div>
       </div>
+
+      {/*
+        ברוגוזין יש קול אחד וחמש תמונות, כי אותו תושב צילם חמש פעמים.
+        בלי השורה הזאת המספרים נראים כאילו חלק מהמצלמים לא דירגו.
+      */}
+      {photosByVote.size > 0 && stats.photos > photosByVote.size ? (
+        <p className="-mt-2 mb-4 text-[12px] text-ink-faint">
+          {stats.photos} התמונות הגיעו מ-{photosByVote.size}{" "}
+          {photosByVote.size === 1 ? "קול" : "קולות"} — אפשר לצרף כמה תמונות
+          לאותו רחוב.
+        </p>
+      ) : null}
 
       {/*
         סיכום במשפטים: מי שמגיע לכאן מרשימת המובילים רוצה לדעת מה חשבו
@@ -370,11 +412,11 @@ export default async function StreetPage({
                         התמונה הועלתה בלי נימוק.
                       </p>
                     )}
-                    {vote ? (
-                      <p className="mt-1 text-[12px] text-ink-faint">
-                        ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
-                      </p>
-                    ) : null}
+                    <p className="mt-1 text-[12px] text-ink-faint">
+                      {vote ? `ציון הקול: ${scoreLabel(voteScore(vote))} מתוך 10 · ` : ""}
+                      צולמה ב־
+                      {new Date(photo.createdAt).toLocaleDateString("he-IL")}
+                    </p>
 
                     {/* ההכרעה יושבת על נייר, מתחת לתמונה, עם פעלים מפורשים. */}
                     {staff ? (
@@ -403,22 +445,53 @@ export default async function StreetPage({
           */
           <ul className="grid gap-3">
             {reasons.map((vote) => {
-              const photo = photoByVote.get(vote.id) ?? null;
+              const votePhotos = photosByVote.get(vote.id) ?? [];
               return (
                 <li key={vote.id} className="card overflow-hidden">
-                  {photo ? (
+                  {votePhotos.length === 1 ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={`/api/photos/${photo.id}`}
+                      src={`/api/photos/${votePhotos[0].id}`}
                       alt={`תמונה שצורפה לקול על ${street.name}`}
                       className="aspect-[16/10] w-full object-cover"
                       loading="lazy"
                     />
+                  ) : votePhotos.length > 1 ? (
+                    /*
+                      כמה תמונות של אותו תושב: הראשונה גדולה, והשאר ברצועה
+                      מתחתיה. כך רואים שיש עוד, בלי שהקול יתפוס מסך שלם.
+                    */
+                    <>
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/photos/${votePhotos[0].id}`}
+                        alt={`תמונה שצורפה לקול על ${street.name}`}
+                        className="aspect-[16/10] w-full object-cover"
+                        loading="lazy"
+                      />
+                      <ul className="flex gap-[2px]">
+                        {votePhotos.slice(1).map((photo) => (
+                          <li key={photo.id} className="min-w-0 flex-1">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/photos/${photo.id}`}
+                              alt={`תמונה נוספת שצורפה לאותו קול על ${street.name}`}
+                              className="h-20 w-full object-cover"
+                              loading="lazy"
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                    </>
                   ) : null}
                   <div className="p-3">
                     <p className="text-[15px] text-ink">{vote.reason}</p>
                     <p className="mt-1 text-[12px] text-ink-faint">
-                      ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
+                      ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10 ·{" "}
+                      {new Date(vote.updatedAt).toLocaleDateString("he-IL")}
+                      {votePhotos.length > 1
+                        ? ` · ${votePhotos.length} תמונות מאותו תושב`
+                        : ""}
                     </p>
                   </div>
                 </li>

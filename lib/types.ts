@@ -163,8 +163,18 @@ export interface Totals {
   votes: number;
   /** כמה מתוך `votes` הם נתוני הדגמה. ראו StreetStats.demoVotes. */
   demoVotes: number;
+  /** רחובות שקיבלו לפחות קול אחד. */
   streets: number;
+  /**
+   * כל הרחובות שיש להם שורה במסד — גם כאלה שעדיין לא דורגו.
+   *
+   * זה המספר שהבדיקה האוטומטית עובדת עליו. בלעדיו "3 רחובות" במסך
+   * הבית ו-12 במסך הבדיקה נראים כמו סתירה, והם שני דברים שונים.
+   */
+  streetsKnown: number;
   photos: number;
+  /** כמה קולות שונים התמונות המאושרות הגיעו איתם. ראו buildTotals. */
+  photoVotes: number;
   photosPending: number;
   /** Votes whose street is missing from the street list; should always be 0. */
   orphanVotes: number;
