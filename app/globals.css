@@ -455,7 +455,33 @@
 
 .district-tooltip-body {
   display: grid;
+  gap: 3px;
+  min-width: 180px;
+}
+
+.district-tooltip-summary {
+  color: var(--color-ink);
+}
+
+.district-tooltip-body ul {
+  display: grid;
   gap: 2px;
+  margin-top: 3px;
+  padding-top: 4px;
+  border-top: 1px solid var(--color-line);
+}
+
+.district-tooltip-body li {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.district-tooltip-detail {
+  color: var(--color-ink-faint);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .district-tooltip .maplibregl-popup-content {
@@ -469,39 +495,39 @@
   box-shadow: 0 2px 10px rgb(0 0 0 / 16%);
 }
 
+/* המקרא: שורה אחת קטנה מתחת למפה. מסביר, לא מתחרה במפה. */
 .district-legend {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 4px 12px;
-  margin-top: 8px;
-  font-size: 13px;
-  color: var(--color-ink-soft);
+  gap: 4px 10px;
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-ink-faint);
 }
 
 .district-legend-title {
-  font-weight: 600;
-  color: var(--color-ink);
+  color: var(--color-ink-soft);
 }
 
 .district-legend ul {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 12px;
+  gap: 4px 10px;
 }
 
 .district-legend li {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
 }
 
 .district-swatch {
   display: inline-block;
   width: 14px;
-  height: 12px;
-  border-radius: 3px;
-  border: 1px solid rgb(0 0 0 / 12%);
+  height: 10px;
+  border-radius: 2px;
+  border: 1px solid color-mix(in srgb, var(--brand-500) 45%, transparent);
 }
 
 .district-notice {

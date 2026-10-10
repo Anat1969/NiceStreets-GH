@@ -3,7 +3,7 @@ import DistrictMap from "@/components/DistrictMap";
 import MapView from "@/components/MapView";
 import { CITY, DISTRICT_GEOJSON_URL, QUARTERS, ROVA_CODE_TO_QUARTER } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
-import type { DistrictData, MetricDef } from "@/lib/districts";
+import type { DistrictData, MetricDef, ShadeDef } from "@/lib/districts";
 import { loadStreetLines, streetLinesAvailable } from "@/lib/geo";
 import { votesLabel } from "@/lib/hebrew";
 import { scoreOutOfTen, toTen } from "@/lib/score";
@@ -13,10 +13,13 @@ import { DemoBanner, Notice } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
 
-/** המדדים שאפשר לצבוע לפיהם. היום אחד; הוספת מדד = שורה כאן וערך בנתונים. */
+/** המדד לדירוג ולתווית שעל הרובע. הוספת מדד = שורה כאן וערך בנתונים. */
 const METRICS: MetricDef[] = [
   { key: "score", label: "ציון ממוצע", decimals: 1, unit: "מתוך 10", higherIsBetter: true },
 ];
+
+/** עוצמת הגוון: ככל שיש יותר קולות, הרובע כהה יותר. שלוש דרגות. */
+const SHADE: ShadeDef = { key: "votes", label: "מספר הקולות", levels: 3, emptyLabel: "אין קולות" };
 
 export default async function MapPage({
   searchParams,
@@ -47,23 +50,27 @@ export default async function MapPage({
     const quarter = quarterById.get(quarterId);
     if (!quarter) continue;
     const stats = statsByQuarter.get(quarterId);
-    const top = streetStats
+    // כל הרחובות שקיבלו קול, מהמדורג ביותר: זה מה שמופיע בריחוף ובלוח.
+    const rated = streetStats
       .filter((s) => s.street.quarterId === quarterId && s.votes > 0)
-      .sort((a, b) => (b.avgScore ?? 0) - (a.avgScore ?? 0) || b.votes - a.votes)
-      .slice(0, 5);
+      .sort((a, b) => b.votes - a.votes || (b.avgScore ?? 0) - (a.avgScore ?? 0));
+    const votes = stats?.votes ?? 0;
+    const score = stats?.avgScore == null ? null : toTen(stats.avgScore);
     districtData[code] = {
       name: quarter.name,
       values: {
-        score: stats?.avgScore == null ? null : Number(toTen(stats.avgScore).toFixed(2)),
+        score: score === null ? null : Number(score.toFixed(2)),
+        votes,
       },
-      fields: [
-        { label: "קולות", value: String(stats?.votes ?? 0) },
-        { label: "רחובות מדורגים", value: String(stats?.streets ?? 0) },
-      ],
-      itemsTitle: top.length > 0 ? "הרחובות המובילים" : undefined,
-      items: top.map((s) => ({
+      summary:
+        score === null
+          ? "אין עדיין קולות ברובע הזה"
+          : `ציון ממוצע ${score.toFixed(1)} מתוך 10, מתוך ${votesLabel(votes)}`,
+      fields: [{ label: "רחובות מדורגים", value: String(stats?.streets ?? 0) }],
+      itemsTitle: rated.length > 0 ? "הרחובות שדורגו" : undefined,
+      items: rated.map((s) => ({
         label: s.street.name,
-        detail: `${scoreOutOfTen(s.avgScore)} · ${votesLabel(s.votes)}`,
+        detail: `${votesLabel(s.votes)} · ציון ${scoreOutOfTen(s.avgScore)}`,
         href: `/street/${s.street.id}`,
       })),
       link: {
@@ -109,14 +116,15 @@ export default async function MapPage({
       {view === "districts" ? (
         <>
           <p className="mb-3 text-[14px] text-ink-soft">
-            כל רובע צבוע לפי הציון הממוצע שנתנו התושבים לרחובות שבו, ברבעונים: הכהה
-            ביותר הוא הרבע העליון. לחיצה על רובע, או על שורה בדירוג, מציגה את
-            הפרטים שלו.
+            ככל שרובע קיבל יותר קולות, הגוון שלו כהה יותר. המספר על הרובע הוא
+            הציון הממוצע. ריחוף או לחיצה על רובע מציגים את הרחובות שדורגו בו, ולכל
+            רחוב את מספר הקולות והציון.
           </p>
           <DistrictMap
             geojsonUrl={DISTRICT_GEOJSON_URL}
             data={districtData}
             metrics={METRICS}
+            shade={SHADE}
             center={CITY.center}
             zoom={CITY.zoom}
           />

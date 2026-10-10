@@ -8,11 +8,12 @@
  * או כמקור שיודע לטעון (`source`). ראו lib/districts.ts.
  *
  * התנהגות:
- *   צבע    — לפי רבעוני המדד הנבחר, בסולם בגוון אחד.
- *   ריחוף  — הדגשת הגבול וחלונית עם השם והערך (במחשב בלבד).
+ *   גוון   — צבע המותג שנבחר בכותרת; השקיפות לפי מדד אחד (`shade`), בדרגות.
+ *   תווית  — השם והערך של המדד הראשי (`metrics`) במרכז הרובע.
+ *   ריחוף  — הדגשת הגבול וחלונית עם הסיכום והפריטים (במחשב בלבד).
  *   לחיצה  — בחירה, טיסה לגבולות הרובע, ולוח עם כל השדות שלו.
  *   רקע    — לחיצה מחוץ לרובע מנקה את הבחירה.
- *   רשימה  — מדורגת לפי המדד; בחירה בה ובמפה היא אותה בחירה.
+ *   רשימה  — מדורגת לפי המדד הראשי; בחירה בה ובמפה היא אותה בחירה.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -20,19 +21,21 @@ import Link from "next/link";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import {
-  NO_DATA_COLOR,
-  classColors,
+  EMPTY_OPACITY,
   classRanges,
   classify,
   featureBounds,
   featureCentroid,
   formatMetric,
-  quartileBreaks,
-  textOnClass,
+  levelOpacity,
+  levelSwatch,
+  quantileBreaks,
   unionBounds,
   type DistrictData,
   type DistrictDataSource,
+  type DistrictRecord,
   type MetricDef,
+  type ShadeDef,
 } from "@/lib/districts";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 
@@ -47,8 +50,11 @@ interface Props {
   data?: DistrictData;
   /** מקור שיודע לטעון נתונים. נוצר בצד הלקוח בלבד. */
   source?: DistrictDataSource;
+  /** מדדים לדירוג ולתווית. הראשון (או initialMetric) הוא הפעיל. */
   metrics: MetricDef[];
   initialMetric?: string;
+  /** המדד שקובע את עוצמת הגוון. */
+  shade: ShadeDef;
   center: [number, number];
   zoom: number;
 }
@@ -61,9 +67,12 @@ interface DistrictRow {
   /** null = אין לו גבול בקובץ, ולכן אינו מצויר. */
   bounds: [[number, number], [number, number]] | null;
   centroid: [number, number] | null;
+  /** ערך המדד הראשי: לדירוג ולתווית. */
   value: number | null;
-  cls: number | null;
-  color: string;
+  /** ערך מדד הגוון. 0 נחשב "אין", ולא דרגה. */
+  shadeValue: number | null;
+  /** דרגת הגוון, 0 = הבהירה. null = אין ערך. */
+  level: number | null;
   hasRecord: boolean;
 }
 
@@ -76,6 +85,59 @@ function shortName(name: string): string {
   return name.replace(/^רובע\s+/, "");
 }
 
+/**
+ * החלונית בריחוף: השם, שורת הסיכום, והפריטים (למשל הרחובות) עם הפרטים שלהם.
+ * נבנית כ-DOM ולא כ-HTML, כדי ששם שמגיע מהנתונים לא יפורש כקוד.
+ */
+const TOOLTIP_ITEMS = 12;
+
+function tooltipContent(
+  name: string,
+  record: DistrictRecord | undefined,
+  metric: MetricDef | undefined,
+  value: number | null,
+): HTMLElement {
+  const root = document.createElement("div");
+  root.className = "district-tooltip-body";
+
+  const title = document.createElement("strong");
+  title.textContent = name;
+  root.append(title);
+
+  const summary = document.createElement("span");
+  summary.className = "district-tooltip-summary";
+  summary.textContent =
+    record?.summary ??
+    (metric ? `${metric.label}: ${formatMetric(value, metric)}` : "אין נתונים");
+  root.append(summary);
+
+  const items = record?.items ?? [];
+  if (items.length > 0) {
+    const list = document.createElement("ul");
+    for (const item of items.slice(0, TOOLTIP_ITEMS)) {
+      const li = document.createElement("li");
+      const label = document.createElement("span");
+      label.textContent = item.label;
+      li.append(label);
+      if (item.detail) {
+        const detail = document.createElement("span");
+        detail.className = "district-tooltip-detail";
+        detail.textContent = item.detail;
+        li.append(detail);
+      }
+      list.append(li);
+    }
+    root.append(list);
+    if (items.length > TOOLTIP_ITEMS) {
+      const more = document.createElement("span");
+      more.className = "district-tooltip-detail";
+      more.textContent = `ועוד ${items.length - TOOLTIP_ITEMS}. לחיצה מציגה את כולם.`;
+      root.append(more);
+    }
+  }
+  return root;
+}
+
 export default function DistrictMap({
   geojsonUrl,
   idProperty = "rova_code",
@@ -86,6 +148,7 @@ export default function DistrictMap({
   source,
   metrics,
   initialMetric,
+  shade,
   center,
   zoom,
 }: Props) {
@@ -155,10 +218,16 @@ export default function DistrictMap({
 
   /* ---------------------------------------------------------- שורות */
 
-  const { rows, breaks, colors } = useMemo(() => {
+  const levels = Math.max(1, shade.levels ?? 3);
+
+  const { rows, breaks } = useMemo(() => {
     const features = geo?.features ?? [];
     const seen = new Set<string>();
-    const base: Omit<DistrictRow, "cls" | "color">[] = [];
+    const base: Omit<DistrictRow, "level">[] = [];
+    const shadeOf = (record: DistrictRecord | undefined) => {
+      const v = record?.values[shade.key];
+      return typeof v === "number" && v > 0 ? v : null;
+    };
 
     for (const feature of features) {
       const id = String(feature.properties?.[idProperty] ?? "").trim();
@@ -172,6 +241,7 @@ export default function DistrictMap({
         bounds: featureBounds(feature.geometry),
         centroid: featureCentroid(feature, centroidLatProperty, centroidLonProperty),
         value: record?.values[metric?.key ?? ""] ?? null,
+        shadeValue: shadeOf(record),
         hasRecord: Boolean(record),
       });
     }
@@ -185,16 +255,20 @@ export default function DistrictMap({
         bounds: null,
         centroid: null,
         value: record.values[metric?.key ?? ""] ?? null,
+        shadeValue: shadeOf(record),
         hasRecord: true,
       });
     }
 
-    const cuts = quartileBreaks(base.map((r) => r.value));
-    const palette = classColors(cuts.length + 1);
-    const withClass: DistrictRow[] = base.map((r) => {
-      const cls = classify(r.value, cuts);
-      return { ...r, cls, color: cls === null ? NO_DATA_COLOR : palette[cls] };
-    });
+    // הדרגות נקבעות רק לפי רובעים שמצוירים, כדי שהמקרא יתאר את מה שרואים.
+    const cuts = quantileBreaks(
+      base.filter((r) => r.bounds).map((r) => r.shadeValue),
+      levels,
+    );
+    const withClass: DistrictRow[] = base.map((r) => ({
+      ...r,
+      level: classify(r.shadeValue, cuts),
+    }));
 
     const direction = metric?.higherIsBetter === false ? 1 : -1;
     withClass.sort((a, b) => {
@@ -207,13 +281,50 @@ export default function DistrictMap({
       return a.name.localeCompare(b.name, "he");
     });
 
-    return { rows: withClass, breaks: cuts, colors: palette };
-  }, [geo, records, metric, idProperty, nameProperty, centroidLatProperty, centroidLonProperty]);
+    return { rows: withClass, breaks: cuts };
+  }, [
+    geo,
+    records,
+    metric,
+    shade.key,
+    levels,
+    idProperty,
+    nameProperty,
+    centroidLatProperty,
+    centroidLonProperty,
+  ]);
 
+  // מספר הדרגות בפועל: פחות משלוש כשיש מעט ערכים שונים.
+  const activeLevels = breaks.length + 1;
   const ranges = useMemo(
-    () => classRanges(rows.map((r) => r.value), breaks),
+    () => classRanges(rows.filter((r) => r.bounds).map((r) => r.shadeValue), breaks),
     [rows, breaks],
   );
+
+  /*
+   * הגוון: צבע המותג מהכותרת. המפה מצוירת ב-WebGL ואינה קוראת משתני CSS,
+   * ולכן הצבע נקרא מהם, ונקרא שוב בכל פעם שבוחרים צבע אחר בכותרת.
+   */
+  const [brand, setBrand] = useState("#1f6f5c");
+  useEffect(() => {
+    const read = () => {
+      const value = getComputedStyle(document.documentElement)
+        .getPropertyValue("--brand-500")
+        .trim();
+      if (value) setBrand(value);
+    };
+    read();
+    const observer = new MutationObserver(read);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-palette", "class", "style"],
+    });
+    return () => observer.disconnect();
+  }, []);
+  const brandRef = useRef(brand);
+  brandRef.current = brand;
+  const recordsRef = useRef(records);
+  recordsRef.current = records;
 
   const rowsRef = useRef(rows);
   rowsRef.current = rows;
@@ -314,12 +425,12 @@ export default function DistrictMap({
         type: "fill",
         source: SOURCE,
         paint: {
-          "fill-color": ["coalesce", ["get", "__color"], NO_DATA_COLOR],
+          "fill-color": brandRef.current,
+          // גם הנבחר נשאר שקוף: הבחירה מסומנת בגבול, לא בכיסוי המפה.
           "fill-opacity": [
-            "case",
-            ["boolean", ["feature-state", "selected"], false],
-            0.88,
-            0.72,
+            "+",
+            ["coalesce", ["get", "__opacity"], EMPTY_OPACITY],
+            ["case", ["boolean", ["feature-state", "selected"], false], 0.08, 0],
           ],
         },
       });
@@ -332,7 +443,15 @@ export default function DistrictMap({
             "case",
             ["boolean", ["feature-state", "selected"], false],
             "#16202b",
-            "#ffffff",
+            brandRef.current,
+          ],
+          "line-opacity": [
+            "case",
+            ["boolean", ["feature-state", "selected"], false],
+            1,
+            ["boolean", ["feature-state", "hover"], false],
+            0.95,
+            0.55,
           ],
           "line-width": [
             "case",
@@ -377,7 +496,8 @@ export default function DistrictMap({
         closeButton: false,
         closeOnClick: false,
         className: "district-tooltip",
-        offset: 12,
+        offset: 14,
+        maxWidth: "300px",
       });
 
       instance.on("mousemove", FILL, (event) => {
@@ -390,16 +510,13 @@ export default function DistrictMap({
           instance.setFeatureState({ source: SOURCE, id }, { hover: true });
         }
         const row = rowsRef.current.find((r) => r.id === id);
-        const current = metricRef.current;
-        if (!row || !current) return;
-        const element = document.createElement("div");
-        element.className = "district-tooltip-body";
-        const title = document.createElement("strong");
-        title.textContent = row.name;
-        const value = document.createElement("span");
-        value.textContent = `${current.label}: ${formatMetric(row.value, current)}`;
-        element.append(title, value);
-        popup.current?.setLngLat(event.lngLat).setDOMContent(element).addTo(instance);
+        if (!row) return;
+        popup.current
+          ?.setLngLat(event.lngLat)
+          .setDOMContent(
+            tooltipContent(row.name, recordsRef.current[id], metricRef.current, row.value),
+          )
+          .addTo(instance);
       });
 
       instance.on("mouseleave", FILL, () => {
@@ -436,7 +553,7 @@ export default function DistrictMap({
       features.push({
         type: "Feature",
         geometry: feature.geometry,
-        properties: { __id: id, __color: row.color },
+        properties: { __id: id, __opacity: levelOpacity(row.level, activeLevels) },
       });
     }
     const src = instance.getSource(SOURCE) as maplibregl.GeoJSONSource | undefined;
@@ -465,7 +582,20 @@ export default function DistrictMap({
           .addTo(instance),
       );
     }
-  }, [rows, mapReady, geo, idProperty, metric]);
+  }, [rows, mapReady, geo, idProperty, metric, activeLevels]);
+
+  // צבע אחר בכותרת: רק הגוון מתחלף, בלי לבנות את המפה מחדש.
+  useEffect(() => {
+    const instance = map.current;
+    if (!instance || !mapReady || !instance.getLayer(FILL)) return;
+    instance.setPaintProperty(FILL, "fill-color", brand);
+    instance.setPaintProperty(OUTLINE, "line-color", [
+      "case",
+      ["boolean", ["feature-state", "selected"], false],
+      "#16202b",
+      brand,
+    ]);
+  }, [brand, mapReady]);
 
   // התאמה ראשונה לגבולות כל הרובעים.
   const fitted = useRef(false);
@@ -554,6 +684,9 @@ export default function DistrictMap({
                     : "עדיין לא דורג"}
                   {selectedRow.bounds || !geo ? "" : " · אין גבול במפה"}
                 </p>
+                {selectedRecord?.summary ? (
+                  <p className="mt-1 text-[14px] text-ink">{selectedRecord.summary}</p>
+                ) : null}
               </div>
               <button
                 type="button"
@@ -566,7 +699,8 @@ export default function DistrictMap({
 
             <div className="district-panel-body p-3">
               <dl className="district-fields">
-                {metrics.map((m) => (
+                {/* שורת הסיכום כבר אומרת את המדד; בלעדיה הוא מוצג כאן. */}
+                {(selectedRecord?.summary ? [] : metrics).map((m) => (
                   <div key={m.key}>
                     <dt>{m.label}</dt>
                     <dd className="tabular-nums">
@@ -638,32 +772,35 @@ export default function DistrictMap({
         ) : null}
       </div>
 
-      {/* מקרא מתחת למפה ולא עליה: כך הוא אינו מסתיר אף רובע. */}
-      {metric && ranges.length > 0 ? (
+      {/*
+        מקרא מתחת למפה ולא עליה: כך הוא אינו מסתיר אף רובע. צנוע בכוונה —
+        שורה אחת קטנה, באותו גוון שעל המפה.
+      */}
+      {ranges.length > 0 ? (
         <div className="district-legend" aria-label="מקרא">
-          <p className="district-legend-title">
-            {metric.label}
-            {ranges.length > 1 ? " · לפי רבעונים" : ""}
-          </p>
+          <span className="district-legend-title">גוון לפי {shade.label}:</span>
           <ul>
-            {[...ranges].reverse().map((range) => {
-              const color = colors[range.cls];
-              return (
-                <li key={range.cls}>
-                  <span className="district-swatch" style={{ background: color }} />
-                  <span className="tabular-nums" dir="ltr">
-                    {range.min === range.max
-                      ? range.min.toFixed(metric.decimals ?? 1)
-                      : `${range.min.toFixed(metric.decimals ?? 1)}–${range.max.toFixed(
-                          metric.decimals ?? 1,
-                        )}`}
-                  </span>
-                </li>
-              );
-            })}
+            {ranges.map((range) => (
+              <li key={range.cls}>
+                <span
+                  className="district-swatch"
+                  style={{ background: levelSwatch(range.cls, activeLevels) }}
+                />
+                <span className="tabular-nums" dir="ltr">
+                  {range.min === range.max
+                    ? range.min.toFixed(shade.decimals ?? 0)
+                    : `${range.min.toFixed(shade.decimals ?? 0)}–${range.max.toFixed(
+                        shade.decimals ?? 0,
+                      )}`}
+                </span>
+              </li>
+            ))}
             <li>
-              <span className="district-swatch" style={{ background: NO_DATA_COLOR }} />
-              <span>אין נתונים</span>
+              <span
+                className="district-swatch"
+                style={{ background: levelSwatch(null, activeLevels) }}
+              />
+              <span>{shade.emptyLabel ?? "אין נתונים"}</span>
             </li>
           </ul>
         </div>
@@ -695,7 +832,7 @@ export default function DistrictMap({
                   >
                     <span
                       className="district-rank-num tabular-nums"
-                      style={{ background: row.color, color: textOnClass(row.color) }}
+                      style={{ background: levelSwatch(row.level, activeLevels) }}
                     >
                       {rank ?? "–"}
                     </span>

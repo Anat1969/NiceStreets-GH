@@ -21,6 +21,22 @@ export interface MetricDef {
   higherIsBetter?: boolean;
 }
 
+/**
+ * המדד שקובע את עוצמת הגוון. הגוון עצמו הוא צבע המותג שנבחר בכותרת, והמדד
+ * קובע רק את השקיפות — כדי שהמפה תישאר גלויה מתחת גם בדרגה הכהה ביותר.
+ */
+export interface ShadeDef {
+  key: string;
+  /** למקרא, למשל "מספר הקולות". */
+  label: string;
+  /** מספר הדרגות. ברירת מחדל: 3. */
+  levels?: number;
+  /** ספרות אחרי הנקודה במקרא. ברירת מחדל: 0. */
+  decimals?: number;
+  /** איך נקרא ערך אפס במקרא, למשל "אין קולות". */
+  emptyLabel?: string;
+}
+
 /** שורה ברשימה שבלוח הפרטים, למשל רחוב מוביל ברובע. */
 export interface DistrictItem {
   label: string;
@@ -34,6 +50,8 @@ export interface DistrictRecord {
   name?: string;
   /** ערך לכל מדד, לפי `MetricDef.key`. null = אין עדיין נתון. */
   values: Record<string, number | null>;
+  /** שורת סיכום לחלונית הריחוף וללוח, למשל "ציון 7.4 מתוך 10, מתוך 29 קולות". */
+  summary?: string;
   /** שדות נוספים ללוח הפרטים, בסדר התצוגה. */
   fields?: { label: string; value: string }[];
   /** כותרת לרשימת הפריטים (למשל "הרחובות המובילים"). */
@@ -94,13 +112,21 @@ function quantile(sorted: number[], p: number): number {
  * שני רובעים עם אותו ציון לא ייצבעו בשני צבעים שונים.
  */
 export function quartileBreaks(values: (number | null | undefined)[]): number[] {
+  return quantileBreaks(values, 4);
+}
+
+/** כמו quartileBreaks, לכל מספר דרגות. */
+export function quantileBreaks(
+  values: (number | null | undefined)[],
+  levels: number,
+): number[] {
   const sorted = values
     .filter((v): v is number => typeof v === "number" && Number.isFinite(v))
     .sort((a, b) => a - b);
   const distinct = new Set(sorted).size;
   if (distinct <= 1) return [];
 
-  const classes = Math.min(4, distinct);
+  const classes = Math.min(Math.max(1, levels), distinct);
   const breaks: number[] = [];
   for (let i = 1; i < classes; i++) {
     const cut = quantile(sorted, i / classes);
@@ -135,33 +161,27 @@ export function classRanges(
   return ranges;
 }
 
-/**
- * סולם רציף בגוון אחד, מבהיר לכהה.
+/*
+ * עוצמת הגוון: שקיפות בלבד, על צבע המותג.
  *
- * לא אדום-ירוק: רבעון הוא מיקום יחסי בין הרובעים, לא שיפוט. רובע בציון 7.8
- * יכול להיות ברבעון התחתון, ובסולם אדום-ירוק הוא היה נצבע "רע".
+ * הדרגה הכהה ביותר נעצרת ב-0.44, כך שרחובות ושמות מפת הרקע נקראים דרכה.
+ * רובע בלי ערך מקבל כמעט שקיפות מלאה — הגבול שלו מצויר, המילוי כמעט לא.
  */
-const RAMP = ["#d7ebe3", "#9ccbb8", "#4f9a80", "#1f6f5c"];
-const RAMP_BY_CLASSES: Record<number, number[]> = {
-  1: [3],
-  2: [1, 3],
-  3: [0, 2, 3],
-  4: [0, 1, 2, 3],
-};
+const OPACITY_MIN = 0.14;
+const OPACITY_MAX = 0.44;
+export const EMPTY_OPACITY = 0.03;
 
-export const NO_DATA_COLOR = "#e3e5e8";
-
-/** הצבע של כל מדרגה, לפי מספר המדרגות בפועל. */
-export function classColors(classes: number): string[] {
-  return (RAMP_BY_CLASSES[classes] ?? RAMP_BY_CLASSES[4]).map((i) => RAMP[i]);
+/** השקיפות של דרגה, לפי מספר הדרגות בפועל. */
+export function levelOpacity(level: number | null, levels: number): number {
+  if (level === null) return EMPTY_OPACITY;
+  if (levels <= 1) return OPACITY_MAX;
+  return OPACITY_MIN + ((OPACITY_MAX - OPACITY_MIN) * level) / (levels - 1);
 }
 
-/**
- * צבע הטקסט על כל צבע בסולם. רק הכהה ביותר מקבל לבן: על המדרגה השלישית
- * לבן נותן ניגודיות 3.3 בלבד, ודיו נותן 4.9.
- */
-export function textOnClass(color: string): string {
-  return color === RAMP[3] ? "#ffffff" : "#16202b";
+/** אותה שקיפות כצבע CSS, למקרא ולרשימה (על רקע לבן, כמו על המפה). */
+export function levelSwatch(level: number | null, levels: number): string {
+  const percent = Math.round(levelOpacity(level, levels) * 100);
+  return `color-mix(in srgb, var(--brand-500) ${percent}%, #ffffff)`;
 }
 
 export function formatMetric(value: number | null | undefined, metric: MetricDef): string {
