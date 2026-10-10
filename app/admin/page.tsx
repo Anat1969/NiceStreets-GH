@@ -292,6 +292,16 @@ export default async function AdminPage({
                   `${audits.latest.filter((a) => a.state === "blocked").length} חסומים בגלל נתונים חסרים`}
             </p>
           )}
+          {/*
+            הפער בין המדידה לקולות הוא מה שהצוות באמת מכריע בו, ולכן הוא
+            מופיע כבר כאן ולא רק במסך הבדיקה.
+          */}
+          {audits.voteGaps.some((g) => g.state === "gap") ? (
+            <p className="text-[14px] font-medium text-warm">
+              {audits.voteGaps.filter((g) => g.state === "gap").length} קולות עם פער
+              מעל 30% בין המדידה לדירוג התושב.
+            </p>
+          ) : null}
           <AuditRunButton label="הרצת בדיקה לכל הרחובות" />
           <Link
             href="/admin/audit"

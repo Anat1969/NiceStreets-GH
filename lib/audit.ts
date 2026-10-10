@@ -126,10 +126,51 @@ export function fmt(value: number | null | undefined): string {
   return Number(value).toLocaleString("he-IL", { maximumFractionDigits: 2 });
 }
 
+/**
+ * הפער בין הבדיקה האובייקטיבית לקול בודד של תושב.
+ *
+ * הציון האובייקטיבי של הרחוב נשמר בבדיקה, וכל קול נבדק מולו. פער גדול
+ * מ-30% מסומן באדום ומדווח לצוות; פער של 30% ומטה עובר אוטומטית לירוק.
+ *
+ * **הקול נספר בציון הרחוב בכל מקרה.** הסימון הוא דיווח על פער בין
+ * המדידה לדעה, ולא סינון של דעות — ופער יכול להעיד על טעות במדידה
+ * בדיוק כמו על קול חריג.
+ */
+export type VoteGapState = "gap" | "aligned" | "no_audit";
+
+export interface VoteGap {
+  vote_id: string;
+  street_id: string;
+  street_name: string;
+  updated_at: string;
+  is_demo: boolean;
+  audited_at: string | null;
+  objective_score: number | null;
+  resident_score: number | null;
+  gap: number | null;
+  state: VoteGapState;
+  street_votes: number;
+}
+
+export const VOTE_GAP_LABELS: Record<VoteGapState, string> = {
+  gap: "יש פער בין המדידה האובייקטיבית לדירוג הסובייקטיבי",
+  aligned: "מאושר — אין פערים",
+  no_audit: "הרחוב עדיין לא נמדד",
+};
+
+/** כמה אפשר לסמוך על הפער, לפי מספר המדרגים ברחוב. */
+export function gapConfidence(streetVotes: number): Confidence {
+  if (streetVotes >= 10) return "high";
+  if (streetVotes >= 3) return "medium";
+  return "low";
+}
+
 export interface AuditOverview {
   criteria: CriterionRow[];
   latest: StreetAudit[];
   streets: { id: string; name: string; typology: string | null; hasGeom: boolean }[];
+  /** קול אחר קול, מול הציון האובייקטיבי של הרחוב. */
+  voteGaps: VoteGap[];
   /** Null when everything loaded; otherwise what failed, in Hebrew. */
   error: string | null;
 }
@@ -137,14 +178,18 @@ export interface AuditOverview {
 export async function loadAuditOverview(): Promise<AuditOverview> {
   try {
     const db = await supabaseServer();
-    const [criteria, latest, streets] = await Promise.all([
+    const [criteria, latest, streets, gaps] = await Promise.all([
       db.from("criteria").select("*").order("sort"),
       db.from("street_audit_latest").select("*"),
       db.from("streets").select("id, name, typology, geom").order("name"),
+      // הפער הגדול קודם: זה מה שהצוות צריך להכריע בו.
+      db.from("vote_audit_gaps").select("*").eq("is_demo", false)
+        .order("gap", { ascending: false, nullsFirst: false }),
     ]);
     if (criteria.error) throw new Error(criteria.error.message);
     if (latest.error) throw new Error(latest.error.message);
     if (streets.error) throw new Error(streets.error.message);
+    if (gaps.error) throw new Error(gaps.error.message);
 
     const ids = (latest.data ?? []).map((a) => a.id);
     const results = ids.length
@@ -171,6 +216,7 @@ export async function loadAuditOverview(): Promise<AuditOverview> {
         typology: s.typology,
         hasGeom: s.geom !== null,
       })),
+      voteGaps: (gaps.data ?? []) as VoteGap[],
       error: null,
     };
   } catch (error) {
@@ -178,6 +224,7 @@ export async function loadAuditOverview(): Promise<AuditOverview> {
       criteria: [],
       latest: [],
       streets: [],
+      voteGaps: [],
       error: error instanceof Error ? error.message : String(error),
     };
   }

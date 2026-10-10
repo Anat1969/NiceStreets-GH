@@ -10,7 +10,9 @@ import {
   PROPOSED_STATUS_LABELS,
   STATE_LABELS,
   VERDICT_LABELS,
+  VOTE_GAP_LABELS,
   fmt,
+  gapConfidence,
   targetText,
   type AuditOverview,
   type AuditResult,
@@ -45,7 +47,7 @@ function counts(audit: StreetAudit) {
 
 /** The staff audit screen. Pure: takes the loaded overview, renders it. */
 export default function AuditOverviewView({ overview }: { overview: AuditOverview }) {
-  const { criteria, latest, streets, error } = overview;
+  const { criteria, latest, streets, voteGaps, error } = overview;
 
   const byStreet = new Map(latest.map((a) => [a.street_id, a]));
   const criterionMap = new Map(criteria.map((c) => [c.id, c]));
@@ -177,6 +179,8 @@ export default function AuditOverviewView({ overview }: { overview: AuditOvervie
         )}
       </Section>
 
+      <VoteGapsSection gaps={voteGaps} />
+
       <Section title="רחובות" note="טיוטות ממתינות קודם, אחריהן רחובות חסומים.">
         <div className="grid gap-3">
           {ordered.map((street) => (
@@ -190,6 +194,79 @@ export default function AuditOverviewView({ overview }: { overview: AuditOvervie
         </div>
       </Section>
     </>
+  );
+}
+
+/**
+ * קול אחר קול, מול הציון האובייקטיבי של הרחוב.
+ *
+ * אדום כשהפער גדול מ-30%, ירוק כשהוא 30% ומטה. הקול עצמו נספר בציון
+ * הרחוב בשני המקרים — זה דיווח על פער, לא סינון של דעות, ופער גדול
+ * יכול להעיד על מדידה שגויה בדיוק כמו על קול חריג.
+ */
+function VoteGapsSection({ gaps }: { gaps: AuditOverview["voteGaps"] }) {
+  const measured = gaps.filter((g) => g.state !== "no_audit");
+  const withGap = measured.filter((g) => g.state === "gap");
+
+  return (
+    <Section
+      title="הפער בין המדידה לכל קול"
+      note="הציון האובייקטיבי של הרחוב נשמר בבדיקה, וכל קול נבדק מולו. פער גדול מ-30% מסומן באדום; 30% ומטה עובר אוטומטית ל'אין פערים'. בכל מקרה הקול נספר בציון הרחוב."
+    >
+      {measured.length === 0 ? (
+        <Notice>
+          אין עדיין קול על רחוב שיש לו ציון אובייקטיבי. הבדיקה זקוקה לגיאומטריה
+          ולערכי יעד לסוג הרחוב כדי להפיק ציון.
+        </Notice>
+      ) : (
+        <>
+          <p className="mb-2 text-[14px] text-ink">
+            {withGap.length} מתוך {measured.length}{" "}
+            {measured.length === 1 ? "קול" : "קולות"} עם פער מעל 30%.
+          </p>
+          <ul className="grid gap-2">
+            {measured.map((row) => {
+              const bad = row.state === "gap";
+              const pct = Math.round((row.gap ?? 0) * 100);
+              return (
+                <li
+                  key={row.vote_id}
+                  className={`rounded-[12px] border px-3 py-2 ${
+                    bad ? "border-warm bg-warm-soft" : "border-accent bg-accent-soft"
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <Link
+                      href={`/street/${row.street_id}`}
+                      className="inline-link text-[15px] font-semibold text-ink underline underline-offset-2"
+                    >
+                      {row.street_name}
+                    </Link>
+                    <span
+                      className={`text-[15px] font-bold tabular-nums ${
+                        bad ? "text-warm" : "text-accent"
+                      }`}
+                    >
+                      {pct}%
+                    </span>
+                  </div>
+                  <p className={`text-[13px] ${bad ? "text-warm" : "text-accent"}`}>
+                    {VOTE_GAP_LABELS[row.state]}
+                  </p>
+                  <p className="mt-1 text-[12px] text-ink-faint">
+                    מדידה {Math.round((row.objective_score ?? 0) * 100)} מתוך 100 · דירוג
+                    התושב {Math.round((row.resident_score ?? 0) * 100)} מתוך 100 · ביטחון{" "}
+                    {CONFIDENCE_LABELS[gapConfidence(row.street_votes)]} (
+                    {row.street_votes} {row.street_votes === 1 ? "מדרג" : "מדרגים"} ברחוב) ·{" "}
+                    {dateText(row.updated_at)}
+                  </p>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
+    </Section>
   );
 }
 
