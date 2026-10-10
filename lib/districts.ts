@@ -178,6 +178,17 @@ export function levelOpacity(level: number | null, levels: number): number {
   return OPACITY_MIN + ((OPACITY_MAX - OPACITY_MIN) * level) / (levels - 1);
 }
 
+/**
+ * דרגות לפי מספר הקולות — אותו כלל בשתי המפות: ערכים שאינם חיוביים אינם
+ * דרגה, והשאר מתחלקים לשלישים (או פחות, כשיש מעט ערכים שונים).
+ */
+export function voteLevels(votes: number[], levels = 3): number[] {
+  return quantileBreaks(
+    votes.map((v) => (v > 0 ? v : null)),
+    levels,
+  );
+}
+
 /** אותה שקיפות כצבע CSS, למקרא ולרשימה (על רקע לבן, כמו על המפה). */
 export function levelSwatch(level: number | null, levels: number): string {
   const percent = Math.round(levelOpacity(level, levels) * 100);

@@ -139,8 +139,8 @@ export default async function MapPage({
       ) : (
         <>
           <p className="mb-3 text-[14px] text-ink-soft">
-            המספר שעל כל תווית הוא מספר הקולות, גודל העיגול לפיו, וצבעו לפי
-            הציון הממוצע.
+            כמו במפת הרובעים: ככל שרחוב קיבל יותר קולות, העיגול שלו כהה יותר.
+            המספר בעיגול הוא הציון הממוצע.
           </p>
           <MapView
             center={CITY.center}

@@ -38,6 +38,7 @@ import {
   type ShadeDef,
 } from "@/lib/districts";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
+import { useBrandColor } from "@/lib/use-brand-color";
 
 interface Props {
   /** כתובת קובץ הגבולות (GeoJSON FeatureCollection של פוליגונים). */
@@ -301,26 +302,8 @@ export default function DistrictMap({
     [rows, breaks],
   );
 
-  /*
-   * הגוון: צבע המותג מהכותרת. המפה מצוירת ב-WebGL ואינה קוראת משתני CSS,
-   * ולכן הצבע נקרא מהם, ונקרא שוב בכל פעם שבוחרים צבע אחר בכותרת.
-   */
-  const [brand, setBrand] = useState("#1f6f5c");
-  useEffect(() => {
-    const read = () => {
-      const value = getComputedStyle(document.documentElement)
-        .getPropertyValue("--brand-500")
-        .trim();
-      if (value) setBrand(value);
-    };
-    read();
-    const observer = new MutationObserver(read);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ["data-palette", "class", "style"],
-    });
-    return () => observer.disconnect();
-  }, []);
+  // הגוון: צבע המותג שנבחר בכותרת, ומתחלף איתו.
+  const brand = useBrandColor();
   const brandRef = useRef(brand);
   brandRef.current = brand;
   const recordsRef = useRef(records);

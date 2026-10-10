@@ -261,7 +261,7 @@
 /* --------------------------------------------------- הסימן על המפה
  *
  * אלמנט אחד לכל מקום, ובו כל מה שיש לומר עליו:
- *   הקוטר = מספר הקולות · הצבע = הציון · המספר בתוכו = מספר הקולות
+ *   הגוון = מספר הקולות (שלוש דרגות) · המספר בתוכו = הציון הממוצע
  *   השם מתחתיו, בטקסט עם הילה, בלי מסגרת ובלי רקע משלו.
  * קודם היו כאן שני אלמנטים — עיגול ואליפסה — שקידדו את אותו מידע
  * פעמיים והתחרו זה בזה על המקום.
@@ -279,15 +279,23 @@
   line-height: 1;
 }
 
+/*
+ * העיגול: גודל קבוע, גוון המותג בעוצמה לפי הקולות (מוגדר בקוד), והציון
+ * בתוכו. הרקע חצי שקוף, ולכן הדיו נקרא עליו בכל דרגה.
+ */
 .map-mark-disc {
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 36px;
+  height: 36px;
   border-radius: 999px;
+  font-size: 13px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  border: 2px solid rgb(255 255 255 / 92%);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 28%);
+  color: var(--color-ink);
+  border: 2px solid color-mix(in srgb, var(--brand-500) 70%, #ffffff);
+  box-shadow: 0 1px 3px rgb(0 0 0 / 18%);
   transition: transform 140ms ease;
 }
 
@@ -322,15 +330,6 @@
 
 .map-focus-bar > :first-child {
   flex: 1;
-}
-
-.map-legend {
-  position: absolute;
-  inset-inline-end: 8px;
-  bottom: 8px;
-  z-index: 2;
-  max-width: min(320px, calc(100% - 16px));
-  background: var(--color-surface);
 }
 
 .map-empty {
@@ -350,77 +349,6 @@
   background: var(--color-surface);
 }
 
-/* The sheet covers the legend while it is open, so they never overlap. */
-.map-sheet ~ .map-legend,
-.map-canvas-wrap:has(.map-sheet) /* --------------------------------------------------- הסימן על המפה
- *
- * אלמנט אחד לכל מקום, ובו כל מה שיש לומר עליו:
- *   הקוטר = מספר הקולות · הצבע = הציון · המספר בתוכו = מספר הקולות
- *   השם מתחתיו, בטקסט עם הילה, בלי מסגרת ובלי רקע משלו.
- * קודם היו כאן שני אלמנטים — עיגול ואליפסה — שקידדו את אותו מידע
- * פעמיים והתחרו זה בזה על המקום.
- */
-.map-mark {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  min-height: 0;
-  padding: 0;
-  background: none;
-  border: 0;
-  cursor: pointer;
-  line-height: 1;
-}
-
-.map-mark-disc {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 999px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  border: 2px solid rgb(255 255 255 / 92%);
-  box-shadow: 0 1px 4px rgb(0 0 0 / 28%);
-  transition: transform 140ms ease;
-}
-
-.map-mark:hover .map-mark-disc,
-.map-mark:focus-visible .map-mark-disc {
-  transform: scale(1.06);
-}
-
-.map-mark-name {
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--color-ink);
-  white-space: nowrap;
-  /* הילה במקום מסגרת: השם נקרא על כל רקע ואינו מכסה את המפה. */
-  text-shadow:
-    0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff,
-    1px 1px 2px rgb(255 255 255 / 90%);
-}
-
-.map-focus-bar {
-  position: absolute;
-  inset-inline: 8px;
-  top: 8px;
-  z-index: 3;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px 10px;
-  background: color-mix(in oklab, var(--color-surface) 94%, transparent);
-  backdrop-filter: blur(4px);
-}
-
-.map-focus-bar > :first-child {
-  flex: 1;
-}
-
-.map-legend {
-  display: none;
-}
 
 /* --------------------------------------------------- מפת הרובעים
  *
