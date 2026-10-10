@@ -8,6 +8,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
 import { normaliseForSearch } from "@/lib/street-filter";
 import { scoreColorTen, scoreOutOfTen, textOnScore, toTen } from "@/lib/score";
+import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 
 interface QuarterPoint {
   id: string;
@@ -44,22 +45,12 @@ interface Props {
   streets: StreetFeature[];
   streetLinesAvailable: boolean;
   canCalibrate?: boolean;
+  /**
+   * נעילה לתצוגת רחובות. מפת הרובעים עברה לרכיב משלה (DistrictMap), ולכן
+   * לתושב אין כאן מתג. הצוות מקבל את מצב הנקודות לכיול אזורים בלי גבול.
+   */
+  lockMode?: "street";
 }
-
-/**
- * רקע מונוכרומטרי ורווי-נמוך, כדי שהנתונים יבלטו מעליו ולא יתחרו בו.
- * ניתן להחלפה ברקע העירוני דרך NEXT_PUBLIC_MAP_STYLE (כל style.json).
- */
-const DEFAULT_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
-
-/** כשאין רקע זמין — הנתונים עדיין נטענים, על רקע ריק. */
-const BLANK_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [
-    { id: "background", type: "background", paint: { "background-color": "#f1f2f4" } },
-  ],
-};
 
 /**
  * צבע הציון — מהסולם המשותף ב-lib/score.ts, על רצף ולא במדרגות.
@@ -72,24 +63,6 @@ function scoreColor(score: number | null): string {
   return scoreColorTen(score === null ? null : toTen(score));
 }
 
-/**
- * בלי זה הרקע מצייר שמות בעברית הפוכים ("דודשא" במקום "אשדוד"): MapLibre
- * מסדר אותיות משמאל לימין אם התוסף אינו טעון. מוגש מהשרת שלנו.
- */
-let rtlPluginRequested = false;
-function ensureRtlTextPlugin() {
-  if (rtlPluginRequested) return;
-  rtlPluginRequested = true;
-  try {
-    const state = maplibregl.getRTLTextPluginStatus();
-    if (state === "unavailable" || state === "requested") {
-      maplibregl.setRTLTextPlugin("/vendor/mapbox-gl-rtl-text.min.js", true);
-    }
-  } catch {
-    // כבר נטען על ידי מופע אחר.
-  }
-}
-
 export default function MapView({
   center,
   zoom,
@@ -98,6 +71,7 @@ export default function MapView({
   streets,
   streetLinesAvailable,
   canCalibrate = false,
+  lockMode,
 }: Props) {
   const router = useRouter();
   const container = useRef<HTMLDivElement>(null);
@@ -109,7 +83,7 @@ export default function MapView({
    * קודם לכן המעבר ביניהן היה תלוי בזום, ולכן אי אפשר היה לבקש אותו —
    * ומי שלא ידע להתקרב מספיק לא ראה רחובות מעולם.
    */
-  const [mode, setMode] = useState<"quarter" | "street">("quarter");
+  const [mode, setMode] = useState<"quarter" | "street">(lockMode ?? "quarter");
   /*
    * הרובע שנבחר בתצוגת רובעים. בחירה בו מתקרבת אליו ומוסיפה את
    * הרחובות שבתוכו — במקום שכל רחובות העיר יצוירו כל הזמן.
@@ -263,7 +237,7 @@ export default function MapView({
 
     const instance = new maplibregl.Map({
       container: container.current,
-      style: process.env.NEXT_PUBLIC_MAP_STYLE ?? DEFAULT_STYLE_URL,
+      style: mapStyleUrl(),
       center,
       zoom,
       attributionControl: { compact: true },
@@ -700,6 +674,7 @@ export default function MapView({
         className="mb-2 flex gap-2"
         role="group"
         aria-label="מה מוצג על המפה"
+        hidden={lockMode !== undefined}
       >
         {(
           [

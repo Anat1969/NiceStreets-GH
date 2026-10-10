@@ -422,6 +422,218 @@
   display: none;
 }
 
+/* --------------------------------------------------- מפת הרובעים
+ *
+ * רכיב DistrictMap. המסגרת והקנבס משותפים למפת הרחובות (.map-canvas-wrap).
+ * כאן רק מה שייחודי לה: תוויות, מקרא, לוח פרטים ודירוג.
+ */
+.district-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.1;
+  /* התווית אינה מטרת לחיצה: הפוליגון שמתחתיה הוא המטרה, והוא גדול ממנה. */
+  pointer-events: none;
+  text-shadow:
+    0 1px 0 #fff, 0 -1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff,
+    1px 1px 2px rgb(255 255 255 / 90%);
+}
+
+.district-label-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-ink);
+  white-space: nowrap;
+}
+
+.district-label-value {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.district-tooltip-body {
+  display: grid;
+  gap: 2px;
+}
+
+.district-tooltip .maplibregl-popup-content {
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--color-ink);
+  text-align: right;
+  direction: rtl;
+  box-shadow: 0 2px 10px rgb(0 0 0 / 16%);
+}
+
+.district-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 12px;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+
+.district-legend-title {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.district-legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 12px;
+}
+
+.district-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.district-swatch {
+  display: inline-block;
+  width: 14px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgb(0 0 0 / 12%);
+}
+
+.district-notice {
+  position: absolute;
+  inset-inline: 8px;
+  bottom: 8px;
+  z-index: 2;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+
+/* נייד: גיליון תחתון מעל המפה. */
+.district-panel {
+  position: absolute;
+  inset-inline: 8px;
+  bottom: 8px;
+  z-index: 3;
+  background: var(--color-surface);
+}
+
+/* בנייד הלוח מכסה עד כמחצית המפה, כדי שהרובע הנבחר יישאר גלוי מעליו. */
+.district-panel-body {
+  max-height: min(28dvh, 200px);
+  overflow-y: auto;
+}
+
+/*
+ * מפה רחבה: לוח צד בצד ההתחלה (ימין).
+ * לפי רוחב המפה ולא רוחב המסך: בתצוגת "נייד" על מחשב המסך רחב והמפה צרה.
+ */
+.district-canvas-wrap {
+  container-type: inline-size;
+}
+
+@container (min-width: 720px) {
+  .district-panel {
+    inset-inline: auto;
+    inset-inline-start: 8px;
+    top: 8px;
+    width: 300px;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .district-panel-body {
+    max-height: none;
+    flex: 1;
+  }
+
+  /* ההודעה על הרקע נשארת מחוץ לשטח שהלוח מכסה. */
+  .district-canvas-wrap:has(.district-panel) .district-notice {
+    inset-inline-start: 316px;
+  }
+}
+
+.district-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 8px;
+}
+
+.district-fields dt {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+}
+
+.district-fields dd {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+
+.district-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 8px;
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--color-ink);
+}
+
+a.district-item:hover {
+  background: var(--color-accent-soft);
+}
+
+/* הדירוג גולל בתוך עצמו, כך שבחירה במפה לא מזיזה את העמוד. */
+.district-rank {
+  display: grid;
+  gap: 4px;
+  max-height: 420px;
+  overflow-y: auto;
+  padding: 2px;
+}
+
+.district-rank-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 48px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+  font-size: 15px;
+  color: var(--color-ink);
+}
+
+.district-rank-row[aria-pressed="true"] {
+  border-color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--color-ink);
+  background: var(--color-accent-soft);
+}
+
+.district-rank-num {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+}
+
 /*
  * הלוגו מוצג במלואו: object-fit: contain, בלי חיתוך ובלי רקע משלו.
  * הקובץ עצמו שקוף, כך שהוא יושב על נייר בהיר ועל כהה באותה מידה.
