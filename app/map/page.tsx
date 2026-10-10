@@ -3,7 +3,12 @@ import DistrictMap from "@/components/DistrictMap";
 import MapView from "@/components/MapView";
 import { CITY, DISTRICT_GEOJSON_URL, QUARTERS, ROVA_CODE_TO_QUARTER } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
-import type { DistrictData, MetricDef, ShadeDef } from "@/lib/districts";
+import {
+  bothLevels,
+  type DistrictData,
+  type MetricDef,
+  type ShadeDef,
+} from "@/lib/districts";
 import { loadStreetLines, streetLinesAvailable } from "@/lib/geo";
 import { votesLabel } from "@/lib/hebrew";
 import { scoreOutOfTen, toTen } from "@/lib/score";
@@ -18,8 +23,18 @@ const METRICS: MetricDef[] = [
   { key: "score", label: "ציון ממוצע", decimals: 1, unit: "מתוך 10", higherIsBetter: true },
 ];
 
-/** עוצמת הגוון: ככל שיש יותר קולות, הרובע כהה יותר. שלוש דרגות. */
-const SHADE: ShadeDef = { key: "votes", label: "מספר הקולות", levels: 3, emptyLabel: "אין קולות" };
+/**
+ * עוצמת הגוון: כהה = ציון גבוה שנשען על הרבה קולות (bothLevels ב-
+ * lib/districts.ts). שלוש דרגות, ובמקרא מילים — הדרגה היא שילוב, לא מספר.
+ */
+const SHADE: ShadeDef = {
+  key: "level",
+  preLeveled: true,
+  label: "ציון וכמות קולות",
+  levels: 3,
+  emptyLabel: "אין קולות",
+  legendLabels: ["נמוך", "בינוני", "גבוה"],
+};
 
 export default async function MapPage({
   searchParams,
@@ -46,6 +61,12 @@ export default async function MapPage({
    * "אין גבול במפה".
    */
   const districtData: DistrictData = {};
+  const levelOf = bothLevels(
+    Object.values(ROVA_CODE_TO_QUARTER).map((id) => {
+      const st = statsByQuarter.get(id);
+      return { id, score: st?.avgScore ?? null, votes: st?.votes ?? 0 };
+    }),
+  );
   for (const [code, quarterId] of Object.entries(ROVA_CODE_TO_QUARTER)) {
     const quarter = quarterById.get(quarterId);
     if (!quarter) continue;
@@ -61,6 +82,8 @@ export default async function MapPage({
       values: {
         score: score === null ? null : Number(score.toFixed(2)),
         votes,
+        // 1..3, או null כשאין קולות.
+        level: levelOf.has(quarterId) ? (levelOf.get(quarterId) as number) + 1 : null,
       },
       summary:
         score === null
@@ -116,8 +139,8 @@ export default async function MapPage({
       {view === "districts" ? (
         <>
           <p className="mb-3 text-[14px] text-ink-soft">
-            ככל שרובע קיבל יותר קולות, הגוון שלו כהה יותר. המספר על הרובע הוא
-            הציון הממוצע. ריחוף או לחיצה על רובע מציגים את הרחובות שדורגו בו, ולכל
+            רובע כהה הוא רובע עם ציון גבוה שנשען על הרבה קולות. ציון גבוה מקולות
+            בודדים נשאר בהיר. המספר על הרובע הוא הציון הממוצע. ריחוף או לחיצה על רובע מציגים את הרחובות שדורגו בו, ולכל
             רחוב את מספר הקולות והציון.
           </p>
           <DistrictMap
@@ -139,8 +162,8 @@ export default async function MapPage({
       ) : (
         <>
           <p className="mb-3 text-[14px] text-ink-soft">
-            כמו במפת הרובעים: ככל שרחוב קיבל יותר קולות, העיגול שלו כהה יותר.
-            המספר בעיגול הוא הציון הממוצע.
+            כמו במפת הרובעים: עיגול כהה הוא רחוב עם ציון גבוה שנשען על הרבה
+            קולות. המספר בעיגול הוא הציון הממוצע.
           </p>
           <MapView
             center={CITY.center}

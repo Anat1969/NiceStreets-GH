@@ -8,7 +8,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
 import { normaliseForSearch } from "@/lib/street-filter";
 import { scoreOutOfTen } from "@/lib/score";
-import { classRanges, classify, voteLevels } from "@/lib/districts";
+import { bothLevels, classify, fixedBreaks, legendWord } from "@/lib/districts";
 import { useBrandColor } from "@/lib/use-brand-color";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 
@@ -52,6 +52,17 @@ interface Props {
    * לתושב אין כאן מתג. הצוות מקבל את מצב הנקודות לכיול אזורים בלי גבול.
    */
   lockMode?: "street";
+}
+
+/** ספים קבועים לשלוש הדרגות; קבוע מחוץ לרכיב, כדי לא לבנות את המפה מחדש בכל רינדור. */
+const LEVEL_BREAKS = fixedBreaks(3);
+const quarterBreaks = LEVEL_BREAKS;
+const streetBreaks = LEVEL_BREAKS;
+
+/** הדרגה (1..3) של כל פריט שקיבל קולות: הנמוכה מבין דרגת הציון ודרגת הקולות. */
+function levelsOf(items: { id: string; votes: number; avgScore: number | null }[]) {
+  const levels = bothLevels(items.map((x) => ({ id: x.id, score: x.avgScore, votes: x.votes })));
+  return new Map([...levels].map(([id, level]) => [id, level + 1]));
 }
 
 /**
@@ -140,25 +151,19 @@ export default function MapView({
   const shown = mode === "quarter" ? quarters.length : placedStreets.length;
 
   /*
-   * דרגות הקולות: שלוש, לפי שלישים — אותו כלל כמו במפת הרובעים. רובעים
-   * ורחובות מדורגים כל אחד מול עצמו, כי סדרי הגודל שלהם שונים.
+   * עוצמת הגוון: כהה רק כשהציון וגם מספר הקולות בשליש העליון — אותו כלל
+   * כמו במפת הרובעים (bothLevels ב-lib/districts.ts). רובעים ורחובות
+   * מדורגים כל אחד מול עצמו.
    */
-  const quarterBreaks = useMemo(() => voteLevels(quarters.map((q) => q.votes)), [quarters]);
-  const streetBreaks = useMemo(
-    () => voteLevels(placedStreets.map((s) => s.votes)),
-    [placedStreets],
-  );
+  const quarterWeight = useMemo(() => levelsOf(quarters), [quarters]);
+  const streetWeight = useMemo(() => levelsOf(placedStreets), [placedStreets]);
   const legendBreaks = mode === "quarter" ? quarterBreaks : streetBreaks;
-  const legendRanges = useMemo(
-    () =>
-      classRanges(
-        (mode === "quarter" ? quarters : placedStreets)
-          .map((x) => x.votes)
-          .filter((v) => v > 0),
-        legendBreaks,
-      ),
-    [mode, quarters, placedStreets, legendBreaks],
-  );
+  const legendLevels = useMemo(() => {
+    const weights = [...(mode === "quarter" ? quarterWeight : streetWeight).values()];
+    return [...new Set(weights.map((w) => classify(w, legendBreaks)))]
+      .filter((l): l is number => l !== null)
+      .sort((a, b) => a - b);
+  }, [mode, quarterWeight, streetWeight, legendBreaks]);
   const brand = useBrandColor();
   const brandRef = useRef(brand);
   brandRef.current = brand;
@@ -364,7 +369,10 @@ export default function MapView({
                 id: s.id,
                 name: s.name,
                 votes: s.votes,
-                opacity: lineOpacity(classify(s.votes || null, streetBreaks), streetBreaks.length + 1),
+                opacity: lineOpacity(
+                  classify(streetWeight.get(s.id), streetBreaks),
+                  streetBreaks.length + 1,
+                ),
               },
             })),
           },
@@ -519,6 +527,7 @@ export default function MapView({
                   avgScore: q.avgScore,
                   at: q.center,
                   breaks: quarterBreaks,
+                  weight: quarterWeight.get(q.id),
                   pick: () => selectQuarter(q.id),
                 })),
               ...focusedStreets.map((s) => ({
@@ -528,6 +537,7 @@ export default function MapView({
                 avgScore: s.avgScore,
                 at: streetPoint(s),
                 breaks: streetBreaks,
+                weight: streetWeight.get(s.id),
                 pick: () => {
                   setSelectedStreet(s.id);
                   setSelectedQuarter(null);
@@ -543,6 +553,7 @@ export default function MapView({
                 avgScore: s.avgScore,
                 at: streetPoint(s),
                 breaks: streetBreaks,
+                weight: streetWeight.get(s.id),
                 pick: () => {
                   setSelectedStreet(s.id);
                   setSelectedQuarter(null);
@@ -551,7 +562,7 @@ export default function MapView({
 
       labels.current = items.map((item) => {
         const levels = item.breaks.length + 1;
-        const fill = markFill(classify(item.votes, item.breaks), levels);
+        const fill = markFill(classify(item.weight, item.breaks), levels);
 
         const el = document.createElement("button");
         el.type = "button";
@@ -676,8 +687,8 @@ export default function MapView({
     streetPoint,
     maxQuarterVotes,
     maxStreetVotes,
-    quarterBreaks,
-    streetBreaks,
+    quarterWeight,
+    streetWeight,
     saveQuarter,
   ]);
 
@@ -913,18 +924,18 @@ export default function MapView({
         מקרא מתחת למפה ולא עליה, באותה שפה כמו במפת הרובעים: שורה אחת קטנה.
         קודם הוא ישב על המפה, וכלל CSS שבור הסתיר אותו תמיד.
       */}
-      {legendRanges.length > 0 ? (
+      {legendLevels.length > 0 ? (
         <div className="district-legend" aria-label="מקרא">
-          <span className="district-legend-title">גוון לפי מספר הקולות:</span>
+          <span className="district-legend-title">גוון לפי ציון וכמות קולות:</span>
           <ul>
-            {legendRanges.map((range) => (
-              <li key={range.cls}>
+            {legendLevels.map((level) => (
+              <li key={level}>
                 <span
                   className="district-swatch"
-                  style={{ background: markFill(range.cls, legendBreaks.length + 1) }}
+                  style={{ background: markFill(level, legendBreaks.length + 1) }}
                 />
-                <span className="tabular-nums" dir="ltr">
-                  {range.min === range.max ? range.min : `${range.min}–${range.max}`}
+                <span>
+                  {legendWord(["נמוך", "בינוני", "גבוה"], level, legendBreaks.length + 1)}
                 </span>
               </li>
             ))}

@@ -35,6 +35,16 @@ export interface ShadeDef {
   decimals?: number;
   /** איך נקרא ערך אפס במקרא, למשל "אין קולות". */
   emptyLabel?: string;
+  /**
+   * הערכים כבר דרגות (1..levels), למשל מ-bothLevels. הספים קבועים ואינם
+   * מחושבים מהנתונים.
+   */
+  preLeveled?: boolean;
+  /**
+   * מילים למקרא במקום טווחי מספרים, מהבהירה לכהה — למדד מורכב שהמספרים
+   * שלו אינם אומרים דבר לקורא (למשל ["נמוך", "בינוני", "גבוה"]).
+   */
+  legendLabels?: string[];
 }
 
 /** שורה ברשימה שבלוח הפרטים, למשל רחוב מוביל ברובע. */
@@ -178,6 +188,37 @@ export function levelOpacity(level: number | null, levels: number): number {
   return OPACITY_MIN + ((OPACITY_MAX - OPACITY_MIN) * level) / (levels - 1);
 }
 
+/* ------------------------------------------------------------ ציון וכמות יחד
+ *
+ * הגוון הכהה אומר "ציון גבוה שנשען על הרבה קולות". ציון 9 מקול אחד הוא דעה
+ * אחת; ציון 9 מארבעים קולות הוא ממצא. לכן לכל פריט שתי דרגות — אחת לפי
+ * הציון ואחת לפי מספר הקולות, כל אחת בשלישים — והגוון הוא הנמוכה מביניהן.
+ * כהה רק כששתיהן בשליש העליון; ציון גבוה מקולות בודדים נשאר בהיר.
+ */
+export function bothLevels(
+  items: { id: string; score: number | null; votes: number }[],
+  levels = 3,
+): Map<string, number> {
+  const rated = items.filter((x) => x.score !== null && x.votes > 0);
+  const scoreCuts = quantileBreaks(rated.map((x) => x.score), levels);
+  const voteCuts = quantileBreaks(rated.map((x) => x.votes), levels);
+  // דרגה "עליונה" היא תמיד levels-1, גם כשיש פחות ערכים שונים בציר אחד.
+  const scale = (level: number, cuts: number[]) =>
+    cuts.length === 0 ? levels - 1 : Math.round((level * (levels - 1)) / cuts.length);
+  const out = new Map<string, number>();
+  for (const x of rated) {
+    const s = scale(classify(x.score, scoreCuts) ?? 0, scoreCuts);
+    const v = scale(classify(x.votes, voteCuts) ?? 0, voteCuts);
+    out.set(x.id, Math.min(s, v));
+  }
+  return out;
+}
+
+/** ספים קבועים לדרגות שכבר חושבו (1..levels): 1.5, 2.5, ... */
+export function fixedBreaks(levels: number): number[] {
+  return Array.from({ length: Math.max(0, levels - 1) }, (_, i) => i + 1.5);
+}
+
 /**
  * דרגות לפי מספר הקולות — אותו כלל בשתי המפות: ערכים שאינם חיוביים אינם
  * דרגה, והשאר מתחלקים לשלישים (או פחות, כשיש מעט ערכים שונים).
@@ -187,6 +228,16 @@ export function voteLevels(votes: number[], levels = 3): number[] {
     votes.map((v) => (v > 0 ? v : null)),
     levels,
   );
+}
+
+/**
+ * המילה במקרא לדרגה. כשיש פחות דרגות ממילים (מעט ערכים שונים), נבחרות
+ * המילים שבקצוות ובאמצע, כך ש"גבוה" נשאר תמיד הכהה ביותר.
+ */
+export function legendWord(words: string[], level: number, levels: number): string {
+  if (words.length === 0) return "";
+  if (levels <= 1) return words[words.length - 1];
+  return words[Math.round((level * (words.length - 1)) / (levels - 1))];
 }
 
 /** אותה שקיפות כצבע CSS, למקרא ולרשימה (על רקע לבן, כמו על המפה). */

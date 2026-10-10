@@ -26,8 +26,10 @@ import {
   classify,
   featureBounds,
   featureCentroid,
+  fixedBreaks,
   formatMetric,
   levelOpacity,
+  legendWord,
   levelSwatch,
   quantileBreaks,
   unionBounds,
@@ -262,10 +264,12 @@ export default function DistrictMap({
     }
 
     // הדרגות נקבעות רק לפי רובעים שמצוירים, כדי שהמקרא יתאר את מה שרואים.
-    const cuts = quantileBreaks(
-      base.filter((r) => r.bounds).map((r) => r.shadeValue),
-      levels,
-    );
+    const cuts = shade.preLeveled
+      ? fixedBreaks(levels)
+      : quantileBreaks(
+          base.filter((r) => r.bounds).map((r) => r.shadeValue),
+          levels,
+        );
     const withClass: DistrictRow[] = base.map((r) => ({
       ...r,
       level: classify(r.shadeValue, cuts),
@@ -288,6 +292,7 @@ export default function DistrictMap({
     records,
     metric,
     shade.key,
+    shade.preLeveled,
     levels,
     idProperty,
     nameProperty,
@@ -769,13 +774,17 @@ export default function DistrictMap({
                   className="district-swatch"
                   style={{ background: levelSwatch(range.cls, activeLevels) }}
                 />
-                <span className="tabular-nums" dir="ltr">
-                  {range.min === range.max
-                    ? range.min.toFixed(shade.decimals ?? 0)
-                    : `${range.min.toFixed(shade.decimals ?? 0)}–${range.max.toFixed(
-                        shade.decimals ?? 0,
-                      )}`}
-                </span>
+                {shade.legendLabels ? (
+                  <span>{legendWord(shade.legendLabels, range.cls, activeLevels)}</span>
+                ) : (
+                  <span className="tabular-nums" dir="ltr">
+                    {range.min === range.max
+                      ? range.min.toFixed(shade.decimals ?? 0)
+                      : `${range.min.toFixed(shade.decimals ?? 0)}–${range.max.toFixed(
+                          shade.decimals ?? 0,
+                        )}`}
+                  </span>
+                )}
               </li>
             ))}
             <li>
