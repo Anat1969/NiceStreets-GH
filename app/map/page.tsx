@@ -12,6 +12,7 @@ import {
 import { loadStreetLines, streetLinesAvailable } from "@/lib/geo";
 import { scoreOutOfTen, toTen } from "@/lib/score";
 import { getStore } from "@/lib/store";
+import { voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
 import { DemoBanner, Notice } from "@/components/ui";
 
@@ -20,6 +21,7 @@ export const dynamic = "force-dynamic";
 /** המדד לדירוג ולתווית שעל הרובע. הוספת מדד = שורה כאן וערך בנתונים. */
 const METRICS: MetricDef[] = [
   { key: "score", label: "ציון ממוצע", decimals: 1, unit: "מתוך 10", higherIsBetter: true },
+  { key: "votes", label: "מספר קולות", decimals: 0, unit: "קולות", higherIsBetter: true },
 ];
 
 /**
@@ -43,13 +45,35 @@ export default async function MapPage({
   const params = await searchParams;
   const view = params.view === "streets" ? "streets" : "districts";
 
-  const [{ streetStats, quarterStats, totals }, quarters, staff] = await Promise.all([
+  const [{ streetStats, quarterStats, totals }, quarters, staff, votes] = await Promise.all([
     loadCityData(),
     getStore()
       .listQuarters()
       .catch(() => QUARTERS),
     isStaff(),
+    // הקולות עצמם נדרשים רק לתצוגת הרחובות, שבה כל קול מפורט עם הציון שלו.
+    view === "streets" ? getStore().listVotes().catch(() => []) : Promise.resolve([]),
   ]);
+
+  /*
+   * כל קול ברחוב, מהחדש לישן: תאריך וציון (0–10). התאריך מעוצב כאן ולא
+   * בדפדפן, כדי שהשרת והדפדפן יציגו בדיוק אותו טקסט.
+   */
+  const dateFormat = new Intl.DateTimeFormat("he-IL", {
+    day: "numeric",
+    month: "numeric",
+    year: "2-digit",
+    timeZone: "Asia/Jerusalem",
+  });
+  const ballotsByStreet = new Map<string, { date: string; score: string }[]>();
+  for (const vote of [...votes].sort((a, b) => b.createdAt.localeCompare(a.createdAt))) {
+    const list = ballotsByStreet.get(vote.streetId) ?? [];
+    list.push({
+      date: dateFormat.format(new Date(vote.createdAt)),
+      score: toTen(voteScore(vote)).toFixed(1),
+    });
+    ballotsByStreet.set(vote.streetId, list);
+  }
 
   const statsByQuarter = new Map(quarterStats.map((s) => [s.quarter.id, s]));
   const quarterById = new Map(quarters.map((q) => [q.id, q]));
@@ -170,7 +194,7 @@ export default async function MapPage({
             center={CITY.center}
             zoom={CITY.zoom}
             canCalibrate={staff}
-            lockMode={staff ? undefined : "street"}
+            lockMode="street"
             streetLinesAvailable={streetLinesAvailable()}
             quarters={placed.map((q) => {
               const stats = statsByQuarter.get(q.id);
@@ -203,6 +227,7 @@ export default async function MapPage({
                 line: s.street.code ? lineByCode.get(s.street.code) : undefined,
                 center: s.street.center ?? undefined,
                 centerSource: s.street.centerSource,
+                ballots: ballotsByStreet.get(s.street.id) ?? [],
               }))}
           />
           <div className="mt-4">

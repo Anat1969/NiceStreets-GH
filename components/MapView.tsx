@@ -8,8 +8,11 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
 import { normaliseForSearch } from "@/lib/street-filter";
 import { scoreOutOfTen } from "@/lib/score";
+import { QUARTER_MAP } from "@/lib/city";
 import { bothLevels, classify, fixedBreaks, legendWord } from "@/lib/districts";
 import { useBrandColor } from "@/lib/use-brand-color";
+import { tableTooltip, type MapTableData } from "@/lib/map-table";
+import MapTable from "@/components/MapTable";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 
 interface QuarterPoint {
@@ -36,6 +39,8 @@ interface StreetFeature {
   center?: [number, number];
   /** מאיפה הגיע המיקום. null = טרם מוקם. */
   centerSource?: string | null;
+  /** כל קול ברחוב, מהחדש לישן: תאריך וציון מתוך 10, כבר מעוצבים. */
+  ballots?: { date: string; score: string }[];
 }
 
 interface Props {
@@ -63,6 +68,18 @@ const streetBreaks = LEVEL_BREAKS;
 function levelsOf(items: { id: string; votes: number; avgScore: number | null }[]) {
   const levels = bothLevels(items.map((x) => ({ id: x.id, score: x.avgScore, votes: x.votes })));
   return new Map([...levels].map(([id, level]) => [id, level + 1]));
+}
+
+/**
+ * הרחוב כטבלה — אותה שפה כמו הרובע: "כל הרחוב" עם הציון ומספר הקולות,
+ * ומתחתיו כל קול עם התאריך והציון שלו.
+ */
+function streetTable(s: StreetFeature): MapTableData {
+  return {
+    columns: ["ציון", "קולות"],
+    total: { label: "כל הרחוב", cells: [scoreOutOfTen(s.avgScore), String(s.votes)] },
+    rows: (s.ballots ?? []).map((b) => ({ label: `קול · ${b.date}`, cells: [b.score, ""] })),
+  };
 }
 
 /**
@@ -108,6 +125,9 @@ export default function MapView({
   const [focusQuarter, setFocusQuarter] = useState<string | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState<string | null>(null);
   const [selectedStreet, setSelectedStreet] = useState<string | null>(null);
+  /** סדר הדירוג שמתחת למפה: לפי הציון הממוצע או לפי מספר הקולות. */
+  const [rankBy, setRankBy] = useState<"score" | "votes">("score");
+  const mapBox = useRef<HTMLDivElement>(null);
   const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
 
   const [search, setSearch] = useState("");
@@ -164,6 +184,17 @@ export default function MapView({
       .filter((l): l is number => l !== null)
       .sort((a, b) => a - b);
   }, [mode, quarterWeight, streetWeight, legendBreaks]);
+  const ranked = useMemo(
+    () =>
+      streets
+        .filter((s) => s.votes > 0)
+        .sort((a, b) =>
+          rankBy === "votes"
+            ? b.votes - a.votes || (b.avgScore ?? 0) - (a.avgScore ?? 0)
+            : (b.avgScore ?? 0) - (a.avgScore ?? 0) || b.votes - a.votes,
+        ),
+    [streets, rankBy],
+  );
   const brand = useBrandColor();
   const brandRef = useRef(brand);
   brandRef.current = brand;
@@ -508,6 +539,15 @@ export default function MapView({
       });
     }
 
+    const canHover = window.matchMedia("(hover: hover)").matches;
+    const hoverPopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: "district-tooltip",
+      offset: 22,
+      maxWidth: "300px",
+    });
+
     function addLabels() {
       labels.current.forEach((m) => m.remove());
       const focusedStreets =
@@ -593,6 +633,18 @@ export default function MapView({
           if (!calibratingRef.current) item.pick();
         });
 
+        // ריחוף (במחשב): אותה טבלה כמו בריחוף על רובע.
+        const streetData = streets.find((x) => x.id === item.id);
+        if (canHover && streetData) {
+          el.addEventListener("mouseenter", () => {
+            hoverPopup
+              .setLngLat(item.at)
+              .setDOMContent(tableTooltip(streetData.name, streetTable(streetData)))
+              .addTo(instance);
+          });
+          el.addEventListener("mouseleave", () => hoverPopup.remove());
+        }
+
         return new maplibregl.Marker({ element: el })
           .setLngLat(item.at)
           .addTo(instance);
@@ -673,6 +725,7 @@ export default function MapView({
       resizeObserver.disconnect();
       labels.current.forEach((m) => m.remove());
       labels.current = [];
+      hoverPopup.remove();
       instance.remove();
       map.current = null;
     };
@@ -689,6 +742,7 @@ export default function MapView({
     maxStreetVotes,
     quarterWeight,
     streetWeight,
+    streets,
     saveQuarter,
   ]);
 
@@ -792,7 +846,7 @@ export default function MapView({
         ) : null}
       </div>
 
-      <div className="map-canvas-wrap">
+      <div ref={mapBox} className="map-canvas-wrap">
         <div
           ref={container}
           role="application"
@@ -855,11 +909,7 @@ export default function MapView({
                 <p className="text-[13px] text-ink-faint">
                   {quarter
                     ? votesLabel(quarter.votes)
-                    : `${votesLabel(street?.votes ?? 0)}${
-                        street?.avgScore != null
-                          ? ` · ציון ${scoreOutOfTen(street.avgScore)} מתוך 10`
-                          : ""
-                      }`}
+                    : (street && QUARTER_MAP[street.quarterId]?.name) ?? ""}
                 </p>
               </div>
               <button
@@ -869,7 +919,7 @@ export default function MapView({
                   setSelectedStreet(null);
                   setFocusQuarter(null);
                 }}
-                className="min-h-0 rounded-[8px] border border-line px-3 py-1 text-[13px] text-ink"
+                className="pressable rounded-[10px] border border-line px-3 text-[14px] text-ink"
               >
                 סגירה
               </button>
@@ -877,12 +927,15 @@ export default function MapView({
 
             <div className="max-h-[38vh] overflow-y-auto p-3">
               {street ? (
-                <Link
-                  href={`/street/${street.id}`}
-                  className="flex items-center justify-center rounded-[12px] bg-accent px-4 py-3 text-[15px] font-medium text-white"
-                >
-                  לכרטיס הרחוב
-                </Link>
+                <>
+                  <MapTable data={streetTable(street)} />
+                  <Link
+                    href={`/street/${street.id}`}
+                    className="mt-3 flex items-center justify-center rounded-[12px] bg-accent px-4 py-3 text-[15px] font-medium text-white"
+                  >
+                    לכרטיס הרחוב
+                  </Link>
+                </>
               ) : quarterStreets.length === 0 ? (
                 <p className="text-[14px] text-ink-soft">
                   אין עדיין רחובות מדורגים ברובע הזה.
@@ -955,8 +1008,82 @@ export default function MapView({
         </p>
       ) : null}
 
+      {/*
+        דירוג הרחובות: לפי הציון או לפי מספר הקולות. בחירה בשורה היא אותה
+        בחירה כמו במפה — טסה לרחוב ופותחת את הטבלה שלו.
+      */}
+      {ranked.length > 0 ? (
+        <section className="mt-3" aria-label="דירוג הרחובות">
+          <h2 className="mb-1 text-[17px] font-semibold text-ink">
+            דירוג הרחובות לפי {rankBy === "votes" ? "מספר קולות" : "ציון ממוצע"}
+          </h2>
+          <div className="mb-2 flex gap-2" role="group" aria-label="לפי מה לדרג">
+            {(
+              [
+                ["score", "ציון ממוצע"],
+                ["votes", "מספר קולות"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={rankBy === value}
+                onClick={() => setRankBy(value)}
+                className={`pressable flex-1 rounded-[12px] px-3 py-2 text-[14px] ${
+                  rankBy === value
+                    ? "bg-accent font-semibold text-white"
+                    : "border border-line bg-surface text-ink"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <ol className="district-rank">
+            {ranked.map((s, index) => {
+              const placed = Boolean(s.center || (s.line && s.line.length > 1));
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    aria-pressed={s.id === selectedStreet}
+                    onClick={() => {
+                      if (placed) focusStreet(s.id);
+                      else {
+                        setSelectedQuarter(null);
+                        setSelectedStreet(s.id);
+                      }
+                      mapBox.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                    }}
+                    className="district-rank-row pressable"
+                  >
+                    <span
+                      className="district-rank-num tabular-nums"
+                      style={{ background: markFill(classify(streetWeight.get(s.id), LEVEL_BREAKS), 3) }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 text-right">
+                      {s.name}
+                      {placed ? null : (
+                        <span className="block text-[12px] text-ink-faint">אין מיקום במפה</span>
+                      )}
+                    </span>
+                    <span className="text-[14px] tabular-nums text-ink-soft">
+                      {rankBy === "votes"
+                        ? `${s.votes} קולות`
+                        : `${scoreOutOfTen(s.avgScore)} מתוך 10`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ) : null}
+
       {/* מתחת למפה, לא עליה: רובעים שאין להם עדיין מיקום אמיתי. */}
-      {unplaced.length > 0 ? (
+      {unplaced.length > 0 && !lockMode ? (
         <div className="card mt-3 p-3">
           <p className="text-[15px] font-medium text-ink">
             {unplaced.length} רובעים עדיין בלי מיקום על המפה
@@ -971,6 +1098,13 @@ export default function MapView({
         </div>
       ) : null}
 
+      {/* כלי הצוות: מקופלים כברירת מחדל, כדי שהמסך יישאר מפה ודירוג. */}
+      {canCalibrate ? (
+        <details className="card mt-3">
+          <summary className="cursor-pointer px-3 py-3 text-[15px] font-semibold text-ink">
+            כלי צוות: מיקום רחובות על המפה
+          </summary>
+          <div className="px-3 pb-3">
       {canCalibrate ? (
         <div className="card mt-3 p-3">
           <p className="text-[15px] font-semibold text-ink">מיקום רחובות מ-OpenStreetMap</p>
@@ -1070,6 +1204,9 @@ export default function MapView({
             </p>
           ) : null}
         </div>
+      ) : null}
+          </div>
+        </details>
       ) : null}
 
     </div>

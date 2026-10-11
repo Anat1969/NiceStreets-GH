@@ -463,6 +463,11 @@
   color: var(--color-ink);
 }
 
+/* שורת קול ברחוב אינה קישור, ולכן אינה צריכה גובה של מטרת מגע. */
+.district-table-plain {
+  min-height: 28px;
+}
+
 a.district-table-row:hover {
   background: var(--color-accent-soft);
 }

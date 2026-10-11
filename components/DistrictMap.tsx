@@ -41,6 +41,8 @@ import {
 } from "@/lib/districts";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 import { useBrandColor } from "@/lib/use-brand-color";
+import { tableTooltip, type MapTableData } from "@/lib/map-table";
+import MapTable from "@/components/MapTable";
 
 interface Props {
   /** כתובת קובץ הגבולות (GeoJSON FeatureCollection של פוליגונים). */
@@ -94,6 +96,19 @@ function shortName(name: string): string {
  */
 const TOOLTIP_ITEMS = 12;
 
+/** הרשומה כטבלה המשותפת של המפות. */
+function recordTable(record: DistrictRecord): MapTableData {
+  return {
+    columns: record.columns ?? [],
+    total: record.total,
+    rows: (record.items ?? []).map((item) => ({
+      label: item.label,
+      cells: item.cells ?? [],
+      href: item.href,
+    })),
+  };
+}
+
 function tooltipContent(
   name: string,
   record: DistrictRecord | undefined,
@@ -109,35 +124,9 @@ function tooltipContent(
 
   const items = record?.items ?? [];
 
-  // טבלה: כותרות פעם אחת, וכל מספר מתחת לכותרת שלו — בלי לחזור על המילים.
+  // טבלה: אותה שפה כמו בחלונית של רחוב (lib/map-table.ts).
   if (record?.columns && (record.total || items.length > 0)) {
-    const columns = record.columns;
-    const table = document.createElement("div");
-    table.className = "district-table";
-    table.style.setProperty("--cols", String(columns.length));
-    const row = (label: string, cells: string[], className: string) => {
-      const name = document.createElement("span");
-      name.className = className;
-      name.textContent = label;
-      table.append(name);
-      columns.forEach((_, i) => {
-        const cell = document.createElement("span");
-        cell.className = `${className} district-table-num`;
-        cell.textContent = cells[i] ?? "–";
-        table.append(cell);
-      });
-    };
-    row("", columns, "district-table-head");
-    if (record.total) row(record.total.label, record.total.cells, "district-table-total");
-    for (const item of items.slice(0, TOOLTIP_ITEMS)) row(item.label, item.cells ?? [], "");
-    root.append(table);
-    if (items.length > TOOLTIP_ITEMS) {
-      const more = document.createElement("span");
-      more.className = "district-tooltip-detail";
-      more.textContent = `ועוד ${items.length - TOOLTIP_ITEMS}. לחיצה מציגה את כולם.`;
-      root.append(more);
-    }
-    return root;
+    return tableTooltip(name, recordTable(record));
   }
 
   const summary = document.createElement("span");
@@ -653,26 +642,6 @@ export default function DistrictMap({
 
   return (
     <div className="district-map">
-      {metrics.length > 1 ? (
-        <div className="mb-2 flex flex-wrap gap-2" role="group" aria-label="לפי מה לצבוע">
-          {metrics.map((m) => (
-            <button
-              key={m.key}
-              type="button"
-              aria-pressed={m.key === metric?.key}
-              onClick={() => setMetricKey(m.key)}
-              className={`pressable flex-1 rounded-[12px] px-3 py-2 text-[14px] ${
-                m.key === metric?.key
-                  ? "bg-accent font-semibold text-white"
-                  : "border border-line bg-surface text-ink"
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
-        </div>
-      ) : null}
-
       <div ref={wrap} className="map-canvas-wrap district-canvas-wrap">
         <div ref={container} className="map-canvas" />
 
@@ -744,41 +713,7 @@ export default function DistrictMap({
 
               {selectedRecord?.columns &&
               (selectedRecord.total || (selectedRecord.items?.length ?? 0) > 0) ? (
-                <div
-                  className="district-table district-table-panel mt-2"
-                  style={{ "--cols": selectedRecord.columns.length } as React.CSSProperties}
-                >
-                  <span className="district-table-head" />
-                  {selectedRecord.columns.map((c) => (
-                    <span key={c} className="district-table-head district-table-num">
-                      {c}
-                    </span>
-                  ))}
-                  {selectedRecord.total ? (
-                    <>
-                      <span className="district-table-total">{selectedRecord.total.label}</span>
-                      {selectedRecord.columns.map((c, i) => (
-                        <span key={c} className="district-table-total district-table-num">
-                          {selectedRecord.total?.cells[i] ?? "–"}
-                        </span>
-                      ))}
-                    </>
-                  ) : null}
-                  {selectedRecord.items?.map((item) => (
-                    <Link
-                      key={`${item.label}-${item.href ?? ""}`}
-                      href={item.href ?? "#"}
-                      className="district-table-row"
-                    >
-                      <span>{item.label}</span>
-                      {selectedRecord.columns?.map((c, i) => (
-                        <span key={c} className="district-table-num">
-                          {item.cells?.[i] ?? "–"}
-                        </span>
-                      ))}
-                    </Link>
-                  ))}
-                </div>
+                <MapTable data={recordTable(selectedRecord)} className="mt-2" />
               ) : selectedRecord?.items && selectedRecord.items.length > 0 ? (
                 <>
                   {selectedRecord.itemsTitle ? (
@@ -879,6 +814,26 @@ export default function DistrictMap({
           <h2 className="mb-1 text-[17px] font-semibold text-ink">
             דירוג הרובעים לפי {metric.label}
           </h2>
+          {metrics.length > 1 ? (
+            <div className="mb-2 flex flex-wrap gap-2" role="group" aria-label="לפי מה לדרג">
+              {metrics.map((m) => (
+                <button
+                  key={m.key}
+                  type="button"
+                  aria-pressed={m.key === metric?.key}
+                  onClick={() => setMetricKey(m.key)}
+                  className={`pressable flex-1 rounded-[12px] px-3 py-2 text-[14px] ${
+                    m.key === metric?.key
+                      ? "bg-accent font-semibold text-white"
+                      : "border border-line bg-surface text-ink"
+                  }`}
+                >
+                  {m.label}
+                </button>
+              ))}
+            </div>
+          ) : null}
+
           <ol ref={listBox} className="district-rank">
             {rows.map((row) => {
               const rank = rankOf.get(row.id);
