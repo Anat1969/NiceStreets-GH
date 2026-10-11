@@ -107,6 +107,39 @@ function tooltipContent(
   title.textContent = name;
   root.append(title);
 
+  const items = record?.items ?? [];
+
+  // טבלה: כותרות פעם אחת, וכל מספר מתחת לכותרת שלו — בלי לחזור על המילים.
+  if (record?.columns && (record.total || items.length > 0)) {
+    const columns = record.columns;
+    const table = document.createElement("div");
+    table.className = "district-table";
+    table.style.setProperty("--cols", String(columns.length));
+    const row = (label: string, cells: string[], className: string) => {
+      const name = document.createElement("span");
+      name.className = className;
+      name.textContent = label;
+      table.append(name);
+      columns.forEach((_, i) => {
+        const cell = document.createElement("span");
+        cell.className = `${className} district-table-num`;
+        cell.textContent = cells[i] ?? "–";
+        table.append(cell);
+      });
+    };
+    row("", columns, "district-table-head");
+    if (record.total) row(record.total.label, record.total.cells, "district-table-total");
+    for (const item of items.slice(0, TOOLTIP_ITEMS)) row(item.label, item.cells ?? [], "");
+    root.append(table);
+    if (items.length > TOOLTIP_ITEMS) {
+      const more = document.createElement("span");
+      more.className = "district-tooltip-detail";
+      more.textContent = `ועוד ${items.length - TOOLTIP_ITEMS}. לחיצה מציגה את כולם.`;
+      root.append(more);
+    }
+    return root;
+  }
+
   const summary = document.createElement("span");
   summary.className = "district-tooltip-summary";
   summary.textContent =
@@ -114,7 +147,6 @@ function tooltipContent(
     (metric ? `${metric.label}: ${formatMetric(value, metric)}` : "אין נתונים");
   root.append(summary);
 
-  const items = record?.items ?? [];
   if (items.length > 0) {
     const list = document.createElement("ul");
     for (const item of items.slice(0, TOOLTIP_ITEMS)) {
@@ -687,8 +719,8 @@ export default function DistrictMap({
 
             <div className="district-panel-body p-3">
               <dl className="district-fields">
-                {/* שורת הסיכום כבר אומרת את המדד; בלעדיה הוא מוצג כאן. */}
-                {(selectedRecord?.summary ? [] : metrics).map((m) => (
+                {/* הטבלה או שורת הסיכום כבר אומרות את המדד; בלעדיהן הוא מוצג כאן. */}
+                {(selectedRecord?.summary || selectedRecord?.total ? [] : metrics).map((m) => (
                   <div key={m.key}>
                     <dt>{m.label}</dt>
                     <dd className="tabular-nums">
@@ -710,7 +742,44 @@ export default function DistrictMap({
                 </p>
               ) : null}
 
-              {selectedRecord?.items && selectedRecord.items.length > 0 ? (
+              {selectedRecord?.columns &&
+              (selectedRecord.total || (selectedRecord.items?.length ?? 0) > 0) ? (
+                <div
+                  className="district-table district-table-panel mt-2"
+                  style={{ "--cols": selectedRecord.columns.length } as React.CSSProperties}
+                >
+                  <span className="district-table-head" />
+                  {selectedRecord.columns.map((c) => (
+                    <span key={c} className="district-table-head district-table-num">
+                      {c}
+                    </span>
+                  ))}
+                  {selectedRecord.total ? (
+                    <>
+                      <span className="district-table-total">{selectedRecord.total.label}</span>
+                      {selectedRecord.columns.map((c, i) => (
+                        <span key={c} className="district-table-total district-table-num">
+                          {selectedRecord.total?.cells[i] ?? "–"}
+                        </span>
+                      ))}
+                    </>
+                  ) : null}
+                  {selectedRecord.items?.map((item) => (
+                    <Link
+                      key={`${item.label}-${item.href ?? ""}`}
+                      href={item.href ?? "#"}
+                      className="district-table-row"
+                    >
+                      <span>{item.label}</span>
+                      {selectedRecord.columns?.map((c, i) => (
+                        <span key={c} className="district-table-num">
+                          {item.cells?.[i] ?? "–"}
+                        </span>
+                      ))}
+                    </Link>
+                  ))}
+                </div>
+              ) : selectedRecord?.items && selectedRecord.items.length > 0 ? (
                 <>
                   {selectedRecord.itemsTitle ? (
                     <p className="mt-3 mb-1 text-[14px] font-semibold text-ink">

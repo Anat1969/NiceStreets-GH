@@ -423,6 +423,54 @@
   box-shadow: 0 2px 10px rgb(0 0 0 / 16%);
 }
 
+/*
+ * טבלת הפריטים (רחובות) בחלונית ובלוח: שם, ואחריו עמודה לכל נתון. הכותרות
+ * מופיעות פעם אחת, וכל מספר יושב מתחת לכותרת שלו.
+ */
+.district-table {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(var(--cols, 2), auto);
+  column-gap: 14px;
+  row-gap: 2px;
+  align-items: baseline;
+}
+
+.district-table-num {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.district-table-head {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+}
+
+.district-table-total {
+  font-weight: 700;
+  color: var(--color-ink);
+  padding-bottom: 3px;
+  border-bottom: 1px solid var(--color-line);
+}
+
+/* בלוח כל שורה היא קישור לכרטיס הרחוב, ולכן מטרת מגע מלאה. */
+.district-table-row {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  min-height: 44px;
+  border-radius: 8px;
+  color: var(--color-ink);
+}
+
+a.district-table-row:hover {
+  background: var(--color-accent-soft);
+}
+
+.district-table-panel {
+  font-size: 15px;
+}
+
 /* המקרא: שורה אחת קטנה מתחת למפה. מסביר, לא מתחרה במפה. */
 .district-legend {
   display: flex;

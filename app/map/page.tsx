@@ -10,7 +10,6 @@ import {
   type ShadeDef,
 } from "@/lib/districts";
 import { loadStreetLines, streetLinesAvailable } from "@/lib/geo";
-import { votesLabel } from "@/lib/hebrew";
 import { scoreOutOfTen, toTen } from "@/lib/score";
 import { getStore } from "@/lib/store";
 import { isStaff } from "@/lib/session";
@@ -85,15 +84,17 @@ export default async function MapPage({
         // 1..3, או null כשאין קולות.
         level: levelOf.has(quarterId) ? (levelOf.get(quarterId) as number) + 1 : null,
       },
-      summary:
+      // בלי קולות אין טבלה, ולכן משפט אחד במקומה.
+      summary: score === null ? "אין עדיין קולות ברובע הזה" : undefined,
+      columns: ["ציון", "קולות"],
+      total:
         score === null
-          ? "אין עדיין קולות ברובע הזה"
-          : `ציון ממוצע ${score.toFixed(1)} מתוך 10, מתוך ${votesLabel(votes)}`,
+          ? undefined
+          : { label: "כל הרובע", cells: [score.toFixed(1), String(votes)] },
       fields: [{ label: "רחובות מדורגים", value: String(stats?.streets ?? 0) }],
-      itemsTitle: rated.length > 0 ? "הרחובות שדורגו" : undefined,
       items: rated.map((s) => ({
         label: s.street.name,
-        detail: `${votesLabel(s.votes)} · ציון ${scoreOutOfTen(s.avgScore)}`,
+        cells: [scoreOutOfTen(s.avgScore), String(s.votes)],
         href: `/street/${s.street.id}`,
       })),
       link: {

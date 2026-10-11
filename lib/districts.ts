@@ -51,6 +51,8 @@ export interface ShadeDef {
 export interface DistrictItem {
   label: string;
   detail?: string;
+  /** ערכים לעמודות (`DistrictRecord.columns`), באותו סדר. */
+  cells?: string[];
   href?: string;
 }
 
@@ -60,6 +62,13 @@ export interface DistrictRecord {
   name?: string;
   /** ערך לכל מדד, לפי `MetricDef.key`. null = אין עדיין נתון. */
   values: Record<string, number | null>;
+  /**
+   * כותרות עמודות לטבלת הפריטים, למשל ["ציון", "קולות"]. כשהן קיימות,
+   * הפריטים מוצגים כטבלה: כל מספר מתחת לכותרת שלו, בלי לחזור על המילים.
+   */
+  columns?: string[];
+  /** שורת הסיכום של הטבלה, למשל { label: "כל הרובע", cells: ["5.2", "3"] }. */
+  total?: { label: string; cells: string[] };
   /** שורת סיכום לחלונית הריחוף וללוח, למשל "ציון 7.4 מתוך 10, מתוך 29 קולות". */
   summary?: string;
   /** שדות נוספים ללוח הפרטים, בסדר התצוגה. */
