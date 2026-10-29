@@ -214,6 +214,24 @@ export const CITY = {
   ] as [[number, number], [number, number]],
 };
 
+/**
+ * מדיניות התמונות, במקום אחד.
+ *
+ * ההיגיון: קול בלי תמונה הוא קול מלא. מי שנשאל "תמונה או שלא נספר אותך"
+ * פשוט לא ישלח, ואז מה שנמדד הוא מי מוכן לצלם ולא מה התושבים חושבים.
+ * לכן בדירוג התמונה היא רשות, ושני מסלולים בלבד דורשים אותה — אלה שבהם
+ * התמונה היא הראיה עצמה ולא קישוט: דיווח לעירייה על משהו שקרה ברחוב,
+ * והצעה של רחוב שאינו ברשימת הרחובות הרשמית.
+ *
+ * `photosForExample` הוא מספר התמונות המאושרות שרחוב באשדוד צריך כדי
+ * להיכנס לספריית הדוגמאות. תמונה אחת היא רגע, שלוש הן רחוב.
+ */
+export const PHOTO_POLICY = {
+  photosForExample: 3,
+  /** התמונות שנשמרות בדיווח ובהצעת רחוב, כראיה לצוות ולא לפרסום. */
+  requiredIn: ["report", "street_suggestion"] as const,
+};
+
 export const PRINCIPLES = [
   {
     key: "knowledge",
@@ -810,6 +828,42 @@ export const QUARTERS: Quarter[] = QUARTER_SEED.map((q) => ({
   centerSource: null,
 }));
 
+
+/**
+ * גבולות הרובעים: קובץ GeoJSON שבו כל פוליגון מזוהה ב-`rova_code`.
+ * נטען בדפדפן מ-public/, כך שהחלפת הקובץ אינה דורשת שינוי קוד.
+ */
+export const DISTRICT_GEOJSON_URL = "/geo/ashdod-rovaim.geojson";
+
+/**
+ * החיבור בין קוד הרובע בקובץ הגבולות לבין האזור באפליקציה.
+ *
+ * 7 (ז') ו-14 (י"ד) רשומים כאן אף שאין להם עדיין פוליגון בקובץ: כשתגיע
+ * גרסה שכוללת אותם, הם יתחברו בלי שינוי קוד. קוד 19 (מע"ר צפון) מופיע
+ * בקובץ ואינו אזור באפליקציה — הוא מצויר בלי נתונים.
+ */
+export const ROVA_CODE_TO_QUARTER: Record<string, string> = {
+  "1": "q-a",
+  "2": "q-b",
+  "3": "q-c",
+  "4": "q-d",
+  "5": "q-e",
+  "6": "q-f",
+  "7": "q-g",
+  "8": "q-h",
+  "9": "q-i",
+  "10": "q-j",
+  "11": "q-k",
+  "12": "q-l",
+  "13": "q-m",
+  "14": "q-n",
+  "15": "q-o",
+  "16": "q-p",
+  "17": "q-q",
+  "20": "q-city",
+  "23": "q-marina",
+  "32": "q-cbd-south",
+};
 
 export const QUESTION_MAP = Object.fromEntries(QUESTIONS.map((q) => [q.key, q]));
 export const TYPOLOGY_MAP = Object.fromEntries(TYPOLOGIES.map((t) => [t.key, t]));

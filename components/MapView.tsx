@@ -7,7 +7,13 @@ import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
 import { normaliseForSearch } from "@/lib/street-filter";
-import { scoreColorTen, scoreOutOfTen, textOnScore, toTen } from "@/lib/score";
+import { scoreOutOfTen } from "@/lib/score";
+import { QUARTER_MAP } from "@/lib/city";
+import { bothLevels, classify, fixedBreaks, legendWord } from "@/lib/districts";
+import { useBrandColor } from "@/lib/use-brand-color";
+import { tableTooltip, type MapTableData } from "@/lib/map-table";
+import MapTable from "@/components/MapTable";
+import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 
 interface QuarterPoint {
   id: string;
@@ -33,6 +39,8 @@ interface StreetFeature {
   center?: [number, number];
   /** מאיפה הגיע המיקום. null = טרם מוקם. */
   centerSource?: string | null;
+  /** כל קול ברחוב, מהחדש לישן: תאריך וציון מתוך 10, כבר מעוצבים. */
+  ballots?: { date: string; score: string }[];
 }
 
 interface Props {
@@ -44,50 +52,49 @@ interface Props {
   streets: StreetFeature[];
   streetLinesAvailable: boolean;
   canCalibrate?: boolean;
+  /**
+   * נעילה לתצוגת רחובות. מפת הרובעים עברה לרכיב משלה (DistrictMap), ולכן
+   * לתושב אין כאן מתג. הצוות מקבל את מצב הנקודות לכיול אזורים בלי גבול.
+   */
+  lockMode?: "street";
+}
+
+/** ספים קבועים לשלוש הדרגות; קבוע מחוץ לרכיב, כדי לא לבנות את המפה מחדש בכל רינדור. */
+const LEVEL_BREAKS = fixedBreaks(3);
+const quarterBreaks = LEVEL_BREAKS;
+const streetBreaks = LEVEL_BREAKS;
+
+/** הדרגה (1..3) של כל פריט שקיבל קולות: הנמוכה מבין דרגת הציון ודרגת הקולות. */
+function levelsOf(items: { id: string; votes: number; avgScore: number | null }[]) {
+  const levels = bothLevels(items.map((x) => ({ id: x.id, score: x.avgScore, votes: x.votes })));
+  return new Map([...levels].map(([id, level]) => [id, level + 1]));
 }
 
 /**
- * רקע מונוכרומטרי ורווי-נמוך, כדי שהנתונים יבלטו מעליו ולא יתחרו בו.
- * ניתן להחלפה ברקע העירוני דרך NEXT_PUBLIC_MAP_STYLE (כל style.json).
+ * הרחוב כטבלה — אותה שפה כמו הרובע: "כל הרחוב" עם הציון ומספר הקולות,
+ * ומתחתיו כל קול עם התאריך והציון שלו.
  */
-const DEFAULT_STYLE_URL = "https://tiles.openfreemap.org/styles/positron";
-
-/** כשאין רקע זמין — הנתונים עדיין נטענים, על רקע ריק. */
-const BLANK_STYLE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {},
-  layers: [
-    { id: "background", type: "background", paint: { "background-color": "#f1f2f4" } },
-  ],
-};
-
-/**
- * צבע הציון — מהסולם המשותף ב-lib/score.ts, על רצף ולא במדרגות.
- *
- * הגרסה הקודמת עיגלה את הציון למספר שלם, ולכן כל שנים־עשר הרחובות
- * שנעו בין 2.63 ל-3.33 קיבלו בדיוק את אותו צבע. הצבע קידד אפס מידע,
- * וזה מה שנראה על המסך.
- */
-function scoreColor(score: number | null): string {
-  return scoreColorTen(score === null ? null : toTen(score));
+function streetTable(s: StreetFeature): MapTableData {
+  return {
+    columns: ["ציון", "קולות"],
+    total: { label: "כל הרחוב", cells: [scoreOutOfTen(s.avgScore), String(s.votes)] },
+    rows: (s.ballots ?? []).map((b) => ({ label: `קול · ${b.date}`, cells: [b.score, ""] })),
+  };
 }
 
 /**
- * בלי זה הרקע מצייר שמות בעברית הפוכים ("דודשא" במקום "אשדוד"): MapLibre
- * מסדר אותיות משמאל לימין אם התוסף אינו טעון. מוגש מהשרת שלנו.
+ * הסימן על המפה: גוון המותג שנבחר בכותרת, בעוצמה לפי דרגת הקולות — אותה
+ * שפה כמו במפת הרובעים. הרקע חצי שקוף, כך שהמפה נראית מתחת גם לכהה ביותר.
  */
-let rtlPluginRequested = false;
-function ensureRtlTextPlugin() {
-  if (rtlPluginRequested) return;
-  rtlPluginRequested = true;
-  try {
-    const state = maplibregl.getRTLTextPluginStatus();
-    if (state === "unavailable" || state === "requested") {
-      maplibregl.setRTLTextPlugin("/vendor/mapbox-gl-rtl-text.min.js", true);
-    }
-  } catch {
-    // כבר נטען על ידי מופע אחר.
-  }
+function markFill(level: number | null, levels: number): string {
+  const percent = level === null ? 8 : Math.round(18 + (40 * level) / Math.max(1, levels - 1));
+  return `color-mix(in srgb, var(--brand-500) ${percent}%, rgb(255 255 255 / 72%))`;
+}
+
+/** קו רחוב (כשיש שכבת GIS): אותו גוון, אטום יותר כי קו דק מכתם. */
+function lineOpacity(level: number | null, levels: number): number {
+  if (level === null) return 0.3;
+  return 0.4 + (0.5 * level) / Math.max(1, levels - 1);
 }
 
 export default function MapView({
@@ -98,6 +105,7 @@ export default function MapView({
   streets,
   streetLinesAvailable,
   canCalibrate = false,
+  lockMode,
 }: Props) {
   const router = useRouter();
   const container = useRef<HTMLDivElement>(null);
@@ -109,7 +117,7 @@ export default function MapView({
    * קודם לכן המעבר ביניהן היה תלוי בזום, ולכן אי אפשר היה לבקש אותו —
    * ומי שלא ידע להתקרב מספיק לא ראה רחובות מעולם.
    */
-  const [mode, setMode] = useState<"quarter" | "street">("quarter");
+  const [mode, setMode] = useState<"quarter" | "street">(lockMode ?? "quarter");
   /*
    * הרובע שנבחר בתצוגת רובעים. בחירה בו מתקרבת אליו ומוסיפה את
    * הרחובות שבתוכו — במקום שכל רחובות העיר יצוירו כל הזמן.
@@ -117,9 +125,10 @@ export default function MapView({
   const [focusQuarter, setFocusQuarter] = useState<string | null>(null);
   const [selectedQuarter, setSelectedQuarter] = useState<string | null>(null);
   const [selectedStreet, setSelectedStreet] = useState<string | null>(null);
+  /** סדר הדירוג שמתחת למפה: לפי הציון הממוצע או לפי מספר הקולות. */
+  const [rankBy, setRankBy] = useState<"score" | "votes">("score");
+  const mapBox = useRef<HTMLDivElement>(null);
   const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
-  // המקרא פתוח כברירת מחדל: מפה שאי אפשר לפענח אינה שווה יותר מרשימה.
-  const [legendOpen, setLegendOpen] = useState(true);
 
   const [search, setSearch] = useState("");
   /** נקרא מתוך האפקט של המפה, כדי שהחיפוש יוכל להטיס אליה. */
@@ -160,6 +169,35 @@ export default function MapView({
   );
 
   const shown = mode === "quarter" ? quarters.length : placedStreets.length;
+
+  /*
+   * עוצמת הגוון: כהה רק כשהציון וגם מספר הקולות בשליש העליון — אותו כלל
+   * כמו במפת הרובעים (bothLevels ב-lib/districts.ts). רובעים ורחובות
+   * מדורגים כל אחד מול עצמו.
+   */
+  const quarterWeight = useMemo(() => levelsOf(quarters), [quarters]);
+  const streetWeight = useMemo(() => levelsOf(placedStreets), [placedStreets]);
+  const legendBreaks = mode === "quarter" ? quarterBreaks : streetBreaks;
+  const legendLevels = useMemo(() => {
+    const weights = [...(mode === "quarter" ? quarterWeight : streetWeight).values()];
+    return [...new Set(weights.map((w) => classify(w, legendBreaks)))]
+      .filter((l): l is number => l !== null)
+      .sort((a, b) => a - b);
+  }, [mode, quarterWeight, streetWeight, legendBreaks]);
+  const ranked = useMemo(
+    () =>
+      streets
+        .filter((s) => s.votes > 0)
+        .sort((a, b) =>
+          rankBy === "votes"
+            ? b.votes - a.votes || (b.avgScore ?? 0) - (a.avgScore ?? 0)
+            : (b.avgScore ?? 0) - (a.avgScore ?? 0) || b.votes - a.votes,
+        ),
+    [streets, rankBy],
+  );
+  const brand = useBrandColor();
+  const brandRef = useRef(brand);
+  brandRef.current = brand;
 
   /* מיקום משוער נאמר במפורש במקרא, ולא מוצג כאילו נמדד. */
   const approx = useMemo(
@@ -263,7 +301,7 @@ export default function MapView({
 
     const instance = new maplibregl.Map({
       container: container.current,
-      style: process.env.NEXT_PUBLIC_MAP_STYLE ?? DEFAULT_STYLE_URL,
+      style: mapStyleUrl(),
       center,
       zoom,
       attributionControl: { compact: true },
@@ -301,7 +339,6 @@ export default function MapView({
               id: q.id,
               name: q.name,
               votes: q.votes,
-              color: scoreColor(q.avgScore),
             },
           })),
         },
@@ -359,7 +396,15 @@ export default function MapView({
               type: "Feature",
               id: s.id,
               geometry: { type: "LineString", coordinates: s.line as [number, number][] },
-              properties: { id: s.id, name: s.name, votes: s.votes, color: scoreColor(s.avgScore) },
+              properties: {
+                id: s.id,
+                name: s.name,
+                votes: s.votes,
+                opacity: lineOpacity(
+                  classify(streetWeight.get(s.id), streetBreaks),
+                  streetBreaks.length + 1,
+                ),
+              },
             })),
           },
         });
@@ -369,7 +414,7 @@ export default function MapView({
           source: "street-lines-src",
           layout: { "line-cap": "round", "line-join": "round" },
           paint: {
-            "line-color": ["get", "color"],
+            "line-color": brandRef.current,
             "line-width": [
               "interpolate",
               ["linear"],
@@ -377,7 +422,7 @@ export default function MapView({
               0, 3,
               Math.sqrt(maxStreetVotes), 12,
             ],
-            "line-opacity": 0.9,
+            "line-opacity": ["get", "opacity"],
           },
         });
         instance.on("click", "street-lines", (event) => {
@@ -402,7 +447,6 @@ export default function MapView({
               id: s.id,
               name: s.name,
               votes: s.votes,
-              color: scoreColor(s.avgScore),
             },
           })),
         },
@@ -495,6 +539,15 @@ export default function MapView({
       });
     }
 
+    const canHover = window.matchMedia("(hover: hover)").matches;
+    const hoverPopup = new maplibregl.Popup({
+      closeButton: false,
+      closeOnClick: false,
+      className: "district-tooltip",
+      offset: 22,
+      maxWidth: "300px",
+    });
+
     function addLabels() {
       labels.current.forEach((m) => m.remove());
       const focusedStreets =
@@ -513,6 +566,8 @@ export default function MapView({
                   votes: q.votes,
                   avgScore: q.avgScore,
                   at: q.center,
+                  breaks: quarterBreaks,
+                  weight: quarterWeight.get(q.id),
                   pick: () => selectQuarter(q.id),
                 })),
               ...focusedStreets.map((s) => ({
@@ -521,6 +576,8 @@ export default function MapView({
                 votes: s.votes,
                 avgScore: s.avgScore,
                 at: streetPoint(s),
+                breaks: streetBreaks,
+                weight: streetWeight.get(s.id),
                 pick: () => {
                   setSelectedStreet(s.id);
                   setSelectedQuarter(null);
@@ -535,19 +592,17 @@ export default function MapView({
                 votes: s.votes,
                 avgScore: s.avgScore,
                 at: streetPoint(s),
+                breaks: streetBreaks,
+                weight: streetWeight.get(s.id),
                 pick: () => {
                   setSelectedStreet(s.id);
                   setSelectedQuarter(null);
                 },
               }));
 
-      const maxVotes = Math.max(1, ...items.map((i) => i.votes));
-
       labels.current = items.map((item) => {
-        // קוטר בין 30 ל-58 פיקסלים, לפי שורש מספר הקולות.
-        const t = Math.sqrt(item.votes) / Math.sqrt(maxVotes);
-        const size = Math.round(30 + t * 28);
-        const fill = scoreColor(item.avgScore);
+        const levels = item.breaks.length + 1;
+        const fill = markFill(classify(item.weight, item.breaks), levels);
 
         const el = document.createElement("button");
         el.type = "button";
@@ -562,17 +617,9 @@ export default function MapView({
 
         const disc = document.createElement("span");
         disc.className = "map-mark-disc";
-        disc.style.width = `${size}px`;
-        disc.style.height = `${size}px`;
         disc.style.background = fill;
-        /*
-         * 19 פיקסלים לפחות, ומודגש: בגודל הזה התקן דורש ניגודיות 3:1
-         * ולא 4.5:1, והנקודה החלשה ביותר ברצף הצבעים היא 4.11 — כלומר
-         * המספר קריא על כל ציון בסולם, ולא רק על חלקו.
-         */
-        disc.style.fontSize = `${Math.max(19, Math.round(size * 0.38))}px`;
-        disc.style.color = textOnScore(item.avgScore === null ? null : toTen(item.avgScore));
-        disc.textContent = String(item.votes);
+        // המספר בעיגול הוא הציון, כמו התווית על הרובע. הקולות הם הגוון.
+        disc.textContent = item.avgScore === null ? "–" : scoreOutOfTen(item.avgScore);
         disc.setAttribute("aria-hidden", "true");
 
         const name = document.createElement("span");
@@ -585,6 +632,18 @@ export default function MapView({
           event.stopPropagation();
           if (!calibratingRef.current) item.pick();
         });
+
+        // ריחוף (במחשב): אותה טבלה כמו בריחוף על רובע.
+        const streetData = streets.find((x) => x.id === item.id);
+        if (canHover && streetData) {
+          el.addEventListener("mouseenter", () => {
+            hoverPopup
+              .setLngLat(item.at)
+              .setDOMContent(tableTooltip(streetData.name, streetTable(streetData)))
+              .addTo(instance);
+          });
+          el.addEventListener("mouseleave", () => hoverPopup.remove());
+        }
 
         return new maplibregl.Marker({ element: el })
           .setLngLat(item.at)
@@ -666,6 +725,7 @@ export default function MapView({
       resizeObserver.disconnect();
       labels.current.forEach((m) => m.remove());
       labels.current = [];
+      hoverPopup.remove();
       instance.remove();
       map.current = null;
     };
@@ -680,8 +740,19 @@ export default function MapView({
     streetPoint,
     maxQuarterVotes,
     maxStreetVotes,
+    quarterWeight,
+    streetWeight,
+    streets,
     saveQuarter,
   ]);
+
+  // צבע אחר בכותרת: הסימנים מתעדכנים לבד (משתנה CSS); קווי הרחובות כאן.
+  useEffect(() => {
+    const instance = map.current;
+    if (instance?.getLayer("street-lines")) {
+      instance.setPaintProperty("street-lines", "line-color", brand);
+    }
+  }, [brand]);
 
   const quarter = quarters.find((q) => q.id === selectedQuarter) ?? null;
   const street = streets.find((s) => s.id === selectedStreet) ?? null;
@@ -700,6 +771,7 @@ export default function MapView({
         className="mb-2 flex gap-2"
         role="group"
         aria-label="מה מוצג על המפה"
+        hidden={lockMode !== undefined}
       >
         {(
           [
@@ -774,7 +846,7 @@ export default function MapView({
         ) : null}
       </div>
 
-      <div className="map-canvas-wrap">
+      <div ref={mapBox} className="map-canvas-wrap">
         <div
           ref={container}
           role="application"
@@ -795,62 +867,6 @@ export default function MapView({
           </div>
         ) : null}
 
-        {/* מקרא: טקסט בלבד, מקופל כברירת מחדל, ואינו מכסה את המפה. */}
-        <details
-          open={legendOpen}
-          key={mode}
-          onToggle={(e) => setLegendOpen((e.target as HTMLDetailsElement).open)}
-          className="map-legend card"
-        >
-          <summary className="cursor-pointer list-none px-3 py-2 text-[14px] font-medium text-ink">
-            מקרא
-          </summary>
-          <div className="border-t border-line px-3 py-2 text-[13px] text-ink-soft">
-            <p>
-              כל סימן הוא {mode === "quarter" ? "רובע" : "רחוב"}, ואומר שלושה
-              דברים בבת אחת: <b>הגודל</b> הוא מספר הקולות, <b>המספר שבתוכו</b>
-              הוא אותו מספר בדיוק, ו<b>הצבע</b> הוא הציון הממוצע.
-            </p>
-            <p className="mt-1 flex flex-wrap items-center gap-1">
-              <span>הצבע, מ-0 עד 10:</span>
-              {[2, 4, 6, 8, 10].map((v) => (
-                <span key={v} className="flex items-center gap-1">
-                  <span
-                    className="inline-block h-3 w-3 rounded-full border border-line"
-                    style={{ background: scoreColorTen(v) }}
-                    aria-hidden="true"
-                  />
-                  <span className="tabular-nums">{v}</span>
-                </span>
-              ))}
-              <span className="text-ink-faint">· אפור = אין עדיין ציון</span>
-            </p>
-            {mode === "quarter" ? (
-              <p className="mt-1">
-                הקשה על רובע מתקרבת אליו ומוסיפה את הרחובות שבתוכו.
-              </p>
-            ) : null}
-            <p className="mt-1 text-ink-faint">
-              המיקומים נשלפו מ-OpenStreetMap לפי שם הרחוב או הרובע, ואינם שכבת
-              ה-GIS העירונית. רחוב מסומן בנקודה אחת, לא בקו לכל אורכו.
-            </p>
-            {approxCount > 0 ? (
-              <p className="mt-1 text-ink-faint">
-                {approxCount} מקומות אינם קיימים ב-OpenStreetMap בשם הזה,
-                ומיקומם כאן משוער עד שיימדד: {approxNames}.
-              </p>
-            ) : null}
-            {!streetLinesAvailable ? null : (
-              <p className="mt-1 text-ink-faint">
-                שכבת קווי הרחובות העירונית נטענה, ולכן רחוב שיש לו קו מצויר
-                כקו ולא כנקודה.
-              </p>
-            )}
-            {basemap === "none" ? (
-              <p className="mt-1 text-ink-faint">מפת הרקע לא נטענה. הנתונים על רקע ריק.</p>
-            ) : null}
-          </div>
-        </details>
 
         {/*
           פס דק בראש המפה כשרובע במוקד: אומר איפה אנחנו ומחזיר החוצה,
@@ -893,11 +909,7 @@ export default function MapView({
                 <p className="text-[13px] text-ink-faint">
                   {quarter
                     ? votesLabel(quarter.votes)
-                    : `${votesLabel(street?.votes ?? 0)}${
-                        street?.avgScore != null
-                          ? ` · ציון ${scoreOutOfTen(street.avgScore)} מתוך 10`
-                          : ""
-                      }`}
+                    : (street && QUARTER_MAP[street.quarterId]?.name) ?? ""}
                 </p>
               </div>
               <button
@@ -907,7 +919,7 @@ export default function MapView({
                   setSelectedStreet(null);
                   setFocusQuarter(null);
                 }}
-                className="min-h-0 rounded-[8px] border border-line px-3 py-1 text-[13px] text-ink"
+                className="pressable rounded-[10px] border border-line px-3 text-[14px] text-ink"
               >
                 סגירה
               </button>
@@ -915,12 +927,15 @@ export default function MapView({
 
             <div className="max-h-[38vh] overflow-y-auto p-3">
               {street ? (
-                <Link
-                  href={`/street/${street.id}`}
-                  className="flex items-center justify-center rounded-[12px] bg-accent px-4 py-3 text-[15px] font-medium text-white"
-                >
-                  לכרטיס הרחוב
-                </Link>
+                <>
+                  <MapTable data={streetTable(street)} />
+                  <Link
+                    href={`/street/${street.id}`}
+                    className="mt-3 flex items-center justify-center rounded-[12px] bg-accent px-4 py-3 text-[15px] font-medium text-white"
+                  >
+                    לכרטיס הרחוב
+                  </Link>
+                </>
               ) : quarterStreets.length === 0 ? (
                 <p className="text-[14px] text-ink-soft">
                   אין עדיין רחובות מדורגים ברובע הזה.
@@ -958,8 +973,117 @@ export default function MapView({
         ) : null}
       </div>
 
+      {/*
+        מקרא מתחת למפה ולא עליה, באותה שפה כמו במפת הרובעים: שורה אחת קטנה.
+        קודם הוא ישב על המפה, וכלל CSS שבור הסתיר אותו תמיד.
+      */}
+      {legendLevels.length > 0 ? (
+        <div className="district-legend" aria-label="מקרא">
+          <span className="district-legend-title">גוון לפי ציון וכמות קולות:</span>
+          <ul>
+            {legendLevels.map((level) => (
+              <li key={level}>
+                <span
+                  className="district-swatch"
+                  style={{ background: markFill(level, legendBreaks.length + 1) }}
+                />
+                <span>
+                  {legendWord(["נמוך", "בינוני", "גבוה"], level, legendBreaks.length + 1)}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <span>· המספר בעיגול: ציון ממוצע מתוך 10</span>
+          {streetLinesAvailable && mode === "street" ? (
+            <span>· רחוב עם קו מה-GIS העירוני מצויר כקו</span>
+          ) : null}
+        </div>
+      ) : null}
+      {approxCount > 0 || basemap === "none" ? (
+        <p className="mt-1 text-[12px] text-ink-faint">
+          {approxCount > 0
+            ? `${approxCount} מקומות אינם קיימים ב-OpenStreetMap בשם הזה, ומיקומם משוער עד שיימדד: ${approxNames}. `
+            : ""}
+          {basemap === "none" ? "מפת הרקע לא נטענה. הנתונים על רקע ריק." : ""}
+        </p>
+      ) : null}
+
+      {/*
+        דירוג הרחובות: לפי הציון או לפי מספר הקולות. בחירה בשורה היא אותה
+        בחירה כמו במפה — טסה לרחוב ופותחת את הטבלה שלו.
+      */}
+      {ranked.length > 0 ? (
+        <section className="mt-3" aria-label="דירוג הרחובות">
+          <h2 className="mb-1 text-[17px] font-semibold text-ink">
+            דירוג הרחובות לפי {rankBy === "votes" ? "מספר קולות" : "ציון ממוצע"}
+          </h2>
+          <div className="mb-2 flex gap-2" role="group" aria-label="לפי מה לדרג">
+            {(
+              [
+                ["score", "ציון ממוצע"],
+                ["votes", "מספר קולות"],
+              ] as const
+            ).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={rankBy === value}
+                onClick={() => setRankBy(value)}
+                className={`pressable flex-1 rounded-[12px] px-3 py-2 text-[14px] ${
+                  rankBy === value
+                    ? "bg-accent font-semibold text-white"
+                    : "border border-line bg-surface text-ink"
+                }`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+          <ol className="district-rank">
+            {ranked.map((s, index) => {
+              const placed = Boolean(s.center || (s.line && s.line.length > 1));
+              return (
+                <li key={s.id}>
+                  <button
+                    type="button"
+                    aria-pressed={s.id === selectedStreet}
+                    onClick={() => {
+                      if (placed) focusStreet(s.id);
+                      else {
+                        setSelectedQuarter(null);
+                        setSelectedStreet(s.id);
+                      }
+                      mapBox.current?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+                    }}
+                    className="district-rank-row pressable"
+                  >
+                    <span
+                      className="district-rank-num tabular-nums"
+                      style={{ background: markFill(classify(streetWeight.get(s.id), LEVEL_BREAKS), 3) }}
+                    >
+                      {index + 1}
+                    </span>
+                    <span className="flex-1 text-right">
+                      {s.name}
+                      {placed ? null : (
+                        <span className="block text-[12px] text-ink-faint">אין מיקום במפה</span>
+                      )}
+                    </span>
+                    <span className="text-[14px] tabular-nums text-ink-soft">
+                      {rankBy === "votes"
+                        ? `${s.votes} קולות`
+                        : `${scoreOutOfTen(s.avgScore)} מתוך 10`}
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      ) : null}
+
       {/* מתחת למפה, לא עליה: רובעים שאין להם עדיין מיקום אמיתי. */}
-      {unplaced.length > 0 ? (
+      {unplaced.length > 0 && !lockMode ? (
         <div className="card mt-3 p-3">
           <p className="text-[15px] font-medium text-ink">
             {unplaced.length} רובעים עדיין בלי מיקום על המפה
@@ -974,6 +1098,13 @@ export default function MapView({
         </div>
       ) : null}
 
+      {/* כלי הצוות: מקופלים כברירת מחדל, כדי שהמסך יישאר מפה ודירוג. */}
+      {canCalibrate ? (
+        <details className="card mt-3">
+          <summary className="cursor-pointer px-3 py-3 text-[15px] font-semibold text-ink">
+            כלי צוות: מיקום רחובות על המפה
+          </summary>
+          <div className="px-3 pb-3">
       {canCalibrate ? (
         <div className="card mt-3 p-3">
           <p className="text-[15px] font-semibold text-ink">מיקום רחובות מ-OpenStreetMap</p>
@@ -1073,6 +1204,9 @@ export default function MapView({
             </p>
           ) : null}
         </div>
+      ) : null}
+          </div>
+        </details>
       ) : null}
 
     </div>

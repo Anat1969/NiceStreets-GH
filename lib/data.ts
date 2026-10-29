@@ -17,7 +17,9 @@ function emptyTotals(): Totals {
     votes: 0,
     demoVotes: 0,
     streets: 0,
+    streetsKnown: 0,
     photos: 0,
+    photoVotes: 0,
     photosPending: 0,
     orphanVotes: 0,
     byStatus: Object.fromEntries(STATUSES.map((s) => [s.key, 0])) as Record<

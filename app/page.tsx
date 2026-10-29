@@ -69,7 +69,11 @@ export default async function HomePage() {
       >
         <div className="flex gap-2">
           <Counter value={totals.votes} label="קולות" note="דירוגים שנשלחו" />
-          <Counter value={totals.streets} label="רחובות" note="שקיבלו דירוג" />
+          <Counter
+            value={totals.streets}
+            label="רחובות"
+            note={`דורגו, מתוך ${totals.streetsKnown}`}
+          />
           <Counter
             value={totals.photos}
             label="תמונות"
@@ -80,6 +84,19 @@ export default async function HomePage() {
             }
           />
         </div>
+        {/*
+          שלושת המספרים אינם מאותו סוג, וזה נראה כמו סתירה כשלא אומרים
+          את זה: חלק מהתמונות צולמו מכרטיס הרחוב בלי דירוג, ויש יותר
+          רחובות במערכת מרחובות שדורגו.
+        */}
+        <p className="mt-2 text-[13px] text-ink-faint">
+          {totals.photos > totals.photoVotes
+            ? `מתוך ${totals.photos} התמונות, ${totals.photoVotes} צורפו לקול ו-${totals.photos - totals.photoVotes} צולמו בלי דירוג. `
+            : ""}
+          {totals.streetsKnown > totals.streets
+            ? `${totals.streetsKnown} רחובות כבר במערכת, ${totals.streets} מהם קיבלו דירוג. הבדיקה האוטומטית של האגף עוברת על כולם.`
+            : ""}
+        </p>
       </Section>
 
       <Section

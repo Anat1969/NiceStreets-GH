@@ -1,5 +1,6 @@
 "use client";
 
+import { ensureResidentSession } from "@/lib/supabase/browser";
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { resizeImage } from "@/lib/image";
@@ -53,6 +54,7 @@ export default function StreetPhotoActions({
     setMessage(null);
     try {
       const dataUrl = await resizeImage(file, 1600, 0.82);
+      await ensureResidentSession();
       const response = await fetch("/api/photos", {
         method: "POST",
         headers: { "content-type": "application/json" },

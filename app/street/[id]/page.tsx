@@ -7,6 +7,7 @@ import { buildStreetStats, voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
 import { parseSegmentCode } from "@/lib/segments";
 import { isPublicPhoto } from "@/lib/types";
+import type { Photo } from "@/lib/types";
 import { confirmedTheme } from "@/lib/themes";
 import {
   Card,
@@ -54,9 +55,23 @@ export default async function StreetPage({
   const visiblePhotos = photos
     .filter((p) => isPublicPhoto(p) || staff)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  /*
+   * קול שיש לו תמונה עולה לראש.
+   *
+   * המילים והתמונה הן אותה עדות, ומי שטרח לצלם נתן את החלק שאפשר
+   * לראות. בתוך כל קבוצה הסדר הוא הקול האחרון קודם.
+   */
+  const voteIdsWithPhoto = new Set(
+    photos.filter(isPublicPhoto).map((p) => p.voteId).filter(Boolean),
+  );
   const reasons = votes
     .filter((v) => v.reason.trim().length > 0)
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .sort((a, b) => {
+      const pa = voteIdsWithPhoto.has(a.id);
+      const pb = voteIdsWithPhoto.has(b.id);
+      if (pa !== pb) return pa ? -1 : 1;
+      return b.updatedAt.localeCompare(a.updatedAt);
+    })
     .slice(0, 8);
   const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
   const summary = summarise(stats, reasons.length);
@@ -71,9 +86,15 @@ export default async function StreetPage({
     ? EXAMPLES.filter((e) => e.typology === street.typology).length
     : 0;
 
-  const photoByVote = new Map(
-    photos.filter(isPublicPhoto).map((p) => [p.voteId, p]),
-  );
+  /*
+   * התמונה של כל קול. אחת, ולא יותר: המסד אוכף את זה באינדקס ייחודי,
+   * ושליחה חוזרת של הדירוג מחליפה את התמונה במקום להוסיף לה.
+   * ראו supabase/migrations/20261001150000_one_photo_per_vote.sql.
+   */
+  const photoByVote = new Map<string, Photo>();
+  for (const photo of photos.filter(isPublicPhoto)) {
+    if (photo.voteId) photoByVote.set(photo.voteId, photo);
+  }
 
   /*
    * הקול שכל תמונה הגיעה איתו, לפי מזהה. כך כל תמונה בגלריה נושאת את
@@ -161,6 +182,18 @@ export default async function StreetPage({
           <div className="mt-1 text-[11px] text-ink-faint">מאושרות</div>
         </div>
       </div>
+
+      {/*
+        לא כל תמונה הגיעה עם דירוג: מכרטיס הרחוב אפשר לצלם בלי לדרג,
+        ואלה תמונות של הרחוב בלי קול מאחוריהן. בלי השורה הזאת נראה
+        כאילו מספר התמונות ומספר הקולות אמורים להיות שווים.
+      */}
+      {stats.photos > photoByVote.size ? (
+        <p className="-mt-2 mb-4 text-[12px] text-ink-faint">
+          מתוך {stats.photos} התמונות, {photoByVote.size} צורפו לקול
+          ו-{stats.photos - photoByVote.size} צולמו בלי דירוג.
+        </p>
+      ) : null}
 
       {/*
         סיכום במשפטים: מי שמגיע לכאן מרשימת המובילים רוצה לדעת מה חשבו
@@ -370,11 +403,11 @@ export default async function StreetPage({
                         התמונה הועלתה בלי נימוק.
                       </p>
                     )}
-                    {vote ? (
-                      <p className="mt-1 text-[12px] text-ink-faint">
-                        ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
-                      </p>
-                    ) : null}
+                    <p className="mt-1 text-[12px] text-ink-faint">
+                      {vote ? `ציון הקול: ${scoreLabel(voteScore(vote))} מתוך 10 · ` : ""}
+                      צולמה ב־
+                      {new Date(photo.createdAt).toLocaleDateString("he-IL")}
+                    </p>
 
                     {/* ההכרעה יושבת על נייר, מתחת לתמונה, עם פעלים מפורשים. */}
                     {staff ? (
@@ -403,13 +436,13 @@ export default async function StreetPage({
           */
           <ul className="grid gap-3">
             {reasons.map((vote) => {
-              const photo = photoByVote.get(vote.id) ?? null;
+              const votePhoto = photoByVote.get(vote.id) ?? null;
               return (
                 <li key={vote.id} className="card overflow-hidden">
-                  {photo ? (
+                  {votePhoto ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
                     <img
-                      src={`/api/photos/${photo.id}`}
+                      src={`/api/photos/${votePhoto.id}`}
                       alt={`תמונה שצורפה לקול על ${street.name}`}
                       className="aspect-[16/10] w-full object-cover"
                       loading="lazy"
@@ -418,7 +451,8 @@ export default async function StreetPage({
                   <div className="p-3">
                     <p className="text-[15px] text-ink">{vote.reason}</p>
                     <p className="mt-1 text-[12px] text-ink-faint">
-                      ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10
+                      ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10 ·{" "}
+                      {new Date(vote.updatedAt).toLocaleDateString("he-IL")}
                     </p>
                   </div>
                 </li>
@@ -484,6 +518,17 @@ export default async function StreetPage({
           {street.quarterId
             ? `רחובות נוספים ב${stats.quarterName}`
             : "חזרה לרשימת הרחובות"}
+        </Link>
+        {/*
+          דיווח אינו דירוג. דירוג הוא דעה על הרחוב, ודיווח הוא בקשה לטפל
+          במשהו שקרה בו — ולכן הוא כפתור נפרד, ושם התמונה היא חובה: בלעדיה
+          אין לאגף מה לבדוק.
+        */}
+        <Link
+          href={`/report?street=${street.id}`}
+          className="flex items-center justify-center rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px] text-ink"
+        >
+          לדווח לעירייה על משהו ברחוב
         </Link>
       </div>
 
