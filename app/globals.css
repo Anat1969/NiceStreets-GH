@@ -14,9 +14,11 @@
   --color-warm: #a25e14;
   --color-warm-soft: #f6ece0;
 
-  --font-sans: "Assistant", "Heebo", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "IBM Plex Sans Hebrew", "Assistant", "Segoe UI", system-ui, sans-serif;
+  /* ל-Plex Mono אין עברית, ולכן Plex Sans Hebrew מיד אחריו. */
+  --font-mono: "IBM Plex Mono", "IBM Plex Sans Hebrew", ui-monospace, monospace;
 
-  --radius-card: 14px;
+  --radius-card: 0;
 }
 
 :root {
@@ -52,6 +54,26 @@
   --brand-500: #1f6f5c;
   --brand-700: #155246;
   --brand-900: #0c322b;
+
+  /*
+   * תעודת ה-DNA (CLAUDE.md): הרחוב כחדר עירוני, על חול וכורכר של אשדוד.
+   * צבעי המשמעות קבועים בכל ערכה: בעיה, פתרון, תובנה.
+   */
+  --kurkar: #c9a36a;
+  --sand: #efe6d4;
+  --asphalt: #3b4148;
+  --canopy: #3f7f4f;
+  --sea: #2f6f8f;
+  --tone-problem: #a8322a;
+  --tone-problem-wash: #fbeceb;
+  --tone-solution: #1f6f5c;
+  --tone-solution-wash: #e6f2ed;
+  --tone-insight: #e2bd00;
+  --tone-insight-wash: #fff8d1;
+  --marker: #ffe45c;
+
+  --shadow-1: 0 1px 0 rgb(22 32 43 / 6%), 0 2px 6px rgb(22 32 43 / 7%);
+  --shadow-2: 0 2px 0 rgb(22 32 43 / 8%), 0 10px 24px rgb(22 32 43 / 12%);
 }
 
 /*
@@ -172,40 +194,6 @@
   --brand-500: #5a3276;
   --brand-700: #47285d;
   --brand-900: #311c40;
-}
-
-/*
- * נקודות בחירת הערכה. הכפתור הוא 28 פיקסלים — מעל המינימום למטרת מגע —
- * והעיגול הצבוע בתוכו 16, כדי ששבע נקודות ייכנסו בכותרת בלי לדחוק את
- * שם האפליקציה.
- */
-.palette-dot {
-  min-height: 0;
-  width: 28px;
-  height: 28px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  border: 0;
-  background: none;
-  border-radius: 999px;
-}
-
-.palette-dot-mark {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
-}
-
-/* הנבחרת מסומנת בטבעת ולא רק בצבע: צבע לבדו אינו סימן נגיש. */
-.palette-dot-mark.is-selected {
-  width: 20px;
-  height: 20px;
-  box-shadow:
-    0 0 0 2px var(--color-surface),
-    0 0 0 4px var(--color-ink);
 }
 
 /* The one branded surface: a saturated rule above a barely-tinted header. */
@@ -646,7 +634,7 @@ a.district-item:hover {
  * הקובץ עצמו שקוף, כך שהוא יושב על נייר בהיר ועל כהה באותה מידה.
  */
 .brand-logo {
-  height: 40px;
+  height: 34px;
   width: auto;
   max-width: 150px;
   object-fit: contain;
@@ -807,9 +795,9 @@ table {
 
 /* ------------------------------------------------------------------ layout
  *
- * One markup, two layouts. "auto" follows the screen width; a chosen mode
- * overrides it at any width, which is what the view toggle sets. Each rule
- * below is written once and applied from both selectors.
+ * One markup, two widths. A fixed top bar on every screen: the app name
+ * (home), the content tabs, and the one logo button. "auto" follows the
+ * screen; a chosen mode from the logo menu overrides it.
  */
 
 .app-shell {
@@ -822,60 +810,109 @@ table {
   background: var(--color-paper);
 }
 
-.app-main {
-  flex: 1;
-  padding: 16px 16px 112px;
+.app-body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
-/* Mobile navigation: a bar along the bottom edge. */
-.app-nav {
-  position: fixed;
-  bottom: 0;
-  inset-inline-start: 50%;
-  transform: translateX(50%);
-  width: 100%;
-  max-width: 560px;
-  border-top: 1px solid var(--color-line);
-  background: var(--color-surface);
-  padding-bottom: env(safe-area-inset-bottom);
+.app-main {
+  flex: 1;
+  padding: 16px 16px 64px;
+  min-width: 0;
+  /* פריסת דף הבית לפי רוחב התוכן, לא המסך: תצוגת "נייד" על מחשב נשארת צרה. */
+  container: main / inline-size;
+}
+
+.app-topbar {
+  position: sticky;
+  top: 0;
   z-index: 40;
+  background: color-mix(in oklab, var(--color-surface) 92%, transparent);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--color-line);
+  box-shadow: var(--shadow-1);
+}
+
+.app-topbar-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px 4px;
+}
+
+.app-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 44px;
+  color: var(--color-ink);
+}
+
+.app-brand-name {
+  display: block;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.app-brand-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .app-nav ul {
   display: flex;
   margin: 0;
-  padding: 0;
+  padding: 0 8px;
   list-style: none;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.app-nav ul::-webkit-scrollbar {
+  display: none;
 }
 
 .app-nav li {
-  flex: 1;
+  flex: 1 0 auto;
 }
 
-/*
- * Six tabs share the width, so the longest label ("דוגמאות") sets the limit.
- * Measured at 360px: 60px per tab against a 49px label. The labels never wrap
- * and never shrink the 56px target.
- */
 .app-nav a {
   display: flex;
   align-items: center;
   justify-content: center;
-  height: 56px;
   gap: 4px;
+  min-height: 44px;
+  padding-inline: 8px;
   font-size: 14px;
   white-space: nowrap;
+  color: var(--color-ink-soft);
+  border-bottom: 2px solid transparent;
+  transition: color 150ms ease, border-color 150ms ease, transform 150ms ease;
 }
 
-.app-header {
-  border-bottom: 1px solid var(--color-line);
-  /* A trace of the brand colour, light enough that ink keeps its contrast. */
-  background: linear-gradient(to bottom, var(--brand-50), var(--color-surface));
-  padding: 12px 16px;
+.app-nav a:hover {
+  color: var(--color-ink);
+  transform: translateY(-1px);
 }
 
-.desktop-only {
-  display: none;
+.app-nav a:active {
+  transform: translateY(1px);
+}
+
+.app-nav a[aria-current="page"] {
+  color: var(--color-accent);
+  border-bottom-color: var(--color-accent);
+  font-weight: 600;
 }
 
 /* The desktop rules, applied when chosen or when the screen is wide. */
@@ -886,59 +923,51 @@ table {
    * the page scrolls sideways rather than squeezing the map to nothing.
    */
   min-width: 1000px;
-  flex-direction: row-reverse;
-  align-items: stretch;
 }
 
 :root[data-view="desktop"] body {
   overflow-x: auto;
 }
 
+:root[data-view="desktop"] .app-topbar-inner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+}
+
+:root[data-view="desktop"] .app-topbar-row {
+  display: contents;
+}
+
+:root[data-view="desktop"] .app-brand {
+  padding-inline-start: 24px;
+}
+
+:root[data-view="desktop"] .app-topbar-menu {
+  order: 3;
+  padding-inline-end: 24px;
+}
+
 :root[data-view="desktop"] .app-nav {
-  position: sticky;
-  top: 0;
-  align-self: flex-start;
-  transform: none;
-  inset-inline-start: auto;
-  width: 220px;
-  max-width: 220px;
-  height: 100dvh;
-  border-top: 0;
-  border-inline-start: 1px solid var(--color-line);
-  padding-bottom: 0;
+  order: 2;
 }
 
 :root[data-view="desktop"] .app-nav ul {
-  flex-direction: column;
-  padding: 12px 8px;
-  gap: 2px;
+  justify-content: center;
+}
+
+:root[data-view="desktop"] .app-nav li {
+  flex: 0 0 auto;
 }
 
 :root[data-view="desktop"] .app-nav a {
-  justify-content: flex-start;
-  /* The side column has room, so the label goes back to body size. */
+  min-height: 60px;
+  padding-inline: 14px;
   font-size: 15px;
-  height: 48px;
-  padding-inline: 12px;
-  border-radius: 10px;
 }
 
 :root[data-view="desktop"] .app-main {
-  padding: 24px 28px 48px;
-  max-width: none;
-}
-
-:root[data-view="desktop"] .app-header {
-  border-bottom: 0;
-}
-
-:root[data-view="desktop"] .desktop-only {
-  display: block;
-}
-
-:root[data-view="desktop"] .app-body {
-  flex: 1;
-  min-width: 0;
+  padding: 28px 32px 56px;
 }
 
 :root[data-view="desktop"] .map-canvas-wrap {
@@ -948,58 +977,394 @@ table {
 @media (min-width: 1024px) {
   :root[data-view="auto"] .app-shell {
     max-width: 1200px;
-    flex-direction: row-reverse;
-    align-items: stretch;
+  }
+
+  :root[data-view="auto"] .app-topbar-inner {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    align-items: center;
+  }
+
+  :root[data-view="auto"] .app-topbar-row {
+    display: contents;
+  }
+
+  :root[data-view="auto"] .app-brand {
+    padding-inline-start: 24px;
+  }
+
+  :root[data-view="auto"] .app-topbar-menu {
+    order: 3;
+    padding-inline-end: 24px;
   }
 
   :root[data-view="auto"] .app-nav {
-    position: sticky;
-    top: 0;
-    align-self: flex-start;
-    transform: none;
-    inset-inline-start: auto;
-    width: 220px;
-    max-width: 220px;
-    height: 100dvh;
-    border-top: 0;
-    border-inline-start: 1px solid var(--color-line);
-    padding-bottom: 0;
+    order: 2;
   }
 
   :root[data-view="auto"] .app-nav ul {
-    flex-direction: column;
-    padding: 12px 8px;
-    gap: 2px;
+    justify-content: center;
+  }
+
+  :root[data-view="auto"] .app-nav li {
+    flex: 0 0 auto;
   }
 
   :root[data-view="auto"] .app-nav a {
-    justify-content: flex-start;
-    /* The side column has room, so the label goes back to body size. */
+    min-height: 60px;
+    padding-inline: 14px;
     font-size: 15px;
-    height: 48px;
-    padding-inline: 12px;
-    border-radius: 10px;
   }
 
   :root[data-view="auto"] .app-main {
-    padding: 24px 28px 48px;
-    max-width: none;
-  }
-
-  :root[data-view="auto"] .app-header {
-    border-bottom: 0;
-  }
-
-  :root[data-view="auto"] .desktop-only {
-    display: block;
-  }
-
-  :root[data-view="auto"] .app-body {
-    flex: 1;
-    min-width: 0;
+    padding: 28px 32px 56px;
   }
 
   :root[data-view="auto"] .map-canvas-wrap {
     height: 640px;
+  }
+}
+
+/* ------------------------------------------------------ שפת העיצוב
+ *
+ * השכבה הקבועה של ענת (anat-design-language): מרובע, עמוק, לחיץ.
+ */
+
+/* מרובע בלבד: כפתורים, צ'יפים, שדות וכרטיסים. סימני הנתונים במפה נשארים עגולים. */
+*,
+*::before,
+*::after {
+  border-radius: 0 !important;
+}
+
+.map-mark-disc,
+.keep-round {
+  border-radius: 999px !important;
+}
+
+h1,
+h2,
+h3 {
+  letter-spacing: -0.01em;
+}
+
+.card {
+  box-shadow: var(--shadow-1);
+}
+
+/* כל מה שלוחצים עליו: צל, הרמה בריחוף, שקיעה בלחיצה. */
+a.card,
+a.pressable,
+button.pressable,
+button[type="submit"] {
+  box-shadow: var(--shadow-1);
+  transition:
+    box-shadow 150ms ease,
+    transform 150ms ease,
+    border-color 150ms ease,
+    background-color 150ms ease;
+}
+
+a.card:hover,
+a.pressable:hover,
+button.pressable:hover,
+button[type="submit"]:hover {
+  box-shadow: var(--shadow-2);
+  transform: translateY(-2px);
+}
+
+a.card:active,
+a.pressable:active,
+button.pressable:active,
+button[type="submit"]:active {
+  box-shadow: none;
+  transform: translateY(1px);
+}
+
+button:disabled,
+button[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none !important;
+  box-shadow: none !important;
+}
+
+/* קריאה ויזואלית: מספרים, תוויות, מרקר. */
+.num {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  unicode-bidi: isolate;
+  direction: ltr;
+}
+
+.eyebrow {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--color-ink-faint);
+}
+
+mark.insight {
+  color: inherit;
+  padding: 0 2px;
+  background: linear-gradient(
+    transparent 50%,
+    var(--marker) 50%,
+    var(--marker) 92%,
+    transparent 92%
+  );
+}
+
+/* קופסאות משמעות: בעיה באדום, פתרון בירוק, תובנה בצהוב. */
+.tone {
+  border-inline-start: 4px solid;
+  padding: 14px 16px;
+  box-shadow: var(--shadow-1);
+}
+
+.tone-problem {
+  border-color: var(--tone-problem);
+  background: var(--tone-problem-wash);
+}
+
+.tone-solution {
+  border-color: var(--tone-solution);
+  background: var(--tone-solution-wash);
+}
+
+.tone-insight {
+  border-color: var(--tone-insight);
+  background: var(--tone-insight-wash);
+}
+
+.tone-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.tone-problem .tone-label {
+  color: var(--tone-problem);
+}
+
+.tone-solution .tone-label {
+  color: var(--tone-solution);
+}
+
+.tone-insight .tone-label {
+  color: #7a6400;
+}
+
+/* כניסה מדורגת: כל פריט נוחת אחרי הקודם. */
+.rise {
+  animation: rise 600ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+/* ------------------------------------------------------ דף הבית */
+
+.hero {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+}
+
+.hero-title {
+  font-size: 30px;
+  font-weight: 500;
+  line-height: 1.15;
+  color: var(--color-ink);
+}
+
+.hero-title strong {
+  font-weight: 700;
+  color: var(--color-accent);
+}
+
+.hero-sub {
+  font-size: 15px;
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+}
+
+.hero-sub strong {
+  color: var(--color-ink);
+}
+
+/* החדר העירוני: חתך איזומטרי עם ארבע שכבות. */
+.room {
+  position: relative;
+  background:
+    radial-gradient(120% 80% at 70% 0%, var(--brand-50), transparent 60%),
+    linear-gradient(to bottom, var(--color-surface), var(--sand));
+  border: 1px solid var(--color-line);
+  box-shadow: var(--shadow-2);
+  padding: 8px 8px 0;
+}
+
+.room svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.room-layer {
+  transition:
+    opacity 220ms ease,
+    transform 260ms cubic-bezier(0.2, 0.7, 0.2, 1);
+  /* backwards ולא both: אחרי הנחיתה הריחוף חייב לשלוט בשקיפות ובהרמה. */
+  animation: build 700ms cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: calc(var(--i, 0) * 180ms + 120ms);
+}
+
+.room[data-active] .room-layer {
+  opacity: 0.28;
+}
+
+.room[data-active="skeleton"] .room-layer[data-layer="skeleton"],
+.room[data-active="section"] .room-layer[data-layer="section"],
+.room[data-active="frontage"] .room-layer[data-layer="frontage"],
+.room[data-active="texture"] .room-layer[data-layer="texture"] {
+  opacity: 1;
+  transform: translateY(-6px);
+}
+
+@keyframes build {
+  from {
+    opacity: 0;
+    transform: translateY(-22px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.room-tag {
+  font-weight: 700;
+  fill: var(--color-ink);
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+
+.room-legend {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin-top: 8px;
+}
+
+.room-legend a {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  column-gap: 8px;
+  align-items: start;
+  padding: 10px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+}
+
+.room-legend a[aria-current="true"] {
+  border-color: var(--color-ink);
+  box-shadow: inset 0 0 0 1px var(--color-ink), var(--shadow-2);
+}
+
+.room-swatch {
+  width: 14px;
+  height: 14px;
+  margin-top: 3px;
+  border: 1px solid rgb(0 0 0 / 20%);
+}
+
+.room-legend-title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.room-legend-line {
+  grid-column: 2;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-ink-soft);
+}
+
+.tone-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.content-map {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.content-map a {
+  display: grid;
+  gap: 2px;
+  align-content: start;
+  padding: 12px;
+  min-height: 96px;
+}
+
+.content-map-key {
+  font-family: var(--font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--color-accent);
+  line-height: 1.1;
+}
+
+.inspiration {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  border-top: 1px solid var(--color-line);
+  padding-top: 8px;
+}
+
+@container main (min-width: 720px) {
+  .hero {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    gap: 28px;
+  }
+
+  .hero-title {
+    font-size: 40px;
+  }
+
+  .tone-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .content-map {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .room-legend {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }

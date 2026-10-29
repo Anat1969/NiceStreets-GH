@@ -1,9 +1,20 @@
 import Link from "next/link";
-import { CITY, PRINCIPLES, STATUSES } from "@/lib/city";
+import {
+  CITY,
+  CRITERIA,
+  CRITERIA_FAMILIES,
+  EXAMPLES,
+  PRINCIPLES,
+  QUARTERS,
+  QUESTIONS,
+  STATUSES,
+} from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { topStreets } from "@/lib/stats";
 import { scoreLabel } from "@/lib/hebrew";
 import { StreetTile } from "@/components/StreetTile";
+import StreetRoom from "@/components/StreetRoom";
+import Rich from "@/components/Rich";
 import {
   ButtonLink,
   Card,
@@ -39,28 +50,103 @@ export default async function HomePage() {
       ) : null}
       <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
 
-      <section className="mb-6">
-        <h1 className="mb-2 text-[26px] font-bold leading-tight text-ink">
-          {CITY.homeQuestion}
-        </h1>
-        <p className="mb-4 text-[15px] text-ink-soft">{CITY.tagline}</p>
-        <div className="grid gap-2">
-          <ButtonLink href="/choose">לבחור רחוב ולדרג</ButtonLink>
-          <ButtonLink href="/learn" variant="ghost">
-            ללמוד מה הופך רחוב לטוב
-          </ButtonLink>
+      <section className="hero mb-8">
+        <div className="rise">
+          <p className="eyebrow mb-2">
+            {CITY.name} · {CITY.nameEn.toUpperCase()} · אגף אדריכלות העיר
+          </p>
+          <Rich as="h1" className="hero-title mb-3">
+            {"רחוב טוב בנוי מ**ארבע שכבות**."}
+          </Rich>
+          <Rich as="p" className="hero-sub mb-2">
+            {`**${CRITERIA.length}** קריטריונים, ב**שלד**, ב**חתך**, ב**דופן** וב**מרקם**. כל רחוב באשדוד נבדק בהם.`}
+          </Rich>
+          <p className="mb-4 text-[15px] font-medium text-ink">{CITY.homeQuestion}</p>
+          <div className="grid gap-2">
+            <ButtonLink href="/choose">לבחור רחוב ולדרג</ButtonLink>
+            <ButtonLink href="/learn" variant="ghost">
+              ללמוד מה הופך רחוב לטוב
+            </ButtonLink>
+          </div>
+        </div>
+        <div className="rise" style={{ "--i": 2 } as React.CSSProperties}>
+          <StreetRoom
+            layers={CRITERIA_FAMILIES.map((family) => ({
+              key: family.key,
+              title: family.title,
+              question: family.text.split("?")[0] + "?",
+              count: family.criteria.length,
+            }))}
+          />
         </div>
       </section>
 
-      <Section title="שלושה עקרונות">
-        <div className="grid gap-2">
-          {PRINCIPLES.map((principle) => (
-            <Card key={principle.key}>
-              <p className="text-[16px] font-semibold text-ink">{principle.title}</p>
-              <p className="text-[14px] text-ink-soft">{principle.text}</p>
-            </Card>
-          ))}
+      <section className="tone-grid mb-8" aria-label="בעיה, פתרון ותובנה">
+        <div className="tone tone-problem rise" style={{ "--i": 3 } as React.CSSProperties}>
+          <p className="tone-label mb-1">בעיה</p>
+          <Rich as="p" className="text-[16px] font-semibold text-ink">
+            {"רחוב נמדד לרוב ב**תנועה**, לא ב**הליכה**."}
+          </Rich>
+          <Rich as="p" className="mt-1 text-[14px] text-ink-soft">
+            {"מה שגורם לרצות ללכת ברגל, **צל**, **חזית פעילה** ו**צמתים קרובים**, לא נספר בספירת רכבים."}
+          </Rich>
         </div>
+        <div className="tone tone-solution rise" style={{ "--i": 4 } as React.CSSProperties}>
+          <p className="tone-label mb-1">פתרון</p>
+          <Rich as="p" className="text-[16px] font-semibold text-ink">
+            {"מדידה עירונית ו**קול התושבים** יחד."}
+          </Rich>
+          <Rich as="p" className="mt-1 text-[14px] text-ink-soft">
+            {`כל רחוב נבדק בנתוני העירייה וב-**${QUESTIONS.length}** שאלות שלכם, מול רחובות **מאותו סוג**.`}
+          </Rich>
+        </div>
+        <div className="tone tone-insight rise" style={{ "--i": 5 } as React.CSSProperties}>
+          <p className="tone-label mb-1">תובנה</p>
+          <Rich as="p" className="text-[16px] font-semibold text-ink">
+            {"==הקול שלכם הופך לסטטוס גלוי==."}
+          </Rich>
+          <Rich as="p" className="mt-1 text-[14px] text-ink-soft">
+            {"לכל רחוב שקיבל קולות יש **סטטוס עירוני**, שמתעדכן במפה ובכרטיס הרחוב."}
+          </Rich>
+        </div>
+      </section>
+
+      <Section title="מה יש כאן">
+        <nav className="content-map" aria-label="מפת התוכן">
+          {[
+            { href: "/choose", key: QUESTIONS.length, title: "לבחור ולדרג", line: "שאלות לכל רחוב" },
+            { href: "/map", key: QUARTERS.length, title: "מפה", line: "רובעים ואזורים, צבועים לפי הציון" },
+            { href: "/streets", key: totals.streetsKnown, title: "טבלה", line: "רחובות במערכת, למיון וייצוא" },
+            { href: "/examples", key: EXAMPLES.length, title: "דוגמאות", line: "רחובות מהעיר ומהעולם" },
+            { href: "/learn", key: CRITERIA.length, title: "ללמוד", line: "קריטריונים לרחוב טוב" },
+            { href: "/suggest", key: 1, title: "להציע רחוב", line: "רחוב שחסר ברשימה, עם תמונה אחת" },
+          ].map((item, i) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className="card rise"
+              style={{ "--i": i } as React.CSSProperties}
+            >
+              <span className="content-map-key">{item.key.toLocaleString("he-IL")}</span>
+              <span className="text-[16px] font-semibold text-ink">{item.title}</span>
+              <span className="text-[13px] text-ink-soft">{item.line}</span>
+            </Link>
+          ))}
+        </nav>
+      </Section>
+
+      <Section title="ידע, הבנה, יישום">
+        <ol className="tone-grid">
+          {PRINCIPLES.map((principle, i) => (
+            <li key={principle.key}>
+              <Card className="h-full">
+                <p className="eyebrow mb-1">{String(i + 1).padStart(2, "0")}</p>
+                <p className="text-[17px] font-semibold text-ink">{principle.title}</p>
+                <p className="text-[14px] text-ink-soft">{principle.text}</p>
+              </Card>
+            </li>
+          ))}
+        </ol>
       </Section>
 
       <Section
@@ -217,6 +303,11 @@ export default async function HomePage() {
         גבולות הרובעים במפה עדיין אינם שכבת ה-GIS העירונית. רשימת הרחובות היא
         המרשם הארצי.
       </Notice>
+
+      <p className="inspiration mt-6">
+        השראה: אלן ג׳ייקובס (Allan B. Jacobs), <i>Great Streets</i>, MIT Press, 1993.
+        חתכים ותוכניות של רחובות באותו קנה מידה, כדי שאפשר יהיה להשוות ביניהם.
+      </p>
     </>
   );
 }
