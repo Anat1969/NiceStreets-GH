@@ -1,0 +1,30 @@
+{
+  "_note": "Seed for the automated street audit. Criteria and targets are taken from lib/city.ts (the Planning Administration study) and are PLACEHOLDERS until Anat confirms the official 12 and their targets per typology. scripts/build-audit-seed.mjs turns this file into supabase/seed/audit_criteria.sql.",
+  "engine_version": "0.1-placeholder",
+  "criteria": [
+    { "id": "place_and_movement", "family": "skeleton", "name_he": "מקום ותנועה", "metric": "מיקום במטריצת מקום–תנועה", "unit": "", "method": "gis", "vote_key": null, "automation_level": "D", "measure": null, "benchmark_key": null, "source": "המסמך — טרם נקבע מקור באשדוד" },
+    { "id": "intersection_density", "family": "skeleton", "name_he": "צפיפות צמתים", "metric": "מרחק ממוצע בין צמתים", "unit": "מ'", "method": "gis", "vote_key": null, "automation_level": "A", "measure": "intersectionDistanceM", "benchmark_key": "intersections", "source": "קווי אמצע רחובות, GIS עירוני" },
+    { "id": "mixed_use", "family": "skeleton", "name_he": "עירוב שימושים", "metric": "דירוג תושבים", "unit": "1–5", "method": "resident", "vote_key": "mix", "automation_level": "C", "measure": null, "benchmark_key": null, "source": "שאלון תושבים" },
+    { "id": "row_width", "family": "section", "name_he": "רוחב זכות הדרך", "metric": "רוחב בין קווי מגרש", "unit": "מ'", "method": "gis", "vote_key": null, "automation_level": "A", "measure": "rowWidthM", "benchmark_key": "rowWidth", "source": "שכבת מגרשים, GIS עירוני" },
+    { "id": "proportions", "family": "section", "name_he": "פרופורציות ומוגדרות", "metric": "יחס גובה לרוחב (H/W)", "unit": "", "method": "gis", "vote_key": null, "automation_level": "A", "measure": "heightToWidth", "benchmark_key": "ratio", "source": "גובה מבנים + רוחב זכות הדרך" },
+    { "id": "row_split", "family": "section", "name_he": "חלוקת זכות הדרך", "metric": "שיעור המדרכה מרוחב הרחוב", "unit": "%", "method": "gis", "vote_key": "walking", "automation_level": "A", "measure": "sidewalkPct", "benchmark_key": "sidewalk", "source": "שכבת מדרכות, GIS עירוני" },
+    { "id": "plot_street_meeting", "family": "frontage", "name_he": "מפגש מגרש–רחוב", "metric": "קו בניין וסוג חזית", "unit": "", "method": "gis", "vote_key": null, "automation_level": "D", "measure": null, "benchmark_key": null, "source": "טרם נקבע — סקר שטח או תב\"ע" },
+    { "id": "transparency", "family": "frontage", "name_he": "שקיפות וחזית פעילה", "metric": "דירוג תושבים", "unit": "1–5", "method": "resident", "vote_key": "frontages", "automation_level": "C", "measure": null, "benchmark_key": null, "source": "שאלון תושבים" },
+    { "id": "building_rhythm", "family": "frontage", "name_he": "מקצב בניינים", "metric": "בניינים לכל 100 מ' דופן", "unit": "", "method": "gis", "vote_key": null, "automation_level": "B", "measure": "buildingsPer100m", "benchmark_key": "buildings", "source": "שכבת מבנים, GIS עירוני" },
+    { "id": "shared_language", "family": "frontage", "name_he": "שפה משותפת עם מגוון", "metric": "הערכה חזותית", "unit": "", "method": "resident", "vote_key": null, "automation_level": "D", "measure": null, "benchmark_key": null, "source": "טרם נקבע — עין מקצועית או שאלה לתושבים" },
+    { "id": "small_plots", "family": "texture_climate", "name_he": "מגרשים קטנים", "metric": "רוחב חזית מגרש", "unit": "מ'", "method": "gis", "vote_key": null, "automation_level": "B", "measure": "plotFrontageM", "benchmark_key": null, "source": "שכבת מגרשים, GIS עירוני" },
+    { "id": "tree_canopy", "family": "texture_climate", "name_he": "חופת עצים והצללה", "metric": "שיעור חופת העצים", "unit": "%", "method": "remote_sensing", "vote_key": "shade", "automation_level": "B", "measure": "canopyPct", "benchmark_key": "canopy", "source": "צילום אוויר / חישה מרחוק" },
+    { "id": "staying", "family": "frontage", "name_he": "שהייה", "metric": "דירוג תושבים", "unit": "1–5", "method": "resident", "vote_key": "staying", "automation_level": "C", "measure": null, "benchmark_key": null, "source": "שאלון תושבים (שאלה מקומית)" },
+    { "id": "maintenance", "family": "texture_climate", "name_he": "תחזוקה", "metric": "פניות מוקד 106 — תחזוקה, 12 חודשים", "unit": "פניות", "method": "registry", "vote_key": "maintenance", "automation_level": "B", "measure": "moked106:maintenance", "benchmark_key": null, "source": "מוקד 106 (פנימי)" },
+    { "id": "safety", "family": "skeleton", "name_he": "ביטחון", "metric": "פניות מוקד 106 — בטיחות, 12 חודשים", "unit": "פניות", "method": "registry", "vote_key": "safety", "automation_level": "B", "measure": "moked106:safety", "benchmark_key": null, "source": "מוקד 106 (פנימי)" }
+  ],
+  "benchmarks": {
+    "_note": "Numbers read from the typology table in lib/city.ts. H/W is height divided by width: \"1:1.5\" = 0.67. \"כ-X\" (about X) becomes a minimum. null = the study says \"משתנה\" (varies).",
+    "neighborhood_commercial": { "rowWidth": [12, 14], "sidewalk": [50, null], "ratio": [0.83, 1.0], "buildings": [3, 4], "canopy": [10, null], "intersections": [70, 90] },
+    "main_commercial":         { "rowWidth": [18, 25], "sidewalk": [40, null], "ratio": [0.67, 0.83], "buildings": [3.5, null], "canopy": [35, null], "intersections": [80, 120] },
+    "residential":             { "rowWidth": [11.5, 21], "sidewalk": [40, null], "ratio": [0.56, 0.67], "buildings": [2, 3.5], "canopy": [50, null], "intersections": [80, 125] },
+    "boulevard":               { "rowWidth": [30, 40], "sidewalk": [55, null], "ratio": [0.33, 0.4], "buildings": [4, 5], "canopy": [33, null], "intersections": [70, 105] },
+    "pedestrian_mall":         { "rowWidth": [11, 18], "sidewalk": [100, null], "ratio": [0.9, 1.1], "buildings": [4.5, 5.5], "canopy": [5, null], "intersections": [50, 105] },
+    "linear_park":             { "rowWidth": [18, 80], "sidewalk": null, "ratio": null, "buildings": [2, 2.8], "canopy": [7, 25], "intersections": [125, 250] }
+  }
+}

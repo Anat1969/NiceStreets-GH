@@ -69,7 +69,12 @@ execFileSync(
 
 git(deployRepo, ["add", "-A"], { quiet: true });
 if (!git(deployRepo, ["status", "--porcelain"], { quiet: true })) {
-  console.log("אין הבדל בין המאגרים. שום דבר לא נדחף.");
+  /*
+   * אין מה להעתיק — אבל ייתכן ש-commit מסנכרון קודם נשאר מקומי, כי הדחיפה
+   * שלו נכשלה. בלי הדחיפה הזאת הסקריפט מדווח הצלחה והאתר נשאר ישן.
+   */
+  console.log("אין הבדל בין המאגרים. דוחף commit קודם, אם נשאר כזה.");
+  git(deployRepo, ["push", "origin", "HEAD"]);
 } else {
   git(deployRepo, [
     "commit",

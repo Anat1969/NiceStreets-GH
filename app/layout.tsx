@@ -2,10 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { CITY } from "@/lib/city";
 import TabBar from "@/components/TabBar";
-import ViewModeToggle from "@/components/ViewModeToggle";
-import PaletteToggle from "@/components/PaletteToggle";
 import AIMenu from "@/components/AIMenu";
 import Script from "next/script";
+import Link from "next/link";
 import { getPalette, getViewMode, isStaff } from "@/lib/session";
 import { PALETTE_THEME_COLOR } from "@/lib/palette";
 import { getStore } from "@/lib/store";
@@ -70,7 +69,7 @@ export default async function RootLayout({
         */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
-          href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
         <Script src="https://appofapp-gh.vercel.app/ai-menu.js" strategy="beforeInteractive" />
@@ -80,28 +79,28 @@ export default async function RootLayout({
           דילוג לתוכן הראשי
         </a>
         <div className="app-shell">
-          <TabBar staff={staff} pendingPhotos={pendingPhotos} />
-          <div className="app-body">
-            <div className="brand-rule" aria-hidden="true" />
-            <header className="app-header">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-3">
+          <header className="app-topbar">
+            <div className="app-topbar-inner">
+              <div className="app-topbar-row">
+                <Link href="/" className="app-brand" aria-label={`${CITY.appTitle}, לדף הבית`}>
                   {logoSrc ? (
                     /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={logoSrc} alt={CITY.authority} className="brand-logo" />
+                    <img src={logoSrc} alt="" className="brand-logo" />
                   ) : null}
-                  <div>
-                    <p className="text-[17px] font-semibold text-ink">{CITY.appTitle}</p>
-                    <p className="text-[13px] text-ink-faint">{CITY.authority}</p>
-                  </div>
-                </div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <PaletteToggle current={palette} />
-                  <ViewModeToggle current={viewMode} />
-                  <AIMenu staff={staff} />
+                  <span className="min-w-0">
+                    <span className="app-brand-name">{CITY.appTitle}</span>
+                    <span className="app-brand-sub">{CITY.authority}</span>
+                  </span>
+                </Link>
+                <div className="app-topbar-menu">
+                  <AIMenu staff={staff} palette={palette} viewMode={viewMode} />
                 </div>
               </div>
-            </header>
+              <TabBar staff={staff} pendingPhotos={pendingPhotos} />
+            </div>
+            <div className="brand-rule" aria-hidden="true" />
+          </header>
+          <div className="app-body">
             <main id="main" className="app-main">
               {children}
               <div className="mt-8 flex flex-wrap items-center gap-3 border-t border-line pt-3 text-[12px] text-ink-faint">

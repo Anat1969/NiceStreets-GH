@@ -27,9 +27,6 @@ export default function TabBar({
 
   return (
     <nav aria-label="ניווט ראשי" className="app-nav">
-      <p className="desktop-only px-3 pb-2 pt-1 text-[13px] font-medium text-ink-faint">
-        ניווט
-      </p>
       <ul>
         {tabs.map((tab) => {
           const active =
@@ -39,16 +36,11 @@ export default function TabBar({
               <Link
                 href={tab.href}
                 aria-current={active ? "page" : undefined}
-                className={`pressable ${
-                  active
-                    ? "bg-accent-soft font-semibold text-accent"
-                    : "text-ink-soft"
-                }`}
               >
                 {tab.label}
                 {"badge" in tab && tab.badge ? (
                   <span
-                    className="rounded-full bg-warm px-[7px] py-[1px] text-[12px] font-semibold text-white"
+                    className="num bg-warm px-[6px] py-[1px] text-[12px] text-white"
                     aria-label={`${tab.badge} תמונות ממתינות לאישור`}
                   >
                     {tab.badge}

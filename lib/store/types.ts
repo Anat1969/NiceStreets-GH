@@ -3,6 +3,8 @@ import type {
   PhotoSource,
   PhotoStatus,
   Quarter,
+  Report,
+  ReportKind,
   Street,
   StreetStatus,
   Vote,
@@ -80,6 +82,24 @@ export interface DataStore {
   }): Promise<Photo[]>;
   readPhoto(id: string): Promise<{ body: Buffer; contentType: string } | null>;
   setPhotoStatus(id: string, status: PhotoStatus): Promise<void>;
+
+  /**
+   * דיווח לעירייה או הצעת רחוב. התמונה היא חובה ונשמרת עם הדיווח עצמו,
+   * ולא בטבלת התמונות הציבוריות: היא ראיה לצוות ואינה מיועדת לפרסום,
+   * ולכן אינה עוברת בתור האישור ואינה מופיעה בשום מסך ציבורי.
+   */
+  createReport(input: {
+    kind: ReportKind;
+    streetId?: string | null;
+    streetName: string;
+    quarterId?: string | null;
+    body: string;
+    userId: string;
+    dataUrl: string;
+  }): Promise<Report>;
+  listReports(filter?: { kind?: ReportKind; handled?: boolean }): Promise<Report[]>;
+  readReportPhoto(id: string): Promise<{ body: Buffer; contentType: string } | null>;
+  setReportHandled(id: string, handled: boolean): Promise<void>;
 
   listStreetStatuses(): Promise<StreetStatus[]>;
   setStreetStatus(input: {

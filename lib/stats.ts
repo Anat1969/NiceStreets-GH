@@ -39,11 +39,29 @@ export function buildStreetStats(
   const approvedPhotos = photos.filter(isPublicPhoto);
   const pendingPhotos = photos.filter((p) => p.status === "pending");
 
+  const voteById = new Map(votes.map((v) => [v.id, v]));
+
   return streets.map((street) => {
     const streetVotes = votes.filter((v) => v.streetId === street.id);
+    /*
+     * סדר התמונות של הרחוב: קודם אלה שהגיעו עם קול, לפי הקול האחרון,
+     * ורק אחריהן תמונות שצולמו מכרטיס הרחוב בלי דירוג.
+     *
+     * התמונה הראשונה כאן היא הפנים של הרחוב בכל המסכים, ולכן עדיף
+     * שתהיה תמונה שמישהו צירף לדעה שכתב: יש מאחוריה משפט וציון,
+     * ואפשר להגיע מהן אליו.
+     */
     const streetApproved = approvedPhotos
       .filter((p) => p.streetId === street.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      .sort((a, b) => {
+        const va = voteById.get(a.voteId);
+        const vb = voteById.get(b.voteId);
+        if (Boolean(va) !== Boolean(vb)) return va ? -1 : 1;
+        if (va && vb && va.updatedAt !== vb.updatedAt) {
+          return vb.updatedAt.localeCompare(va.updatedAt);
+        }
+        return b.createdAt.localeCompare(a.createdAt);
+      });
     const perQuestion = Object.fromEntries(
       QUESTIONS.map((q) => [
         q.key,
@@ -112,15 +130,99 @@ export function buildTotals(
   const knownStreetIds = new Set(streetStats.map((s) => s.street.id));
   const votedStreetIds = new Set(votes.map((v) => v.streetId));
 
+  /*
+   * כמה קולות התמונות האלה מייצגות.
+   *
+   * ברוגוזין יש 5 תמונות מאושרות וקול אחד: אותו תושב צילם חמש פעמים
+   * מכרטיס הרחוב, וכל תמונה נתלתה על הקול הקיים שלו. "7 תמונות" ליד
+   * "3 קולות" נראה כמו סתירה, והוא אינו — אבל מספר שדורש הסבר בעל פה
+   * אינו מספר שאפשר להציג לציבור. המספר הזה הוא ההסבר.
+   */
+  const publicPhotos = photos.filter(isPublicPhoto);
+  const voteIdsWithPhoto = new Set(
+    publicPhotos.map((p) => p.voteId).filter((id): id is string => Boolean(id)),
+  );
+
   return {
     votes: votes.length,
     demoVotes: votes.filter((v) => v.isDemo).length,
     streets: votedStreetIds.size,
-    photos: photos.filter(isPublicPhoto).length,
+    streetsKnown: streetStats.length,
+    photos: publicPhotos.length,
+    photoVotes: voteIdsWithPhoto.size,
     photosPending: photos.filter((p) => p.status === "pending").length,
     orphanVotes: votes.filter((v) => !knownStreetIds.has(v.streetId)).length,
     byStatus,
   };
+}
+
+export interface PhotoShareRow {
+  quarterId: string | null;
+  quarterName: string;
+  votes: number;
+  withPhoto: number;
+  /** 0–1, או null כשאין קולות אמיתיים ברובע. */
+  share: number | null;
+}
+
+/**
+ * שיעור הקולות שצורפה להם תמונה, לפי רובע.
+ *
+ * למה זה נמדד: התמונה בדירוג היא רשות, ובכוונה. המחיר של רשות הוא שהיא
+ * אינה מתחלקת שווה — רובע שבו מצלמים יותר ייראה מתועד יותר, ואם מישהו
+ * יסתכל על התמונות כעל מדגם הוא יסיק מהן מה שאין בהן. המספר הזה הוא
+ * ההגנה: הוא מראה איפה הפער, כדי שההחלטות יישענו על הקולות ולא על
+ * התמונות.
+ *
+ * נתוני הדגמה אינם נספרים כאן. הם נוצרו בלי תמונות, והיו מדללים כל רובע
+ * שיש בהם.
+ */
+export function photoShareByQuarter(
+  votes: Vote[],
+  photos: Photo[],
+  streets: Street[],
+  quarters: Quarter[],
+): PhotoShareRow[] {
+  const quarterOfStreet = new Map(streets.map((s) => [s.id, s.quarterId]));
+  const votesWithPhoto = new Set(
+    photos.map((p) => p.voteId).filter((id): id is string => Boolean(id)),
+  );
+  const real = votes.filter((v) => !v.isDemo);
+
+  const rows: PhotoShareRow[] = quarters.map((quarter) => {
+    const inQuarter = real.filter(
+      (v) => (v.quarterId ?? quarterOfStreet.get(v.streetId) ?? null) === quarter.id,
+    );
+    const withPhoto = inQuarter.filter(
+      (v) => v.photoId !== null || votesWithPhoto.has(v.id),
+    ).length;
+    return {
+      quarterId: quarter.id,
+      quarterName: quarter.name,
+      votes: inQuarter.length,
+      withPhoto,
+      share: inQuarter.length === 0 ? null : withPhoto / inQuarter.length,
+    };
+  });
+
+  // קולות ברחוב שטרם שויך לרובע אינם נעלמים מהמדד.
+  const unassigned = real.filter(
+    (v) => !(v.quarterId ?? quarterOfStreet.get(v.streetId) ?? null),
+  );
+  if (unassigned.length > 0) {
+    const withPhoto = unassigned.filter(
+      (v) => v.photoId !== null || votesWithPhoto.has(v.id),
+    ).length;
+    rows.push({
+      quarterId: null,
+      quarterName: "טרם שויך רובע",
+      votes: unassigned.length,
+      withPhoto,
+      share: withPhoto / unassigned.length,
+    });
+  }
+
+  return rows.sort((a, b) => b.votes - a.votes);
 }
 
 export function topStreets(streetStats: StreetStats[], limit = 5): StreetStats[] {
