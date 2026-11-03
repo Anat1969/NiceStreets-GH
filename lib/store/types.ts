@@ -6,6 +6,7 @@ import type {
   Report,
   ReportKind,
   Street,
+  StreetSectionRecord,
   StreetStatus,
   Vote,
   VoteInput,
@@ -40,6 +41,9 @@ export interface DataStore {
     center: [number, number],
     source: "osm" | "municipal" | "staff",
   ): Promise<void>;
+
+  /** שמירת החתך שהצוות אישר, בתוך `gis.section`. שאר שדות ה-GIS נשמרים כמו שהם. */
+  setStreetSection(streetId: string, section: StreetSectionRecord): Promise<Street>;
 
   /** Staff assignment of quarter and street type. */
   setStreetAssignment(input: {

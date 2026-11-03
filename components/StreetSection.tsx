@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
+import type { StreetSectionRecord } from "@/lib/types";
 import {
   DEFAULT_FLOORS,
   FLOOR_HEIGHT_M,
@@ -61,11 +63,17 @@ function Stepper({
 }: {
   label: string;
   value: number;
-  source: "osm" | "estimate" | "user";
+  source: "osm" | "estimate" | "user" | "saved";
   onChange: (v: number) => void;
 }) {
   const sourceText =
-    source === "osm" ? "מ-OpenStreetMap" : source === "user" ? "תוקן ביד" : "הערכה, תקנו לפי מה שרואים";
+    source === "osm"
+      ? "מ-OpenStreetMap"
+      : source === "saved"
+        ? "אושר על ידי הצוות"
+        : source === "user"
+          ? "תוקן ביד"
+          : "הערכה, תקנו לפי מה שרואים";
   return (
     <div className="flex-1">
       <div className="mb-1 text-[13px] font-semibold text-ink">{label}</div>
@@ -199,12 +207,18 @@ function Drawing({
 }
 
 export default function StreetSection({
+  streetId,
   streetName,
   center,
   typologyLabel,
   benchmark,
   gisHeightToWidth,
+  saved,
+  staff,
 }: {
+  streetId: string;
+  saved: StreetSectionRecord | null;
+  staff: boolean;
   streetName: string;
   center: LonLat;
   typologyLabel: string | null;
@@ -215,6 +229,8 @@ export default function StreetSection({
   const [floorsA, setFloorsA] = useState<number | null>(null);
   const [floorsB, setFloorsB] = useState<number | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [saveState, setSaveState] = useState<"idle" | "busy" | "done" | "error">("idle");
+  const router = useRouter();
 
   useEffect(() => {
     let alive = true;
@@ -256,8 +272,11 @@ export default function StreetSection({
   const measure = state.kind === "ready" ? state.measure : null;
   const osmA = measure ? knownFloors(measure.left.building) : null;
   const osmB = measure ? knownFloors(measure.right.building) : null;
-  const fA = floorsA ?? osmA ?? DEFAULT_FLOORS;
-  const fB = floorsB ?? osmB ?? DEFAULT_FLOORS;
+  /* סדר העדיפות לקומות: מה שתוקן עכשיו, מה שהצוות אישר, OpenStreetMap, הערכה. */
+  const fA = floorsA ?? saved?.floorsA ?? osmA ?? DEFAULT_FLOORS;
+  const fB = floorsB ?? saved?.floorsB ?? osmB ?? DEFAULT_FLOORS;
+  const sourceOf = (user: number | null, savedFloors: number | undefined, osm: number | null) =>
+    user !== null ? "user" : savedFloors !== undefined ? "saved" : osm !== null ? "osm" : "estimate";
   const range = useMemo(() => (benchmark ? parseRatioRange(benchmark) : null), [benchmark]);
 
   if (state.kind === "loading") {
@@ -304,7 +323,27 @@ export default function StreetSection({
   const widthPerHeight = measure.widthM / heightM;
   const ratioText = `1:${widthPerHeight.toFixed(1)}`;
   const verdict = range ? ratioVerdict(widthPerHeight, range) : null;
-  const usedEstimate = (floorsA === null && osmA === null) || (floorsB === null && osmB === null);
+  const srcA = sourceOf(floorsA, saved?.floorsA, osmA);
+  const srcB = sourceOf(floorsB, saved?.floorsB, osmB);
+  const usedEstimate = srcA === "estimate" || srcB === "estimate";
+
+  async function saveSection() {
+    if (!measure) return;
+    setSaveState("busy");
+    const res = await fetch("/api/admin/street-section", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ streetId, facadeWidthM: measure.widthM, floorsA: fA, floorsB: fB }),
+    }).catch(() => null);
+    if (res?.ok) {
+      setSaveState("done");
+      setFloorsA(null);
+      setFloorsB(null);
+      router.refresh();
+    } else {
+      setSaveState("error");
+    }
+  }
 
   const verdictLine =
     verdict === "within"
@@ -356,13 +395,13 @@ export default function StreetSection({
         <Stepper
           label="צד א'"
           value={fA}
-          source={floorsA !== null ? "user" : osmA !== null ? "osm" : "estimate"}
+          source={srcA}
           onChange={setFloorsA}
         />
         <Stepper
           label="צד ב'"
           value={fB}
-          source={floorsB !== null ? "user" : osmB !== null ? "osm" : "estimate"}
+          source={srcB}
           onChange={setFloorsB}
         />
       </div>
@@ -371,6 +410,30 @@ export default function StreetSection({
           לבניינים כאן אין מספר קומות במפה הפתוחה. ספרו את הקומות שאתם רואים, והיחס
           יתעדכן מיד.
         </p>
+      ) : null}
+
+      {staff ? (
+        <div className="mt-3 flex flex-wrap items-center gap-3 border-t border-line pt-3">
+          <button
+            type="button"
+            className="section-step px-4 text-[15px]"
+            disabled={saveState === "busy"}
+            onClick={saveSection}
+          >
+            {saved ? "עדכון החתך המאושר" : "אישור החתך לרחוב"}
+          </button>
+          <span className="text-[13px] text-ink-soft">
+            {saveState === "busy"
+              ? "שומר…"
+              : saveState === "done"
+                ? "נשמר. הקומות האלה יוצגו מעכשיו לכל מי שנכנס לרחוב."
+                : saveState === "error"
+                  ? "השמירה נכשלה. בדקו שאתם מחוברים כצוות ונסו שוב."
+                  : saved
+                    ? `אושר ב-${saved.measuredAt.split("-").reverse().join(".")}: ${saved.floorsA} ו-${saved.floorsB} קומות, ${saved.facadeWidthM} מ׳.`
+                    : "ספרו את הקומות בשני הצדדים, ואשרו. שדה ה-GIS העירוני לא משתנה."}
+          </span>
+        </div>
       ) : null}
 
       <details className="mt-3 border-t border-line pt-2 text-[13px] text-ink-soft">

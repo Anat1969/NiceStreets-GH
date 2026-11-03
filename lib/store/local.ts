@@ -12,6 +12,7 @@ import type {
   Report,
   ReportKind,
   Street,
+  StreetSectionRecord,
   StreetStatus,
   Vote,
   VoteInput,
@@ -185,6 +186,19 @@ export class LocalStore implements DataStore {
       street.center = center;
       street.centerSource = source;
       await persist(snapshot);
+    });
+  }
+
+  async setStreetSection(streetId: string, section: StreetSectionRecord): Promise<Street> {
+    return withLock(async () => {
+      const snapshot = await load();
+      const index = snapshot.streets.findIndex((s) => s.id === streetId);
+      if (index < 0) throw new Error("STREET_NOT_FOUND");
+      const street = { ...snapshot.streets[index] };
+      street.gis = { ...(street.gis ?? {}), section };
+      snapshot.streets[index] = street;
+      await persist(snapshot);
+      return { ...street };
     });
   }
 
