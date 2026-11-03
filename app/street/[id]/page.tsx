@@ -344,6 +344,9 @@ export default async function StreetPage({
           note="כמה רחב הרחוב ביחס לגובה הבניינים. היחס הזה קובע אם הרחוב מרגיש כמו חדר או כמו מגרש פתוח."
         >
           <StreetSection
+            streetId={street.id}
+            saved={street.gis?.section ?? null}
+            staff={staff}
             streetName={street.name}
             center={street.center}
             typologyLabel={typology?.label ?? null}

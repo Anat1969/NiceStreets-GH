@@ -10,6 +10,7 @@ import type {
   Report,
   ReportKind,
   Street,
+  StreetSectionRecord,
   StreetStatus,
   Vote,
   VoteInput,
@@ -202,6 +203,25 @@ export class SupabaseStore implements DataStore {
       .update({ center, center_source: source })
       .eq("id", streetId);
     if (error) throw new Error(error.message);
+  }
+
+  async setStreetSection(streetId: string, section: StreetSectionRecord): Promise<Street> {
+    const db = await this.db();
+    /* קריאה ומיזוג: שאר שדות ה-GIS (רוחב זכות דרך, חופת עצים) נשארים. */
+    const { data: row, error: readError } = await db
+      .from("streets")
+      .select("gis")
+      .eq("id", streetId)
+      .single();
+    if (readError) throw new Error(readError.message);
+    const { data, error } = await db
+      .from("streets")
+      .update({ gis: { ...((row?.gis as object | null) ?? {}), section } })
+      .eq("id", streetId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return toStreet(data);
   }
 
   async setStreetAssignment(input: {

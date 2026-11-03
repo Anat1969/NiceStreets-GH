@@ -38,9 +38,23 @@ export interface Street {
     heightToWidth?: number;
     canopyPct?: number;
     intersectionDistanceM?: number;
+    /**
+     * חתך שהצוות אישר ממסך הרחוב: רוחב מקיר לקיר שנמדד מ-OpenStreetMap, וקומות
+     * שהצוות ספר. נפרד מ-heightToWidth, שהוא ערך ה-GIS העירוני ואינו נדרס.
+     */
+    section?: StreetSectionRecord;
   } | null;
   verified: boolean;
   createdAt: string;
+}
+
+export interface StreetSectionRecord {
+  facadeWidthM: number;
+  floorsA: number;
+  floorsB: number;
+  /** גובה חלקי רוחב, כמו heightToWidth. */
+  heightToWidth: number;
+  measuredAt: string;
 }
 
 export type Scores = Record<QuestionKey, number>;
