@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { readdirSync } from "node:fs";
+import { join } from "node:path";
 import {
   CITY,
   CRITERIA,
@@ -26,6 +28,20 @@ import {
 } from "@/components/ui";
 
 export const dynamic = "force-dynamic";
+
+/*
+ * חתך הרחוב: רחוב לדוגמה שהחתך שלו נמדד היטב (רוגוזין, 35 מ' מקיר לקיר), ומספר
+ * הרחובות שיש להם נתוני חתך שמורים (scripts/fetch-sections.mjs).
+ */
+const SECTION_EXAMPLE_STREET = "16530b32-1c94-47c8-843f-165e27cb64d9";
+function sectionFilesCount(): number {
+  try {
+    return readdirSync(join(process.cwd(), "public/geo/sections")).filter((f) => f.endsWith(".json"))
+      .length;
+  } catch {
+    return 0;
+  }
+}
 
 export default async function HomePage() {
   const { streetStats, totals, error } = await loadCityData();
@@ -117,6 +133,12 @@ export default async function HomePage() {
             { href: "/choose", key: QUESTIONS.length, title: "לבחור ולדרג", line: "שאלות לכל רחוב" },
             { href: "/map", key: QUARTERS.length, title: "מפה", line: "רובעים ואזורים, צבועים לפי הציון" },
             { href: "/streets", key: totals.streetsKnown, title: "טבלה", line: "רחובות במערכת, למיון וייצוא" },
+            {
+              href: `/street/${SECTION_EXAMPLE_STREET}`,
+              key: Math.max(1, sectionFilesCount()),
+              title: "חתך הרחוב",
+              line: "כמה רחב הרחוב מול גובה הבניינים, נמדד מהמפה",
+            },
             { href: "/examples", key: EXAMPLES.length, title: "דוגמאות", line: "רחובות מהעיר ומהעולם" },
             { href: "/learn", key: CRITERIA.length, title: "ללמוד", line: "קריטריונים לרחוב טוב" },
             { href: "/suggest", key: 1, title: "להציע רחוב", line: "רחוב שחסר ברשימה, עם תמונה אחת" },

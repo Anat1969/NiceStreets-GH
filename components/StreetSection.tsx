@@ -215,7 +215,10 @@ export default function StreetSection({
   gisHeightToWidth,
   saved,
   staff,
+  dataBase = "/geo/sections/",
 }: {
+  /** איפה הקבצים השמורים. בדף התצוגה מ-GitHub הנתיב יחסי. */
+  dataBase?: string;
   streetId: string;
   saved: StreetSectionRecord | null;
   staff: boolean;
@@ -239,7 +242,23 @@ export default function StreetSection({
       try {
         let raw: unknown = null;
         let fetchedAt = "";
+        /*
+         * קודם הקובץ השמור באפליקציה (scripts/fetch-sections.mjs): שרתי Overpass
+         * עמוסים בשעות רבות, וקובץ מהאפליקציה עצמה נטען תמיד.
+         */
         try {
+          const res = await fetch(`${dataBase}${streetId}.json`);
+          if (res.ok) {
+            const file = await res.json();
+            if (Array.isArray(file?.elements)) {
+              raw = file;
+              fetchedAt = String(file.fetchedAt ?? "").split("-").reverse().join(".");
+            }
+          }
+        } catch {
+          /* אין קובץ לרחוב הזה: ממשיכים למטמון ולרשת. */
+        }
+        if (!raw) try {
           const cached = JSON.parse(localStorage.getItem(key) ?? "null");
           if (cached?.raw) {
             raw = cached.raw;
@@ -267,7 +286,7 @@ export default function StreetSection({
     return () => {
       alive = false;
     };
-  }, [center, streetName, attempt]);
+  }, [center, streetName, streetId, dataBase, attempt]);
 
   const measure = state.kind === "ready" ? state.measure : null;
   const osmA = measure ? knownFloors(measure.left.building) : null;
