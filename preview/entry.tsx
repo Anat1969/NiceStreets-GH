@@ -58,6 +58,7 @@ function Preview() {
           streetId={street.id}
           saved={null}
           staff={false}
+          dataBase="../public/geo/sections/"
           streetName={street.name}
           center={street.center as [number, number]}
           typologyLabel={typology?.label ?? null}

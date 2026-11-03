@@ -1,0 +1,39 @@
+# שומר מראש את נתוני OpenStreetMap לחתך של כל רחוב, כדי שהחתך לא יהיה תלוי
+# בשרת Overpass עמוס. רץ בהפעלה ידנית, ופעם בשבוע לרחובות חדשים.
+# הקבצים נכנסים ל-public/geo/sections/ ב-main. פריסה ל-Vercel: npm run sync.
+name: נתוני חתך הרחוב
+
+on:
+  workflow_dispatch:
+    inputs:
+      all:
+        description: לשלוף מחדש את כל הרחובות
+        type: boolean
+        default: false
+  schedule:
+    - cron: "17 3 * * 0"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: fetch-sections
+  cancel-in-progress: false
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node scripts/fetch-sections.mjs ${{ inputs.all && '--all' || '' }}
+      - name: דחיפה רק אם נוספו קבצים
+        run: |
+          git add public/geo/sections
+          if git diff --cached --quiet; then echo "אין שינוי"; exit 0; fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "נתוני חתך הרחוב מ-OpenStreetMap"
+          git push

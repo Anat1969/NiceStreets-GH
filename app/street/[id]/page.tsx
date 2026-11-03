@@ -207,6 +207,24 @@ export default async function StreetPage({
         <p className="text-[15px] leading-relaxed text-ink">{summary}</p>
       </Card>
 
+      {street.center ? (
+        <Section
+          title="חתך הרחוב"
+          note="כמה רחב הרחוב ביחס לגובה הבניינים. היחס הזה קובע אם הרחוב מרגיש כמו חדר או כמו מגרש פתוח."
+        >
+          <StreetSection
+            streetId={street.id}
+            saved={street.gis?.section ?? null}
+            staff={staff}
+            streetName={street.name}
+            center={street.center}
+            typologyLabel={typology?.label ?? null}
+            benchmark={typology?.benchmarks.ratio ?? null}
+            gisHeightToWidth={street.gis?.heightToWidth ?? null}
+          />
+        </Section>
+      ) : null}
+
       {theme ? (
         <div className="mb-5 rounded-[14px] border border-line bg-accent-soft/60 p-4">
           <p className="mb-1 text-[15px] font-semibold text-accent">הידעת?</p>
@@ -335,24 +353,6 @@ export default async function StreetPage({
               )}
             </p>
           </Card>
-        </Section>
-      ) : null}
-
-      {street.center ? (
-        <Section
-          title="חתך הרחוב"
-          note="כמה רחב הרחוב ביחס לגובה הבניינים. היחס הזה קובע אם הרחוב מרגיש כמו חדר או כמו מגרש פתוח."
-        >
-          <StreetSection
-            streetId={street.id}
-            saved={street.gis?.section ?? null}
-            staff={staff}
-            streetName={street.name}
-            center={street.center}
-            typologyLabel={typology?.label ?? null}
-            benchmark={typology?.benchmarks.ratio ?? null}
-            gisHeightToWidth={street.gis?.heightToWidth ?? null}
-          />
         </Section>
       ) : null}
 
