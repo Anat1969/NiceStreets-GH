@@ -131,7 +131,15 @@ export default async function MapPage({
   // מפת הרחובות: המיקומים המשוערים של הרובעים נשארים רק לכיול של הצוות.
   const placed = quarters.filter((q) => !q.schematic);
   const unplacedQuarters = quarters.filter((q) => q.schematic);
-  const lineByCode = new Map(loadStreetLines().map((l) => [l.code, l.line]));
+  // רחוב בשכבה העירונית מפוצל לקטעים (שד' בני ברית: 22). כולם נכנסים למפה.
+  const linesByCode = new Map<string, [number, number][][]>();
+  for (const l of loadStreetLines()) {
+    const list = linesByCode.get(l.code) ?? [];
+    list.push(l.line);
+    linesByCode.set(l.code, list);
+  }
+  const longest = (lines?: [number, number][][]) =>
+    lines?.reduce((a, b) => (b.length > a.length ? b : a));
 
   return (
     <>
@@ -224,7 +232,8 @@ export default async function MapPage({
                 quarterId: s.street.quarterId as string,
                 votes: s.votes,
                 avgScore: s.avgScore,
-                line: s.street.code ? lineByCode.get(s.street.code) : undefined,
+                line: s.street.code ? longest(linesByCode.get(s.street.code)) : undefined,
+                lines: s.street.code ? linesByCode.get(s.street.code) : undefined,
                 center: s.street.center ?? undefined,
                 centerSource: s.street.centerSource,
                 ballots: ballotsByStreet.get(s.street.id) ?? [],

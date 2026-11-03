@@ -8,7 +8,11 @@
  * גבולות הרובעים כבר קיימים, בנפרד: public/geo/ashdod-rovaim.geojson, שמצויר
  * על ידי components/DistrictMap.tsx במסך המפה (תצוגת "לפי רובע").
  *
- * TODO — שתי השכבות שכאן עדיין אינן במאגר.
+ * שכבת הרחובות הגיעה מהעירייה ב-03.11.2026 (rehevot.shp, 2,991 קטעים, ITM שהומר ל-WGS84):
+ * data/streets.geojson. השדות: code (סמל רחוב), name, quarter, hierarchy (מידרג), type (סוג).
+ * מידרג 9 הוא רצועות חניה ("חניות רוגוזין"), ולכן אינו מצויר כרחוב.
+ *
+ * TODO — שכבת הרובעים (quarters.geojson) עדיין אינה במאגר.
  * עד שיגיעו, המפה אינה מציירת גבולות כלל. הריבועים הסכמטיים שהיו כאן קודם
  * הוסרו: ריבוע שמצויר במקום שאינו המקום האמיתי של הרובע הוא מידע שגוי
  * שנראה כמו מידע נכון, וזה גרוע מלא להציג דבר.
@@ -61,6 +65,8 @@ export function loadStreetLines(): StreetLine[] {
     const code = String(feature.properties?.code ?? "").trim();
     const name = String(feature.properties?.name ?? "").trim();
     if (!code || !name) continue;
+    // רצועות חניה וחניונים ("חניות רוגוזין מזרח 1") נושאים את סמל הרחוב, אבל אינם הרחוב.
+    if (Number(feature.properties?.hierarchy) === 9) continue;
 
     const geometry = feature.geometry;
     if (geometry?.type === "LineString") {
