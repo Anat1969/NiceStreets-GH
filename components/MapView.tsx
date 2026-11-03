@@ -35,6 +35,8 @@ interface StreetFeature {
   avgScore: number | null;
   /** קו מה-GIS העירוני, כשהוא קיים. */
   line?: [number, number][];
+  /** כל הקטעים של הרחוב בשכבה העירונית. line הוא הארוך מהם, לנקודה ולתווית. */
+  lines?: [number, number][][];
   /** מרכז הרחוב מ-OpenStreetMap, כשאין קו. */
   center?: [number, number];
   /** מאיפה הגיע המיקום. null = טרם מוקם. */
@@ -395,7 +397,10 @@ export default function MapView({
             features: linedStreets.map((s) => ({
               type: "Feature",
               id: s.id,
-              geometry: { type: "LineString", coordinates: s.line as [number, number][] },
+              geometry:
+                s.lines && s.lines.length > 1
+                  ? { type: "MultiLineString", coordinates: s.lines }
+                  : { type: "LineString", coordinates: s.line as [number, number][] },
               properties: {
                 id: s.id,
                 name: s.name,
