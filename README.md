@@ -1,5 +1,8 @@
 **האפליקציה החיה: <https://nicestreets-vercal.vercel.app>**
 
+תצוגה מקדימה של חתך הרחוב, ישירות מ-GitHub, גם כשמכסת Vercel נגמרה:
+https://raw.githack.com/Anat1969/NiceStreets-GH/main/preview/index.html
+
 # הרחובות הטובים של אשדוד — Good Streets Ashdod
 
 אפליקציית שיתוף ציבור (PWA) בעברית, mobile‑first, לאגף אדריכלות העיר בעיריית אשדוד

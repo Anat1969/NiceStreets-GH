@@ -111,6 +111,15 @@ Supabase. **כל שינוי סכמה = קובץ migration ב-`supabase/migration
   ותאריך, דרך `/api/admin/street-section`. `gis.heightToWidth` הוא ערך ה-GIS העירוני ואינו נדרס.
   קומות שאושרו הן ברירת המחדל לכל מבקר. RLS: `streets_staff_write`, אין מיגרציה.
 
+## קישור ישיר מ-GitHub (כלל ענת, 03.11.2026)
+
+כשאין מכסת פריסה ב-Vercel, רואים את השינוי בקישור ישיר:
+https://raw.githack.com/Anat1969/NiceStreets-GH/main/preview/index.html
+האפליקציה היא שרת Next.js, ולכן אין לה גרסה סטטית. `preview/` הוא דף סטטי של השינוי עצמו: אותו רכיב
+ואותו CSS, בלי כניסת צוות ובלי שמירה. בונים אותו ב-`npm run build && node scripts/build-preview.mjs`
+(esbuild דרך npx, ו-CSS מ-`.next/static/css`), ומעדכנים את `preview/streets.json` מ-Supabase כשנוספים רחובות.
+שינוי חדש בממשק שצריך תצוגה מקדימה מקבל דף משלו ב-`preview/`.
+
 ## חיבורים — מה עובד ואיך
 
 | שירות | גישה | הערה |
