@@ -4,6 +4,10 @@
 name: נתוני חתך הרחוב
 
 on:
+  # גם בכל שינוי בסקריפט או ב-workflow עצמו, כי הפעלה ידנית מהסשן חסומה (403).
+  push:
+    branches: [main]
+    paths: ["scripts/fetch-sections.mjs", ".github/workflows/fetch-sections.yml"]
   workflow_dispatch:
     inputs:
       all:
@@ -28,7 +32,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node scripts/fetch-sections.mjs ${{ inputs.all && '--all' || '' }}
+      - run: node scripts/fetch-sections.mjs ${{ github.event.inputs.all == 'true' && '--all' || '' }}
       - name: דחיפה רק אם נוספו קבצים
         run: |
           git add public/geo/sections
