@@ -21,6 +21,7 @@ import StatusEditor from "@/components/StatusEditor";
 import PhotoDecision, { PhotoStatusBadge } from "@/components/PhotoDecision";
 import StreetPhotoActions from "@/components/StreetPhotoActions";
 import { StreetTile } from "@/components/StreetTile";
+import StreetSection from "@/components/StreetSection";
 import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
 import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
 import { scoreLabel } from "@/lib/hebrew";
@@ -301,6 +302,21 @@ export default async function StreetPage({
               )}
             </p>
           </Card>
+        </Section>
+      ) : null}
+
+      {street.center ? (
+        <Section
+          title="חתך הרחוב"
+          note="כמה רחב הרחוב ביחס לגובה הבניינים. היחס הזה קובע אם הרחוב מרגיש כמו חדר או כמו מגרש פתוח."
+        >
+          <StreetSection
+            streetName={street.name}
+            center={street.center}
+            typologyLabel={typology?.label ?? null}
+            benchmark={typology?.benchmarks.ratio ?? null}
+            gisHeightToWidth={street.gis?.heightToWidth ?? null}
+          />
         </Section>
       ) : null}
 
