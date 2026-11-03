@@ -23,6 +23,8 @@ import PhotoDecision, { PhotoStatusBadge } from "@/components/PhotoDecision";
 import StreetPhotoActions from "@/components/StreetPhotoActions";
 import { StreetTile } from "@/components/StreetTile";
 import StreetSection from "@/components/StreetSection";
+import StreetWalk from "@/components/StreetWalk";
+import { layerReadings } from "@/lib/street-layers";
 import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
 import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
 import { scoreLabel } from "@/lib/hebrew";
@@ -221,6 +223,21 @@ export default async function StreetPage({
             typologyLabel={typology?.label ?? null}
             benchmark={typology?.benchmarks.ratio ?? null}
             gisHeightToWidth={street.gis?.heightToWidth ?? null}
+          />
+        </Section>
+      ) : null}
+
+      {street.center ? (
+        <Section
+          title="הליכה ברחוב"
+          note="120 מטר בגובה העיניים, בין תוואי הבניינים האמיתיים. כל רבע מהדרך מדליק שכבה: שלד, חתך, דופן, מרקם, עם הציונים של הרחוב."
+        >
+          <StreetWalk
+            streetId={street.id}
+            streetName={street.name}
+            center={street.center}
+            layers={layerReadings(street, stats.perQuestion, stats.votes)}
+            photoId={heroPhoto?.id ?? null}
           />
         </Section>
       ) : null}

@@ -32,9 +32,9 @@ type State =
   | { kind: "none" }
   | { kind: "ready"; measure: SectionMeasure; fetchedAt: string };
 
-const cacheKey = ([lon, lat]: LonLat) => `ns-section:v1:${lon.toFixed(5)},${lat.toFixed(5)}`;
+export const cacheKey = ([lon, lat]: LonLat) => `ns-section:v1:${lon.toFixed(5)},${lat.toFixed(5)}`;
 
-async function fetchOsm(center: LonLat): Promise<unknown> {
+export async function fetchOsm(center: LonLat): Promise<unknown> {
   const body = "data=" + encodeURIComponent(overpassQuery(center));
   for (const url of ENDPOINTS) {
     try {

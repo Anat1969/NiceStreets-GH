@@ -130,7 +130,7 @@ export function parseOverpass(json: unknown): OsmData {
 type XY = [number, number];
 
 /** הטלה מקומית למטרים סביב נקודת המרכז. מדויקת לטווח של מאות מטרים. */
-function projector([lon0, lat0]: LonLat) {
+export function projector([lon0, lat0]: LonLat) {
   const kx = 111320 * Math.cos((lat0 * Math.PI) / 180);
   const ky = 110540;
   return ([lon, lat]: LonLat): XY => [(lon - lon0) * kx, (lat - lat0) * ky];
@@ -165,7 +165,7 @@ function inside(p: XY, ring: XY[]): boolean {
 }
 
 /** נקודה וכיוון במרחק נתון לאורך קו, לפי אורך קשת. */
-function along(line: XY[], s: number): { p: XY; dir: XY } {
+export function along(line: XY[], s: number): { p: XY; dir: XY } {
   let acc = 0;
   for (let i = 0; i < line.length - 1; i++) {
     const seg = sub(line[i + 1], line[i]);
@@ -184,7 +184,7 @@ function along(line: XY[], s: number): { p: XY; dir: XY } {
 }
 
 /** אורך הקשת של הנקודה הקרובה ביותר לראשית, והמרחק אליה. */
-function nearestArc(line: XY[]): { s: number; d: number; total: number } {
+export function nearestArc(line: XY[]): { s: number; d: number; total: number } {
   let best = { s: 0, d: Infinity };
   let acc = 0;
   for (let i = 0; i < line.length - 1; i++) {
