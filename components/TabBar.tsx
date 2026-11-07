@@ -10,6 +10,7 @@ const TABS = [
   { href: "/streets", label: "טבלה" },
   { href: "/examples", label: "דוגמאות" },
   { href: "/learn", label: "ללמוד" },
+  { href: "/articles", label: "כתבות" },
 ];
 
 export default function TabBar({
