@@ -108,7 +108,8 @@ export default function AuditOverviewView({ overview }: { overview: AuditOvervie
       ) : null}
 
       <div className="my-4">
-        <AuditRunButton label="הרצת בדיקה לכל הרחובות" />
+        <AuditRunButton label="בדיקה אוטומטית לפי מקורות מידע" refreshSources />
+        <p className="how mt-1">קורא מחדש את שכבת הרחובות של העירייה ומריץ את הבדיקה לכל הרחובות. אפשר להריץ שוב אחרי כל שינוי במקורות; כל הרצה נשמרת כגרסה חדשה, והחלטות הצוות לא נדרסות.</p>
       </div>
 
       <Section

@@ -11,10 +11,13 @@ export default function AuditRunButton({
   streetId,
   label,
   variant = "primary",
+  refreshSources = false,
 }: {
   streetId?: string;
   label: string;
   variant?: "primary" | "quiet";
+  /** לקרוא מחדש את מקורות המידע לפני ההרצה (שכבת הרחובות העירונית). */
+  refreshSources?: boolean;
 }) {
   const router = useRouter();
   const [busy, setBusy] = useState(false);
@@ -26,7 +29,7 @@ export default function AuditRunButton({
     const response = await fetch("/api/admin/audit", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify(streetId ? { streetId } : { all: true }),
+      body: JSON.stringify({ ...(streetId ? { streetId } : { all: true }), refreshSources }),
     });
     const data = await response.json().catch(() => ({}));
     setBusy(false);
@@ -34,7 +37,7 @@ export default function AuditRunButton({
       response.ok
         ? data.count === 1
           ? "הבדיקה הסתיימה. התוצאה למטה."
-          : `נבדקו ${data.count} רחובות. התוצאות למטה.`
+          : `נבדקו ${data.count} רחובות${data.sources ? ` אחרי קריאה מחדש של המקורות (${data.sources.geom} קווי רחוב, ${data.sources.typology} הערכות סוג)` : ""}. התוצאות למטה. אפשר להריץ שוב בכל רגע.`
         : (data.error ?? "הבדיקה נכשלה."),
     );
     router.refresh();

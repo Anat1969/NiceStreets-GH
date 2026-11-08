@@ -300,7 +300,7 @@ export default async function AdminPage({
               מעל 30% בין המדידה לדירוג התושב.
             </p>
           ) : null}
-          <AuditRunButton label="הרצת בדיקה לכל הרחובות" />
+          <AuditRunButton label="בדיקה אוטומטית לפי מקורות מידע" refreshSources />
           <Link
             href="/admin/audit"
             className="inline-flex min-h-11 items-center text-[15px] font-medium text-accent underline underline-offset-2"

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "הבדיקה האוטומטית שמורה לצוות" }, { status: 403 });
   }
   const body = (await request.json().catch(() => null)) as
-    | { streetId?: string; all?: boolean }
+    | { streetId?: string; all?: boolean; refreshSources?: boolean }
     | null;
   if (!body || (!body.all && !body.streetId)) {
     return NextResponse.json({ error: "חסר רחוב לבדיקה" }, { status: 400 });
@@ -24,17 +24,28 @@ export async function POST(request: Request) {
 
   try {
     const db = await supabaseServer();
+    /*
+     * "בדיקה אוטומטית לפי מקורות מידע": קודם קוראים מחדש את המקורות (שכבת
+     * הרחובות העירונית: קווים וסוג מוערך), ורק אחר כך מריצים את המנוע.
+     * אפשר להריץ שוב בכל רגע — כל הרצה היא גרסה חדשה, ושום החלטה של הצוות לא נדרסת.
+     */
+    let sources: unknown = null;
+    if (body.refreshSources) {
+      const { data, error } = await db.rpc("load_gis_streets");
+      if (error) throw new Error(error.message);
+      sources = data;
+    }
     if (body.all) {
       const { data, error } = await db.rpc("run_all_street_audits", { p_run_by: "staff" });
       if (error) throw new Error(error.message);
-      return NextResponse.json({ ok: true, count: data });
+      return NextResponse.json({ ok: true, count: data, sources });
     }
     const { data, error } = await db.rpc("run_street_audit", {
       p_street_id: body.streetId,
       p_run_by: "staff",
     });
     if (error) throw new Error(error.message);
-    return NextResponse.json({ ok: true, auditId: data, count: 1 });
+    return NextResponse.json({ ok: true, auditId: data, count: 1, sources });
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     return NextResponse.json(

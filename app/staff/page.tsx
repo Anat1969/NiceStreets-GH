@@ -6,6 +6,7 @@ import { streetViewUrl } from "@/components/PhotoModeration";
 import { getStore } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { loadAuditOverview, STATE_LABELS } from "@/lib/audit";
+import AuditRunButton from "@/components/AuditRunButton";
 import { votesLabel } from "@/lib/hebrew";
 import { getRole } from "@/lib/session";
 import { StatusBadge } from "@/components/ui";
@@ -291,6 +292,13 @@ export default async function StaffPage() {
         next="מאשרים או מחזירים לשטח במסך הבדיקה, ואז קובעים סטטוס לרחוב."
         emptyTitle="כל הבדיקות אושרו."
       >
+        <div className="mb-3">
+          <AuditRunButton label="בדיקה אוטומטית לפי מקורות מידע" refreshSources />
+          <p className="how mt-1">
+            קורא מחדש את שכבת הרחובות של העירייה ומריץ את הבדיקה לכל הרחובות. אפשר להריץ שוב אחרי כל שינוי
+            במקורות.
+          </p>
+        </div>
         {audits.error ? (
           <p role="alert" className="mb-2 text-[14px] text-ink">
             טעינת הבדיקות נכשלה: {audits.error}
