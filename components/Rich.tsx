@@ -3,7 +3,11 @@
  *
  * `**מילה**` מודגשת, `==תובנה==` מסומנת במרקר, וכל מספר מודגש מעצמו
  * בכיוון LTR מבודד. ההדגשות נכתבות פעם אחת בקובץ התוכן, לא בכל רכיב.
+ *
+ * כל משפט מתחיל בשורה חדשה (ענת, 08.11.2026): אחרי נקודה, סימן שאלה או
+ * קריאה — ירידת שורה. גם "\n" בטקסט יורד שורה.
  */
+const SENTENCE = /(?<=[.?!](?:\*\*|==)?)\s+(?=\S)|\n/;
 const TOKEN = /(\*\*[^*]+\*\*|==[^=]+==)/g;
 const NUM = /(\d[\d,]*(?:\.\d+)?%?)/g;
 
@@ -32,9 +36,21 @@ export default function Rich({
   as?: "span" | "p" | "h1" | "h2" | "h3" | "div";
   className?: string;
 }) {
-  const parts = String(children).split(TOKEN);
+  const sentences = String(children).split(SENTENCE);
   return (
     <Tag className={className}>
+      {sentences.map((sentence, si) => (
+        <Sentence key={si} text={sentence} first={si === 0} />
+      ))}
+    </Tag>
+  );
+}
+
+function Sentence({ text, first }: { text: string; first: boolean }) {
+  const parts = text.split(TOKEN);
+  return (
+    <>
+      {first ? null : <br />}
       {parts.map((part, i) => {
         if (part.startsWith("**")) {
           return (
@@ -52,6 +68,6 @@ export default function Rich({
         }
         return <Numbers key={i} text={part} />;
       })}
-    </Tag>
+    </>
   );
 }

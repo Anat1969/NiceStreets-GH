@@ -1,13 +1,15 @@
 "use client";
 
 import { ensureResidentSession } from "@/lib/supabase/browser";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { resizeImage } from "@/lib/image";
 import { imageSlot, imageSlotUrl } from "@/lib/content-images";
 import { normalizeStreetName } from "@/lib/street-name";
 import ScaleInput, { SCALE_STEPS } from "@/components/ScaleInput";
+import PhotoDrop from "@/components/PhotoDrop";
+import VoiceText from "@/components/VoiceText";
+import { pendingPhotoKey } from "@/components/MyPendingPhoto";
 
 interface StreetOption {
   code: string;
@@ -15,8 +17,10 @@ interface StreetOption {
   synonyms: string[];
   /** True when the street runs through several quarters (a main boulevard). */
   crossing: boolean;
-  /** Assigned by staff; null means the street is not classified yet. */
+  /** סוג הרחוב: של הצוות, ובלעדיו ההערכה משכבת הרחובות העירונית. */
   typology: string | null;
+  typologySource: "staff" | "gis" | null;
+  center: [number, number] | null;
 }
 
 interface Props {
@@ -27,18 +31,26 @@ interface Props {
     key: string;
     label: string;
     help: string;
-    /** The criteria this question stands for, shown under "מה זה?". */
     criteria: { key: string; name: string; text: string }[];
-    /** true כשהמנהלת העלתה תמונה אמיתית לשאלה הזאת. */
     hasImage: boolean;
   }[];
   registrySource: string;
-  /** The quarters a stretch of a crossing boulevard can belong to. */
   segmentQuarters: { id: string; name: string }[];
-  /** Set when the visitor came from a street card, so the street is known. */
   initialStreet?: StreetOption | null;
   initialQuarterId?: string;
 }
+
+/*
+ * שלושה שלבים, וכל מסך עושה דבר אחד (ענת, 08.11.2026):
+ * בראש כל שלב — מה עושים כאן, בצעדים ממוספרים. בתחתית — מה השלב הבא.
+ * כוכבית על כל מה שחובה. הקלט (מה שהתושב ממלא) בשדות לבנים; הפלט (מה
+ * שנבחר ומה ייצא ממנו) בלוח צבוע עם התווית "התוצאה".
+ */
+const STEPS = [
+  { n: 1, title: "רחוב" },
+  { n: 2, title: "7 שאלות" },
+  { n: 3, title: "מילים ותמונה" },
+];
 
 export default function ChooseFlow({
   streets,
@@ -51,56 +63,35 @@ export default function ChooseFlow({
   initialQuarterId = "",
 }: Props) {
   const router = useRouter();
-  // Arriving from a street card, the street is already known: the flow opens on
-  // the questions instead of asking again for what the previous screen showed.
   const [step, setStep] = useState(
     initialStreet && (!initialStreet.crossing || initialQuarterId) ? 2 : 1,
   );
   const [query, setQuery] = useState(initialStreet?.name ?? "");
   const [selected, setSelected] = useState<StreetOption | null>(initialStreet);
   const [quarterId, setQuarterId] = useState(initialQuarterId);
-  const [suggestType, setSuggestType] = useState(false);
   const [typologySuggestion, setTypologySuggestion] = useState("");
   const [scores, setScores] = useState<Record<string, number>>({});
   const [reason, setReason] = useState("");
   const [photo, setPhoto] = useState<string | null>(null);
-  const [photoName, setPhotoName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const fileInput = useRef<HTMLInputElement>(null);
-  /*
-   * בנייד פותחים את המצלמה האחורית ישר, כי התושב עומד ברחוב. במחשב אין
-   * מצלמה שימושית, ולכן שם זו בחירת קובץ. הזיהוי נעשה אחרי הטעינה ולא
-   * בשרת: אותו HTML מוגש לשניהם, ורק הלקוח יודע אם יש כאן מצלמה.
-   */
-  const [hasCamera, setHasCamera] = useState<boolean | null>(null);
-  useEffect(() => {
-    const probe = document.createElement("input");
-    probe.type = "file";
-    setHasCamera("capture" in probe && window.matchMedia("(pointer: coarse)").matches);
-  }, []);
 
-  /** Matches the official name and the registry's other spellings. */
   const matches = useMemo(() => {
     const needle = normalizeStreetName(query);
     if (!needle) return [];
     const starts: StreetOption[] = [];
     const contains: StreetOption[] = [];
     const viaSynonym: { street: StreetOption; synonym: string }[] = [];
-
     for (const street of streets) {
       const name = normalizeStreetName(street.name);
       if (name.startsWith(needle)) starts.push(street);
       else if (name.includes(needle)) contains.push(street);
       else {
-        const synonym = street.synonyms.find((s) =>
-          normalizeStreetName(s).includes(needle),
-        );
+        const synonym = street.synonyms.find((s) => normalizeStreetName(s).includes(needle));
         if (synonym) viaSynonym.push({ street, synonym });
       }
       if (starts.length >= 8) break;
     }
-
     return [
       ...starts.map((street) => ({ street, synonym: null as string | null })),
       ...contains.map((street) => ({ street, synonym: null as string | null })),
@@ -108,24 +99,16 @@ export default function ChooseFlow({
     ].slice(0, 8);
   }, [query, streets]);
 
-  // A boulevard that crosses quarters is rated per stretch, so the stretch is
-  // part of choosing the street, not an afterthought.
   const needsQuarter = selected?.crossing ?? false;
-  const step1Valid =
-    selected !== null && (!needsQuarter || quarterId.length > 0);
-  const step2Valid = questions.every((q) => scores[q.key] >= 1);
+  const step1Valid = selected !== null && (!needsQuarter || quarterId.length > 0);
+  const answered = questions.filter((q) => scores[q.key] >= 1).length;
+  const step2Valid = answered === questions.length;
+  const quarterName = segmentQuarters.find((q) => q.id === quarterId)?.name ?? "";
 
-  async function onPhoto(event: React.ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  function go(n: number) {
+    setStep(n);
     setError(null);
-    try {
-      const dataUrl = await resizeImage(file, 1200, 0.82);
-      setPhoto(dataUrl);
-      setPhotoName(file.name);
-    } catch {
-      setError("לא הצלחנו לקרוא את התמונה. נסו קובץ אחר.");
-    }
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function submit() {
@@ -142,12 +125,22 @@ export default function ChooseFlow({
           quarterId: selected.crossing ? quarterId : null,
           scores,
           reason,
-          typologySuggestion: suggestType && typologySuggestion ? typologySuggestion : null,
+          typologySuggestion: typologySuggestion || null,
           photo,
         }),
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "שמירה נכשלה");
+      if (photo) {
+        try {
+          sessionStorage.setItem(
+            pendingPhotoKey(data.streetId),
+            JSON.stringify({ dataUrl: photo, reason }),
+          );
+        } catch {
+          /* אחסון מלא או חסום — התמונה נשמרה בשרת בכל מקרה. */
+        }
+      }
       router.push(`/street/${data.streetId}?saved=1`);
       router.refresh();
     } catch (err) {
@@ -156,71 +149,67 @@ export default function ChooseFlow({
     }
   }
 
-  return (
-    <div>
-      <h1 className="mb-1 text-[24px] font-bold text-ink">
-        {selected ? `לדרג את ${selected.name}` : "לבחור רחוב"}
-      </h1>
-      <p className="mb-4 text-[14px] text-ink-soft">
-        {selected && step > 1
-          ? "שבע שאלות, ואז נימוק ותמונה — לא חובה."
-          : "שלושה שלבים, פחות משתי דקות."}
-      </p>
+  const typeLabel = selected?.typology ? typologyLabels[selected.typology] : null;
 
-      <ol className="mb-5 flex gap-2" aria-label="שלבים">
-        {[1, 2, 3].map((n) => (
+  return (
+    <div className="flow">
+      <h1 className="page-title">{selected ? `לדרג את ${selected.name}` : "לדרג רחוב"}</h1>
+
+      <ol className="flow-steps" aria-label="שלבים">
+        {STEPS.map((s) => (
           <li
-            key={n}
-            aria-current={step === n ? "step" : undefined}
-            className={`flex-1 rounded-full py-1 text-center text-[13px] ${
-              step === n
-                ? "bg-accent text-white"
-                : step > n
-                  ? "bg-accent-soft text-accent"
-                  : "bg-surface text-ink-faint border border-line"
-            }`}
+            key={s.n}
+            aria-current={step === s.n ? "step" : undefined}
+            data-done={step > s.n || undefined}
           >
-            {n === 1 ? "רחוב" : n === 2 ? "דירוג" : "נימוק"}
+            <span className="flow-step-n">{s.n}</span>
+            <span className="flow-step-t">{s.title}</span>
           </li>
         ))}
       </ol>
 
       {error ? (
-        <p
-          role="alert"
-          className="mb-4 rounded-[12px] border border-warm bg-warm-soft px-3 py-2 text-[14px] text-ink"
-        >
+        <p role="alert" className="alert-warm mb-4">
           {error}
         </p>
       ) : null}
 
       {step === 1 ? (
         <section className="grid gap-4">
-          <div>
-            <label htmlFor="street" className="mb-1 block text-[15px] font-medium text-ink">
-              שם הרחוב
+          <div className="step-guide">
+            <p className="step-guide-title">שלב 1 מתוך 3: מה עושים כאן</p>
+            <ol>
+              <li>מקלידים את תחילת שם הרחוב.</li>
+              <li>לוחצים על הרחוב ברשימה שנפתחת.</li>
+              {needsQuarter ? <li>בוחרים באיזה רובע הקטע שאתם מדרגים.</li> : null}
+              <li>לוחצים על הכפתור ״להמשיך לשאלות״.</li>
+            </ol>
+          </div>
+
+          <div className="field">
+            <label htmlFor="street" className="field-label">
+              שם הרחוב<span className="req" aria-hidden="true"> *</span>
             </label>
             <input
               id="street"
               value={query}
+              required
+              aria-required="true"
               onChange={(e) => {
                 setQuery(e.target.value);
                 setSelected(null);
                 setQuarterId("");
+                setTypologySuggestion("");
               }}
-              placeholder="התחילו להקליד…"
+              placeholder="למשל: רוגוזין"
               autoComplete="off"
               role="combobox"
               aria-expanded={matches.length > 0 && !selected}
               aria-controls="street-matches"
-              className="w-full rounded-[12px] border border-line bg-surface px-3 py-3 text-[16px]"
+              className="input"
             />
 
-            {selected ? (
-              <p className="mt-2 text-[14px] text-accent">
-                נבחר: {selected.name}
-              </p>
-            ) : matches.length > 0 ? (
+            {selected ? null : matches.length > 0 ? (
               <ul id="street-matches" className="mt-2 grid gap-1">
                 {matches.map(({ street, synonym }) => (
                   <li key={street.code}>
@@ -231,56 +220,43 @@ export default function ChooseFlow({
                         setQuery(street.name);
                         setQuarterId("");
                       }}
-                      className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-right text-[15px] text-ink"
+                      className="option"
                     >
                       {street.name}
                       {synonym ? (
-                        <span className="block text-[12px] text-ink-faint">
-                          ידוע גם כ־{synonym}
-                        </span>
+                        <span className="block text-[12px] text-ink-faint">ידוע גם כ־{synonym}</span>
                       ) : null}
                     </button>
                   </li>
                 ))}
               </ul>
             ) : query.trim().length > 0 ? (
-              <div className="mt-2 text-[13px] text-ink-soft">
-                <p>
-                  לא נמצא רחוב בשם הזה ברשימת הרחובות הרשמית של אשדוד. בדקו את
-                  האיות, או נסו חלק מהשם.
-                </p>
-                {/*
-                  יש מקומות שיש להם שם בפי התושבים ואין להם שורה במרשם
-                  הלאומי. עד כה המסך נגמר כאן, והתושב שידע על מקום כזה פשוט
-                  יצא. שם המקום שהקליד עובר איתו לטופס ההצעה.
-                */}
+              <div className="mt-2 text-[14px] text-ink-soft">
+                <p>לא מצאנו רחוב בשם הזה.</p>
+                <p>בדקו את האיות, או הקלידו רק חלק מהשם.</p>
                 <Link
                   href={`/suggest?name=${encodeURIComponent(query.trim())}`}
-                  className="inline-link mt-1 inline-block text-accent underline underline-offset-2"
+                  className="inline-link text-accent underline underline-offset-2"
                 >
                   להציע את {query.trim()} כרחוב שאינו ברשימה
                 </Link>
               </div>
             ) : null}
-
-            <p className="mt-2 text-[12px] text-ink-faint">
-              הרשימה מבוססת על {registrySource}, וכוללת גם שמות מקובלים שאינם השם
-              הרשמי.
-            </p>
           </div>
 
           {needsQuarter ? (
-            <div className="card p-3">
-              <p className="text-[15px] font-medium text-ink">באיזה רובע הקטע?</p>
-              <p className="mb-2 text-[14px] text-ink-soft">
-                {selected?.name} עובר בכמה רובעים, ולכן כל קטע מדורג בנפרד.
-                בחרו את הרובע של הקטע שאתם מדרגים.
-              </p>
+            <div className="field">
+              <label htmlFor="quarter" className="field-label">
+                באיזה רובע הקטע?<span className="req" aria-hidden="true"> *</span>
+              </label>
+              <p className="field-help">{selected?.name} עובר בכמה רובעים.</p>
+              <p className="field-help">כל קטע מדורג בנפרד.</p>
               <select
+                id="quarter"
                 value={quarterId}
+                required
                 onChange={(e) => setQuarterId(e.target.value)}
-                aria-label="הרובע של הקטע"
-                className="w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px]"
+                className="input"
               >
                 <option value="">בחרו רובע</option>
                 {segmentQuarters.map((q) => (
@@ -293,81 +269,113 @@ export default function ChooseFlow({
           ) : null}
 
           {selected ? (
-            <div className="card p-3">
-              <p className="text-[15px] font-medium text-ink">סוג הרחוב</p>
-              <p className="text-[14px] text-ink-soft">
-                {selected.typology
-                  ? typologyLabels[selected.typology]
-                  : "טרם סווג על ידי צוות אדריכלות העיר"}
+            <div className="output-panel">
+              <p className="output-label">התוצאה: הרחוב שבחרתם</p>
+              <p className="output-value">
+                {selected.name}
+                {quarterName ? ` · ${quarterName}` : ""}
               </p>
-              <p className="mt-1 text-[12px] text-ink-faint">
-                סוג הרחוב נקבע על ידי הצוות, כדי שההשוואה תהיה בין רחובות מאותו סוג.
+              <p className="output-row">
+                <span className="output-key">סוג הרחוב</span>
+                <span className="output-val">{typeLabel ?? "טרם נקבע"}</span>
               </p>
-
-              <label className="mt-3 flex items-center gap-2 text-[14px] text-ink">
-                <input
-                  type="checkbox"
-                  checked={suggestType}
-                  onChange={(e) => setSuggestType(e.target.checked)}
-                />
-                לדעתי זה רחוב מסוג אחר
-              </label>
-              {suggestType ? (
-                <select
-                  value={typologySuggestion}
-                  onChange={(e) => setTypologySuggestion(e.target.value)}
-                  aria-label="הסוג שלדעתכם מתאים"
-                  className="mt-2 w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px]"
-                >
-                  <option value="">בחרו סוג</option>
-                  {typologies.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.label}
-                    </option>
-                  ))}
-                </select>
-              ) : null}
+              <p className="source-line">
+                {selected.typologySource === "staff"
+                  ? "נקבע על ידי צוות אדריכלות העיר."
+                  : selected.typologySource === "gis"
+                    ? "הערכה לפי שכבת הרחובות של העירייה. הצוות יאשר או יתקן."
+                    : "אין עדיין סיווג לרחוב הזה."}
+              </p>
             </div>
           ) : null}
 
-          <button
-            type="button"
-            disabled={!step1Valid}
-            onClick={() => setStep(2)}
-            className="rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white disabled:opacity-40"
-          >
-            לשאלות
-          </button>
+          {selected ? (
+            <details className="type-details" open={Boolean(typologySuggestion) || !selected.typology}>
+              <summary className="type-summary">
+                <span className="field-label">
+                  לדעתכם הסוג אחר? <span className="opt">(לא חובה)</span>
+                </span>
+                <span className="field-help">
+                  {typologies.length} סוגי רחובות, ומה מאפיין כל אחד. אם הסוג שלמעלה נכון, אפשר לדלג.
+                </span>
+              </summary>
+            <fieldset className="field">
+              <legend className="sr-only">איזה סוג רחוב זה?</legend>
+              <p className="field-help">הסוג קובע מול אילו רחובות משווים את הרחוב.</p>
+              <div className="type-grid">
+                {typologies.map((t) => (
+                  <label key={t.key} className="type-option" data-current={selected.typology === t.key || undefined}>
+                    <input
+                      type="radio"
+                      name="typology"
+                      value={t.key}
+                      checked={typologySuggestion === t.key}
+                      onChange={() => setTypologySuggestion(t.key)}
+                    />
+                    <span className="type-option-title">
+                      {t.label}
+                      {selected.typology === t.key ? <span className="chip">הסיווג הנוכחי</span> : null}
+                    </span>
+                    <span className="type-option-text">{t.description}</span>
+                  </label>
+                ))}
+              </div>
+              {typologySuggestion ? (
+                <button type="button" className="btn btn-quiet mt-2" onClick={() => setTypologySuggestion("")}>
+                  לבטל את הבחירה
+                </button>
+              ) : null}
+            </fieldset>
+            </details>
+          ) : null}
+
+          <div className="next-step">
+            <p className="next-step-label">
+              {step1Valid ? "השלב הבא: 7 שאלות קצרות על הרחוב." : needsQuarter ? "כדי להמשיך: לבחור רובע." : "כדי להמשיך: לבחור רחוב מהרשימה."}
+            </p>
+            <button type="button" disabled={!step1Valid} onClick={() => go(2)} className="btn btn-primary btn-wide">
+              להמשיך לשאלות
+            </button>
+          </div>
+
+          <p className="source-line">
+            רשימת הרחובות: {registrySource}, כולל שמות מקובלים שאינם השם הרשמי. סוג הרחוב: שכבת הרחובות של עיריית אשדוד.
+          </p>
         </section>
       ) : null}
 
       {step === 2 ? (
         <section className="grid gap-4">
-          {/* Which street is being rated stays visible, and stays changeable. */}
-          <p className="flex items-baseline justify-between gap-2 text-[14px] text-ink-soft">
-            <span>
-              מדרגים את <span className="font-medium text-ink">{selected?.name}</span>
-              {needsQuarter
-                ? ` · ${segmentQuarters.find((q) => q.id === quarterId)?.name ?? ""}`
-                : ""}
-              {selected?.typology ? ` · ${typologyLabels[selected.typology]}` : ""}
+          <div className="step-guide">
+            <p className="step-guide-title">שלב 2 מתוך 3: מה עושים כאן</p>
+            <ol>
+              <li>קוראים כל שאלה.</li>
+              <li>בוחרים ציון מ-1 (גרוע) עד 5 (מצוין).</li>
+              <li>לא בטוחים מה נשאל? ״מה זה?״ פותח הסבר.</li>
+            </ol>
+          </div>
+
+          <div className="output-panel output-inline">
+            <span className="output-label">מדרגים את</span>
+            <span className="output-value">
+              {selected?.name}
+              {needsQuarter ? ` · ${quarterName}` : ""}
             </span>
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="min-h-0 shrink-0 text-[13px] text-accent underline underline-offset-2"
-            >
+            <button type="button" onClick={() => go(1)} className="link-btn">
               לשנות רחוב
             </button>
+          </div>
+
+          <p className="progress-line" aria-live="polite">
+            <span className="num">{answered}</span> מתוך <span className="num">{questions.length}</span> שאלות
+            <span className="progress-bar" aria-hidden="true">
+              <span style={{ width: `${(answered / questions.length) * 100}%` }} />
+            </span>
           </p>
 
-          {questions.map((question) => (
-            <fieldset key={question.key} className="card p-3">
+          {questions.map((question, i) => (
+            <fieldset key={question.key} className="question-card" data-done={scores[question.key] ? "" : undefined}>
               <div className="flex items-start gap-3">
-                {/*
-                  תמונה אמיתית לשאלה אם הועלתה, ואחרת הסמל הסכמטי. שתיהן
-                  דקורטיביות: נוסח השאלה נושא את המשמעות.
-                */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src={
@@ -381,185 +389,99 @@ export default function ChooseFlow({
                   className="mt-[2px] h-11 w-11 shrink-0 rounded-[10px] object-cover"
                 />
                 <div className="min-w-0 flex-1">
-                  <legend className="px-0 text-[16px] font-medium text-ink">
-                    {question.label}
+                  <legend className="question-title">
+                    <span className="num text-ink-faint">{i + 1}.</span> {question.label}
+                    <span className="req" aria-hidden="true"> *</span>
                   </legend>
-                  <p className="mb-1 text-[13px] text-ink-soft">{question.help}</p>
-                  {/*
-                    Back into the hierarchy. It opens in place rather than
-                    navigating, so the answers already given are not lost.
-                  */}
+                  <p className="question-help">{question.help}</p>
                   {question.criteria.length > 0 ? (
                     <details className="mb-2">
-                      <summary className="inline-block cursor-pointer list-none py-1 text-[13px] text-accent underline underline-offset-2">
-                        מה זה?
-                      </summary>
+                      <summary className="summary-link">מה זה?</summary>
                       <div className="mt-1 border-e-2 border-line pe-2">
                         {question.criteria.map((criterion) => (
                           <p key={criterion.key} className="text-[13px] text-ink-soft">
-                            <span className="font-medium text-ink">{criterion.name}</span>
-                            {" — "}
-                            {criterion.text}
+                            <span className="font-semibold text-ink">{criterion.name}.</span> {criterion.text}
                           </p>
                         ))}
-                        <Link
-                          href="/learn/criteria"
-                          className="inline-link text-[13px] text-accent underline underline-offset-2"
-                        >
-                          לעמוד הלימוד
-                        </Link>
                       </div>
                     </details>
                   ) : null}
                   <ScaleInput
                     name={question.label}
                     value={scores[question.key]}
-                    onChange={(value) =>
-                      setScores((s) => ({ ...s, [question.key]: value }))
-                    }
+                    onChange={(value) => setScores((s) => ({ ...s, [question.key]: value }))}
                   />
                 </div>
               </div>
             </fieldset>
           ))}
 
-          <p className="text-[12px] text-ink-faint">
-            הסולם: {SCALE_STEPS.map((s) => `${s.value} ${s.label}`).join(" · ")}
-          </p>
-
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="flex-1 rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px]"
-            >
-              חזרה
+          <div className="next-step">
+            <p className="next-step-label">
+              {step2Valid
+                ? "השלב הבא: משפט במילים שלכם ותמונה. שניהם לא חובה."
+                : `כדי להמשיך: לענות עוד על ${questions.length - answered} ${questions.length - answered === 1 ? "שאלה" : "שאלות"}.`}
+            </p>
+            <button type="button" disabled={!step2Valid} onClick={() => go(3)} className="btn btn-primary btn-wide">
+              להמשיך למילים ולתמונה
             </button>
-            <button
-              type="button"
-              disabled={!step2Valid}
-              onClick={() => setStep(3)}
-              className="flex-1 rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white disabled:opacity-40"
-            >
-              לנימוק
+            <button type="button" onClick={() => go(1)} className="link-btn">
+              חזרה לשלב 1
             </button>
           </div>
+
+          <p className="source-line">הסולם: {SCALE_STEPS.map((s) => `${s.value} ${s.label}`).join(" · ")}.</p>
         </section>
       ) : null}
 
-      {step === 3 ? (
-        <section className="grid gap-4">
-          <div>
-            <label htmlFor="reason" className="mb-1 block text-[15px] font-medium text-ink">
-              למה דווקא הרחוב הזה?
+      {step === 3 && selected ? (
+        <section className="grid gap-5">
+          <div className="step-guide">
+            <p className="step-guide-title">שלב 3 מתוך 3: מה עושים כאן</p>
+            <ol>
+              <li>כותבים, או מקליטים, משפט על הרחוב.</li>
+              <li>מוסיפים תמונה: מצלמים, גוררים, או מדביקים מ-Street View.</li>
+              <li>לוחצים ״לשלוח את הדירוג״.</li>
+            </ol>
+            <p className="mt-1 text-[13px] text-ink-soft">שני הסעיפים הראשונים לא חובה. הדירוג נספר גם בלעדיהם.</p>
+          </div>
+
+          <div className="output-panel">
+            <p className="output-label">התוצאה: הדירוג שלכם ל{selected.name}</p>
+            <ul className="score-summary">
+              {questions.map((q) => (
+                <li key={q.key}>
+                  <span>{q.label}</span>
+                  <span className="score-dot" data-v={scores[q.key]}>
+                    {scores[q.key]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <div className="field">
+            <label htmlFor="reason" className="field-label">
+              למה דווקא הרחוב הזה? <span className="opt">(לא חובה)</span>
             </label>
-            <textarea
-              id="reason"
-              value={reason}
-              maxLength={600}
-              rows={5}
-              onChange={(e) => setReason(e.target.value)}
-              placeholder="משפט או שניים במילים שלכם."
-              className="w-full rounded-[12px] border border-line bg-surface px-3 py-3 text-[16px]"
-            />
-            <p className="mt-1 text-[12px] text-ink-faint">{reason.length} מתוך 600</p>
+            <VoiceText id="reason" value={reason} onChange={setReason} placeholder="משפט או שניים במילים שלכם." />
           </div>
 
-          <div>
-            <p className="mb-1 text-[15px] font-medium text-ink">
-              {hasCamera ? "צלמו את הרחוב" : "תמונה אחת של הרחוב"} — לא חובה
-            </p>
-            <p className="text-[14px] text-ink-soft">
-              תמונה עוזרת לעירייה לראות מה אתם רואים.
-            </p>
-            <p className="mt-1 text-[13px] text-ink-faint">
-              התמונה מוקטנת במכשיר לפני השליחה, נתוני ה־EXIF נמחקים, והיא מתפרסמת רק
-              אחרי אישור הצוות. אנא הימנעו מצילום פנים ולוחיות רישוי.
-            </p>
-            {/*
-              האינפוט עצמו מוסתר, והכפתור למטה פותח אותו. כך שני המסלולים —
-              לצלם ולשלוח בלי תמונה — נראים בדיוק אותו דבר, ולא כפתור אחד
-              גדול ליד שדה קובץ קטן.
-            */}
-            <input
-              ref={fileInput}
-              id="photo"
-              type="file"
-              accept="image/*"
-              {...(hasCamera ? { capture: "environment" as const } : {})}
-              onChange={onPhoto}
-              className="sr-only"
-            />
-            {photo ? (
-              <div className="mt-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo}
-                  alt={`תצוגה מקדימה: ${photoName}`}
-                  className="max-h-48 rounded-[12px]"
-                />
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPhoto(null);
-                    setPhotoName("");
-                    if (fileInput.current) fileInput.current.value = "";
-                  }}
-                  className="mt-2 min-h-11 text-[14px] text-ink-soft underline"
-                >
-                  הסרת התמונה
-                </button>
-              </div>
-            ) : null}
-          </div>
+          <PhotoDrop streetName={selected.name} center={selected.center} value={photo} onChange={setPhoto} />
 
-          {/*
-            שני מסלולים שווים במשקל.
-            קודם לכן היה כאן כפתור שליחה אחד ליד שדה קובץ, וכך "בלי תמונה"
-            לא היה מסלול אלא השארת שדה ריק. מי שאין לו תמונה צריך לראות
-            כפתור משלו באותו גודל, ולא להרגיש שהוא מדלג על משהו.
-          */}
-          {photo ? (
-            <button
-              type="button"
-              disabled={busy}
-              onClick={submit}
-              className="pressable rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white disabled:opacity-40"
-            >
-              {busy ? "שולח…" : "שליחת הקול עם התמונה"}
+          <div className="next-step">
+            <p className="next-step-label">אחרי השליחה: תגיעו לדף הרחוב, ותראו את הדירוג שלכם מול שאר התושבים.</p>
+            <button type="button" disabled={busy} onClick={submit} className="btn btn-primary btn-wide">
+              {busy ? "שולח…" : photo ? "לשלוח את הדירוג עם התמונה" : "לשלוח את הדירוג"}
             </button>
-          ) : (
-            <div className="flex gap-2">
-              <button
-                type="button"
-                disabled={busy}
-                onClick={() => fileInput.current?.click()}
-                className="pressable flex-1 rounded-[14px] border-2 border-accent bg-surface px-3 py-3 text-[16px] font-medium text-accent"
-              >
-                {hasCamera ? "לצלם את הרחוב" : "לבחור תמונה"}
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={submit}
-                className="pressable flex-1 rounded-[14px] bg-accent px-3 py-3 text-[16px] font-medium text-white disabled:opacity-40"
-              >
-                {busy ? "שולח…" : "לשלוח בלי תמונה"}
-              </button>
-            </div>
-          )}
+            <button type="button" onClick={() => go(2)} className="link-btn">
+              חזרה לשאלות
+            </button>
+          </div>
 
-          <button
-            type="button"
-            onClick={() => setStep(2)}
-            className="pressable rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px]"
-          >
-            חזרה לשאלות
-          </button>
-
-          <p className="text-[13px] text-ink-faint">
-            קול בלי תמונה נספר בדיוק כמו קול עם תמונה. לכל רחוב נשמר קול יחיד מכל
-            תושב, ושליחה חוזרת מעדכנת את הקול הקודם שלכם.
+          <p className="source-line">
+            קול בלי תמונה נספר בדיוק כמו קול עם תמונה. לכל רחוב נשמר קול אחד מכל תושב, ושליחה חוזרת מעדכנת אותו.
+            התמונה מוקטנת במכשיר, נתוני המיקום שבה נמחקים, והיא מתפרסמת רק אחרי אישור הצוות. נא להימנע מפנים ומלוחיות רישוי.
           </p>
         </section>
       ) : null}

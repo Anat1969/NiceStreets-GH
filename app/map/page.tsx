@@ -9,7 +9,7 @@ import {
   type MetricDef,
   type ShadeDef,
 } from "@/lib/districts";
-import { loadStreetLines, streetLinesAvailable } from "@/lib/geo";
+import { loadBikePaths, loadStreetLines, streetLinesAvailable } from "@/lib/geo";
 import { scoreOutOfTen, toTen } from "@/lib/score";
 import { getStore } from "@/lib/store";
 import { voteScore } from "@/lib/stats";
@@ -204,6 +204,7 @@ export default async function MapPage({
             canCalibrate={staff}
             lockMode="street"
             streetLinesAvailable={streetLinesAvailable()}
+            bikePaths={loadBikePaths()}
             quarters={placed.map((q) => {
               const stats = statsByQuarter.get(q.id);
               return {

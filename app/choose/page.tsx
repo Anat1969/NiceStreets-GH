@@ -4,6 +4,7 @@ import { CANONICAL_STREETS, STREET_REGISTRY_SOURCE } from "@/lib/streets";
 import { getStore } from "@/lib/store";
 import { isCrossingStreet, segmentQuarters } from "@/lib/segments";
 import { imageSlot } from "@/lib/content-images";
+import { GIS_TYPOLOGY } from "@/lib/gis-typology.generated";
 
 export const dynamic = "force-dynamic";
 
@@ -21,19 +22,26 @@ export default async function ChoosePage({
     store.listContentImageSlots().catch(() => [] as string[]),
   ]);
   const hasImage = new Set(imageSlots);
-  const typologyByCode = Object.fromEntries(
-    known
-      .filter((s) => s.code && s.typology)
-      .map((s) => [s.code as string, s.typology as string]),
-  );
+  const byCode = new Map(known.filter((s) => s.code).map((s) => [s.code as string, s]));
 
-  const options = CANONICAL_STREETS.map((s) => ({
-    code: s.code,
-    name: s.name,
-    synonyms: s.synonyms,
-    typology: typologyByCode[s.code] ?? null,
-    crossing: isCrossingStreet(s.code),
-  }));
+  /*
+   * סיווג הצוות גובר תמיד. בלעדיו — הערכה משכבת הרחובות העירונית
+   * (scripts/build-gis-typology.mjs), שמוצגת לתושב כהערכה ולא כעובדה.
+   */
+  const options = CANONICAL_STREETS.map((s) => {
+    const row = byCode.get(s.code);
+    const staffType = row?.typology ?? null;
+    const gisType = GIS_TYPOLOGY[s.code] ?? null;
+    return {
+      code: s.code,
+      name: s.name,
+      synonyms: s.synonyms,
+      typology: staffType ?? gisType,
+      typologySource: (staffType ? "staff" : gisType ? "gis" : null) as "staff" | "gis" | null,
+      crossing: isCrossingStreet(s.code),
+      center: row?.center ?? null,
+    };
+  });
 
   const quarters = segmentQuarters();
 

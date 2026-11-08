@@ -138,14 +138,26 @@ function Tree({ x, y }: { x: number; y: number }) {
   );
 }
 
-export default function StreetRoom({ layers }: { layers: RoomLayer[] }) {
-  const [active, setActive] = useState<FamilyKey | null>(null);
+export default function StreetRoom({
+  layers,
+  active: controlled,
+  onActive,
+}: {
+  layers: RoomLayer[];
+  /** כשהמצב מנוהל מבחוץ (דף הבית), כדי שמסגרת התשובה תדע איזו שכבה פעילה. */
+  active?: FamilyKey | null;
+  onActive?: (key: FamilyKey | null) => void;
+}) {
+  const [own, setOwn] = useState<FamilyKey | null>(null);
+  const active = controlled !== undefined ? controlled : own;
+  const setActive = onActive ?? setOwn;
   const on = (key: FamilyKey | null) => () => setActive(key);
   const layerProps = (key: FamilyKey, i: number) => ({
     className: "room-layer",
     "data-layer": key,
     style: { "--i": i } as React.CSSProperties,
     onPointerEnter: on(key),
+    onClick: on(key),
   });
 
   const [minX] = iso(0, NEAR_LOT[1]);
@@ -257,11 +269,10 @@ export default function StreetRoom({ layers }: { layers: RoomLayer[] }) {
               onFocus={on(layer.key)}
               onBlur={on(null)}
             >
-              <span className="room-swatch" style={{ background: COLOR[layer.key] }} aria-hidden="true" />
+              <span className="room-swatch" data-layer={layer.key} style={{ background: COLOR[layer.key] }} aria-hidden="true" />
               <span className="room-legend-title">
                 {layer.title} <bdi className="num text-[12px] text-ink-faint">{layer.count}</bdi>
               </span>
-              <span className="room-legend-line">{layer.question}</span>
             </Link>
           </li>
         ))}

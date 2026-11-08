@@ -1,6 +1,7 @@
+import { STATUSES } from "./city";
 import type { StatusKey, TypologyKey } from "./city";
 
-export type SortField = "name" | "votes" | "avgScore" | "photos";
+export type SortField = "name" | "votes" | "avgScore" | "photos" | "status";
 export type SortDirection = "asc" | "desc";
 
 export interface StreetFilter {
@@ -35,7 +36,13 @@ export const DEFAULT_FILTER: StreetFilter = {
   direction: "desc",
 };
 
-const SORT_FIELDS: SortField[] = ["name", "votes", "avgScore", "photos"];
+const SORT_FIELDS: SortField[] = ["name", "votes", "avgScore", "photos", "status"];
+
+/** סדר הסטטוסים כפי שהם מוגדרים בעיר; רחוב בלי סטטוס יורד לסוף. */
+function statusRank(status: StatusKey | null): number {
+  if (!status) return 0;
+  return STATUSES.findIndex((s) => s.key === status) + 1;
+}
 
 /** מוריד קידומות, גרשים ורווחים כפולים, כדי שהחיפוש יסלח על כתיב. */
 export function normaliseForSearch(value: string): string {
@@ -100,6 +107,11 @@ export function applyStreetFilter<T extends FilterableStreet>(
   const sign = filter.direction === "asc" ? 1 : -1;
   return [...filtered].sort((a, b) => {
     if (filter.sort === "name") return a.name.localeCompare(b.name, "he") * sign;
+    if (filter.sort === "status") {
+      return (
+        (statusRank(a.status) - statusRank(b.status)) * sign || a.name.localeCompare(b.name, "he")
+      );
+    }
     // A street with no score sorts below every scored street, either way round.
     const av = filter.sort === "avgScore" ? (a.avgScore ?? -1) : a[filter.sort];
     const bv = filter.sort === "avgScore" ? (b.avgScore ?? -1) : b[filter.sort];

@@ -121,6 +121,17 @@ export default async function AdminPage({
         אגף אדריכלות העיר, עיריית אשדוד.{" "}
         {role === "admin" ? "מחוברת כמנהלת." : "מחובר כצוות."}
       </p>
+      <Link
+        href="/staff"
+        className="pressable mb-6 flex min-h-11 items-center justify-between gap-2 rounded-[12px] bg-accent px-4 py-3 text-[16px] font-medium text-white"
+      >
+        <span>לשולחן העבודה: מה מחכה לטיפול</span>
+        <span className="text-[13px] font-normal opacity-90">
+          {totals.photosPending + openReports.length > 0
+            ? `${totals.photosPending + openReports.length} ממתינים`
+            : "הכול מטופל"}
+        </span>
+      </Link>
 
       <Section title="מצב כללי">
         <Card>

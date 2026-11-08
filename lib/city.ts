@@ -631,7 +631,13 @@ export interface Example {
   title: string;
   /** Hebrew name plus the Latin name, so the place is findable on a map. */
   place: string;
+  /** מה רואים ברחוב הזה עצמו. */
   text: string;
+  /**
+   * "הידעת?": ממצא נוסף מאותו מקור. רק עובדה שכתובה במקור, ושאינה חוזרת
+   * ב-text.
+   */
+  fact?: string;
   family: FamilyKey;
   /**
    * Criteria the example's own description names. Nothing is tagged that the
@@ -644,12 +650,26 @@ export interface Example {
   source: string;
 }
 
+/**
+ * דוגמה מהעולם: רחוב שספר או סקר מוכר בחר בו כרחוב טוב. התמונה מוויקימדיה
+ * קומונס ברישיון חופשי, ומוצגת עם הצלם, הרישיון והקישור לדף הקובץ, כפי
+ * שהרישיון דורש.
+ */
+export interface WorldExample extends Example {
+  /** מי בחר ברחוב, ובאיזה פרסום. */
+  survey: string;
+  /** קישור למקור הנתונים שבטקסט. */
+  sourceUrl: string;
+  image: { src: string; author: string; license: string; page: string };
+}
+
 export const EXAMPLES: Example[] = [
   {
     key: "place_and_movement",
     title: "מקום ועורק תנועה גם יחד",
     place: "רחוב דיזנגוף, תל אביב — Dizengoff Street, Tel Aviv, Israel",
-    text: "כל 18 הרחובות שנותחו דורגו גבוה כ\"מקום\"; החשיבות התנועתית היא שמשתנה ביניהם. דיזנגוף מחזיק את שניהם בו-זמנית.",
+    text: "דיזנגוף מחזיק את שניהם בו-זמנית: מקום לשהות בו, וגם עורק תנועה.",
+    fact: "כל 18 הרחובות שנותחו דורגו גבוה כ\"מקום\". החשיבות התנועתית היא שמשתנה ביניהם.",
     family: "skeleton",
     criterionKeys: ["place_and_movement"],
     typology: null,
@@ -659,7 +679,8 @@ export const EXAMPLES: Example[] = [
     key: "intersection_density",
     title: "52 מ' בממוצע בין צמתים",
     place: "רחוב פלורנטין, תל אביב — Florentin Street, Tel Aviv, Israel",
-    text: "ב-15 מתוך 18 הרחובות המרחק החציוני בין צמתים קטן מ-150 מ'. בפלורנטין הוא 52 מ', והרשת הצפופה היא שמייצרת את ההליכה.",
+    text: "בפלורנטין המרחק בין צמתים הוא 52 מ'. הרשת הצפופה היא שמייצרת את ההליכה.",
+    fact: "ב-15 מתוך 18 הרחובות המרחק החציוני בין צמתים קטן מ-150 מ'.",
     family: "skeleton",
     criterionKeys: ["intersection_density"],
     typology: null,
@@ -669,7 +690,8 @@ export const EXAMPLES: Example[] = [
     key: "mixed_use",
     title: "שוק לצד עסקים קטנים",
     place: "רחוב סירקין, הדר הכרמל, חיפה — Syrkin Street, Hadar HaCarmel, Haifa, Israel",
-    text: "שוק תלפיות לצד עסקים קטנים. המילה שחוזרת בנימוקי המשיבים היא \"חי\": מסחר, שירותים ומגורים באותו רחוב, לאורך כל היום.",
+    text: "שוק תלפיות לצד עסקים קטנים. מסחר, שירותים ומגורים באותו רחוב, לאורך כל היום.",
+    fact: "המילה שחוזרת בנימוקי המשיבים לסקר היא \"חי\".",
     family: "skeleton",
     criterionKeys: ["mixed_use"],
     typology: null,
@@ -679,7 +701,8 @@ export const EXAMPLES: Example[] = [
     key: "row_width",
     title: "רוחב 14 מ'",
     place: "רחוב נחלת בנימין, תל אביב — Nahalat Binyamin Street, Tel Aviv, Israel",
-    text: "11 מתוך 18 הרחובות ברוחב 10–20 מ'. הספרות ממליצה על עד 30 מ', ובשדרות 30–40 מ'.",
+    text: "11 מתוך 18 הרחובות ברוחב 10–20 מ'.",
+    fact: "הספרות ממליצה על רוחב של עד 30 מ', ובשדרות 30–40 מ'.",
     family: "section",
     criterionKeys: ["row_width"],
     typology: null,
@@ -689,7 +712,8 @@ export const EXAMPLES: Example[] = [
     key: "proportions",
     title: "העצים מגדירים חלל רחב",
     place: "שדרות רוטשילד, תל אביב — Rothschild Boulevard, Tel Aviv, Israel",
-    text: "מוגדרות חזקה מתחילה ביחס 1:2 ומטה; ברחובות טובים רבים היחס הוא 1:1 עד 1:1.25. כאן דווקא העצים, ולא הבניינים, סוגרים את החלל.",
+    text: "כאן דווקא העצים, ולא הבניינים, סוגרים את החלל.",
+    fact: "מוגדרות חזקה מתחילה ביחס 1:2 ומטה. ברחובות טובים רבים היחס הוא 1:1 עד 1:1.25.",
     family: "section",
     criterionKeys: ["proportions"],
     typology: "boulevard",
@@ -699,7 +723,8 @@ export const EXAMPLES: Example[] = [
     key: "row_split",
     title: "56% מדרכה, 16% אופניים",
     place: "רחוב דיזנגוף, תל אביב — Dizengoff Street, Tel Aviv, Israel",
-    text: "ב-11 מתוך 18 הרחובות לפחות מחצית מזכות הדרך היא מדרכה. בשישה מהם יש גם שביל אופניים.",
+    text: "ב-11 מתוך 18 הרחובות לפחות מחצית מזכות הדרך היא מדרכה.",
+    fact: "בשישה מתוך 11 הרחובות האלה יש גם שביל אופניים.",
     family: "section",
     criterionKeys: ["row_split"],
     typology: null,
@@ -709,7 +734,8 @@ export const EXAMPLES: Example[] = [
     key: "plot_street_meeting",
     title: "חצר קדמית וגדר נמוכה",
     place: "רחוב דובנוב, תל אביב — Dubnov Street, Tel Aviv, Israel",
-    text: "ברחובות מסחריים קו הבניין הוא 0 מ'. ברחובות מגורים, חצר קדמית וגדר נמוכה שמאפשרת להציץ.",
+    text: "ברחובות מגורים, חצר קדמית וגדר נמוכה שמאפשרת להציץ.",
+    fact: "ברחובות מסחריים קו הבניין הוא 0 מ'.",
     family: "frontage",
     criterionKeys: ["plot_street_meeting"],
     typology: null,
@@ -719,7 +745,8 @@ export const EXAMPLES: Example[] = [
     key: "transparency",
     title: "בתי מלאכה וברים נפתחים למדרכה",
     place: "רחוב פלורנטין, תל אביב — Florentin Street, Tel Aviv, Israel",
-    text: "חזיתות עשירות בפרטים מאטות את ההליכה ומעודדות שהייה. גדרות גבוהות יוצרות מונוטוניות.",
+    text: "חזיתות עשירות בפרטים מאטות את ההליכה ומעודדות שהייה.",
+    fact: "גדרות גבוהות יוצרות מונוטוניות.",
     family: "frontage",
     criterionKeys: ["transparency"],
     typology: null,
@@ -729,7 +756,8 @@ export const EXAMPLES: Example[] = [
     key: "building_rhythm",
     title: "5.2 בניינים לכל 100 מ'",
     place: "שדרות ארלוזורוב, עפולה — Arlozorov Boulevard, Afula, Israel",
-    text: "ברוב הרחובות 3–5 בניינים לכל 100 מ'. במדרחובים ובשדרות עד 5.",
+    text: "ברוב הרחובות 3–5 בניינים לכל 100 מ'.",
+    fact: "במדרחובים ובשדרות עד 5 בניינים לכל 100 מ'.",
     family: "frontage",
     criterionKeys: ["building_rhythm"],
     typology: "boulevard",
@@ -749,7 +777,8 @@ export const EXAMPLES: Example[] = [
     key: "small_plots",
     title: "ריבוי מגרשים קטנים",
     place: "רחוב ביאליק, רמת גן — Bialik Street, Ramat Gan, Israel",
-    text: "ב-12 מתוך 18 הרחובות, 80% ומעלה מהמגרשים הם עד דונם. רוחב חזית אופייני: 16–37 מ'.",
+    text: "רוחב חזית אופייני: 16–37 מ'.",
+    fact: "ב-12 מתוך 18 הרחובות, 80% ומעלה מהמגרשים הם עד דונם.",
     family: "texture",
     criterionKeys: ["small_plots"],
     typology: null,
@@ -759,11 +788,121 @@ export const EXAMPLES: Example[] = [
     key: "tree_canopy",
     title: "56% חופת עצים",
     place: "רחוב הנשיא בן צבי, הרצליה — HaNasi Ben Zvi Street, Herzliya, Israel",
-    text: "מחצית מהמשיבים לסקר ציינו עצים והצללה. בשמונה מתוך 18 הרחובות החופה מעל 20%. ברחובות צרים גם הבניינים מצלים.",
+    text: "בשמונה מתוך 18 הרחובות החופה מעל 20%. ברחובות צרים גם הבניינים מצלים.",
+    fact: "מחצית מהמשיבים לסקר ציינו עצים והצללה.",
     family: "texture",
     criterionKeys: ["tree_canopy"],
     typology: null,
     source: "מינהל התכנון, \"הרחובות הטובים\", 2026, עמ' 9, 21, 31",
+  },
+];
+
+const JACOBS =
+  "אלן ג׳ייקובס (Allan B. Jacobs), Great Streets, MIT Press, 1993, לפי הסקירה ב-Publishers Weekly";
+const APA =
+  "איגוד התכנון האמריקאי (American Planning Association), Great Places in America: Streets";
+
+/*
+ * דוגמאות מהעולם. כל רחוב כאן נבחר בפרסום מוכר על רחובות טובים, והנתונים
+ * שבטקסט לקוחים מהערך בוויקיפדיה האנגלית (sourceUrl), כפי שנקרא ב-08.11.2026.
+ * התמונות מוצגות ישירות מוויקימדיה קומונס ואינן שמורות במאגר, כי רשת
+ * סביבת הפיתוח חוסמת את ההורדה.
+ */
+export const WORLD_EXAMPLES: WorldExample[] = [
+  {
+    key: "world_la_rambla",
+    title: "1.2 ק\"מ של הליכה בצל",
+    place: "לה רמבלה, ברצלונה — La Rambla, Barcelona, Spain",
+    text: "רחוב הולכי רגל עם שדרת עצים, באורך 1.2 ק\"מ, מכיכר קטלוניה עד הנמל. לאורכו מסעדות, חנויות, שווקים ומוסדות תרבות.",
+    fact: "המשורר פדריקו גארסיה לורקה אמר עליו שזה הרחוב היחיד בעולם שהוא היה רוצה שלא ייגמר.",
+    family: "texture",
+    criterionKeys: ["tree_canopy", "mixed_use"],
+    typology: null,
+    survey: JACOBS,
+    source: "ויקיפדיה, La Rambla, Barcelona",
+    sourceUrl: "https://en.wikipedia.org/wiki/La_Rambla,_Barcelona",
+    image: {
+      src: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/La_Rambla_tree-lined_pedestrian_street.jpg/1280px-La_Rambla_tree-lined_pedestrian_street.jpg",
+      author: "Max A. Khlopov",
+      license: "CC BY-SA 4.0",
+      page: "https://commons.wikimedia.org/wiki/File:La_Rambla_tree-lined_pedestrian_street.jpg",
+    },
+  },
+  {
+    key: "world_boulevard_saint_michel",
+    title: "שדרה ברוחב 30 מ'",
+    place: "שדרות סן מישל, פריז — Boulevard Saint-Michel, Paris, France",
+    text: "שדרה עם עצים, באורך 1,380 מ' וברוחב ממוצע של 30 מ'. בחלק הצפוני חנויות ספרים, בתי קפה, קולנוע וחנויות בגדים.",
+    fact: "השדרה היא הגבול בין הרובע ה-5 לרובע ה-6 של פריז: המספרים האי-זוגיים בצד אחד, והזוגיים בצד השני.",
+    family: "section",
+    criterionKeys: ["row_width", "tree_canopy", "mixed_use"],
+    typology: "boulevard",
+    survey: JACOBS,
+    source: "ויקיפדיה, Boulevard Saint-Michel",
+    sourceUrl: "https://en.wikipedia.org/wiki/Boulevard_Saint-Michel",
+    image: {
+      src: "https://upload.wikimedia.org/wikipedia/commons/thumb/4/49/Boulevard_Saint-Michel%2C_Paris_5e-6e_2.jpg/1280px-Boulevard_Saint-Michel%2C_Paris_5e-6e_2.jpg",
+      author: "Celette",
+      license: "CC BY-SA 4.0",
+      page: "https://commons.wikimedia.org/wiki/File:Boulevard_Saint-Michel,_Paris_5e-6e_2.jpg",
+    },
+  },
+  {
+    key: "world_roslyn_place",
+    title: "רחוב ללא מוצא מרוצף עץ",
+    place: "רוזלין פלייס, פיטסבורג — Roslyn Place, Pittsburgh, Pennsylvania, USA",
+    text: "רחוב קטן ללא מוצא, שנבנה ב-1914 מכ-26,000 בלוקים של עץ אלון. הרחוב והבתים שלאורכו תוכננו ומומנו יחד, בידי תומס רוד (Thomas Rodd).",
+    fact: "ג׳ייקובס משווה את הרחוב הקטן הזה לשאנז אליזה בפריז ולשדרת פנסילבניה בוושינגטון.",
+    family: "frontage",
+    criterionKeys: ["shared_language"],
+    typology: null,
+    survey: JACOBS,
+    source: "ויקיפדיה, Roslyn Place (street)",
+    sourceUrl: "https://en.wikipedia.org/wiki/Roslyn_Place_(street)",
+    image: {
+      src: "https://upload.wikimedia.org/wikipedia/commons/thumb/e/e0/Roslyn_Place_Pittsburgh.jpg/1280px-Roslyn_Place_Pittsburgh.jpg",
+      author: "Payton Chung",
+      license: "CC BY 2.0",
+      page: "https://commons.wikimedia.org/wiki/File:Roslyn_Place_Pittsburgh.jpg",
+    },
+  },
+  {
+    key: "world_magnificent_mile",
+    title: "מייל אחד של ציר מסחרי",
+    place: "המייל המפואר, שיקגו — The Magnificent Mile, Michigan Avenue, Chicago, Illinois, USA",
+    text: "כמייל אחד של שדרות מישיגן, מנהר שיקגו עד רחוב אוק. הציר המסחרי הראשי בין מרכז העסקים לגולד קוסט, עם חנויות, מלונות ואתרים.",
+    fact: "איגוד התכנון האמריקאי בחר בו באחד מעשרת הרחובות הטובים של 2007.",
+    family: "skeleton",
+    criterionKeys: ["mixed_use"],
+    typology: null,
+    survey: `${APA}, 2007`,
+    source: "ויקיפדיה, Magnificent Mile",
+    sourceUrl: "https://en.wikipedia.org/wiki/Magnificent_Mile",
+    image: {
+      src: "https://upload.wikimedia.org/wikipedia/commons/thumb/b/bb/20070513_Magnificent_Mile.JPG/1280px-20070513_Magnificent_Mile.JPG",
+      author: "TonyTheTiger",
+      license: "CC BY-SA 3.0",
+      page: "https://commons.wikimedia.org/wiki/File:20070513_Magnificent_Mile.JPG",
+    },
+  },
+  {
+    key: "world_u_street",
+    title: "רחוב של תרבות וחיי לילה",
+    place: "רחוב U, וושינגטון — U Street, Washington, D.C., USA",
+    text: "אחד ממרכזי הבילוי וחיי הלילה הפופולריים בוושינגטון. הרובע התאושש אחרי שנפתחה בו תחנת הרכבת התחתית, ב-1991.",
+    fact: "בשנות ה-20 הוא נקרא \"ברודוויי השחור\", לב התרבות האפרו-אמריקאית בעיר.",
+    family: "skeleton",
+    criterionKeys: ["mixed_use"],
+    typology: null,
+    survey: `${APA}, 2011`,
+    source: "ויקיפדיה, U Street (Washington, D.C.)",
+    sourceUrl: "https://en.wikipedia.org/wiki/U_Street_(Washington,_D.C.)",
+    image: {
+      src: "https://upload.wikimedia.org/wikipedia/commons/thumb/6/61/Lincoln_theatre_dc_%28cropped%29.jpg/1280px-Lincoln_theatre_dc_%28cropped%29.jpg",
+      author: "Aude",
+      license: "CC BY-SA 2.5",
+      page: "https://commons.wikimedia.org/wiki/File:Lincoln_theatre_dc_(cropped).jpg",
+    },
   },
 ];
 

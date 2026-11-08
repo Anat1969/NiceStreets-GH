@@ -13,7 +13,6 @@ import {
   Card,
   Datum,
   DemoBanner,
-  Notice,
   ScoreBar,
   Section,
   StatusBadge,
@@ -29,6 +28,8 @@ import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
 import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
 import { scoreLabel } from "@/lib/hebrew";
 import { summarise } from "@/lib/summary";
+import MyPendingPhoto from "@/components/MyPendingPhoto";
+import { GIS_TYPOLOGY } from "@/lib/gis-typology.generated";
 
 export const dynamic = "force-dynamic";
 
@@ -76,7 +77,14 @@ export default async function StreetPage({
       return b.updatedAt.localeCompare(a.updatedAt);
     })
     .slice(0, 8);
-  const typology = street.typology ? TYPOLOGY_MAP[street.typology] : null;
+  // סיווג הצוות, ובלעדיו ההערכה משכבת הרחובות העירונית — מסומנת כהערכה.
+  const gisType = !street.typology && street.code ? GIS_TYPOLOGY[street.code] : undefined;
+  const typology = street.typology
+    ? TYPOLOGY_MAP[street.typology]
+    : gisType
+      ? TYPOLOGY_MAP[gisType as keyof typeof TYPOLOGY_MAP]
+      : null;
+  const typologyIsEstimate = !street.typology && Boolean(typology);
   const summary = summarise(stats, reasons.length);
   /* התמונה שפותחת את הדף: החדשה מבין המאושרות. */
   const heroPhoto = visiblePhotos.filter(isPublicPhoto)[0] ?? null;
@@ -123,12 +131,15 @@ export default async function StreetPage({
   return (
     <>
       {saved ? (
-        <p role="status" className="mb-4 rounded-[12px] bg-accent-soft px-3 py-2 text-[15px] text-accent">
-          הקול שלכם נשמר. תודה.
-        </p>
+        <div role="status" className="output-panel mb-4">
+          <p className="output-label">התוצאה</p>
+          <p className="output-value">הדירוג שלכם נשמר. תודה.</p>
+          <p className="next-step-label mt-1">השלב הבא: לגלול ולראות איך התושבים האחרים דירגו את הרחוב.</p>
+        </div>
       ) : null}
 
       <DemoBanner demoVotes={stats.demoVotes} totalVotes={stats.votes} />
+      <MyPendingPhoto streetId={street.id} />
 
       {/*
         כותרת הרחוב היא התמונה שלו. השם יושב עליה על גרדיאנט שיוצא
@@ -143,7 +154,7 @@ export default async function StreetPage({
       <StreetTile
         className="mb-3 block aspect-[16/10] w-full rounded-[16px] border border-line"
         name={street.name}
-        quarterName={`${stats.quarterName} · ${typology?.label ?? "טרם סווג"}`}
+        quarterName={`${stats.quarterName} · ${typology ? `${typology.label}${typologyIsEstimate ? " (הערכה)" : ""}` : "טרם סווג"}`}
         avgScore={stats.avgScore}
         photoId={heroPhoto?.id ?? null}
         size="hero"
@@ -400,58 +411,47 @@ export default async function StreetPage({
             מהמסגרת, וההכרעה של הצוות היא שבב קטן בפינה — היא לא
             מתחרה בתמונה, וגם לא מכסה אותה.
           */
-          <ul className="grid gap-3">
+          /*
+            כל תמונה במסגרת משלה, עם רווח ביניהן, והמילים של התושב
+            כתת־כותרת מתחתיה (ענת, 08.11.2026: "נראות כמו תמונה אחת").
+          */
+          <ul className="photo-grid">
             {visiblePhotos.map((photo, index) => {
               const vote = photo.voteId ? voteById.get(photo.voteId) : undefined;
               const reason = vote?.reason?.trim();
               return (
-                <li key={photo.id} className="card overflow-hidden">
-                  <div className="relative">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={`/api/photos/${photo.id}`}
-                      alt={`תמונה מהרחוב ${street.name}`}
-                      className="aspect-[16/10] w-full object-cover"
-                      loading={index === 0 ? undefined : "lazy"}
-                    />
-                    <span className="photo-scrim" aria-hidden="true" />
-                    <span className="absolute inset-x-0 bottom-0 p-3 text-[15px] font-semibold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,0.85)]">
-                      {street.name}
-                    </span>
-                    {/* לצוות בלבד: מצב התמונה, כתווית אחת ברורה בפינה. */}
-                    {staff ? (
-                      <span className="absolute end-3 top-3">
-                        <PhotoStatusBadge status={photo.status} source={photo.source} />
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {/*
-                    הנימוק שנשלח עם התמונה, בדיוק כמו בכרטיס של "מה
-                    התושבים כתבו": תמונה בלי המשפט שבא איתה מאבדת את מה
-                    שהתושב ניסה להגיד.
-                  */}
-                  <div className="p-3">
-                    {reason ? (
-                      <p className="text-[15px] text-ink">{reason}</p>
-                    ) : (
-                      <p className="text-[14px] text-ink-faint">
-                        התמונה הועלתה בלי נימוק.
+                <li key={photo.id}>
+                  <figure className="photo-card">
+                    <div className="relative">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/api/photos/${photo.id}`}
+                        alt={reason ? `${street.name}: ${reason}` : `תמונה מהרחוב ${street.name}`}
+                        loading={index === 0 ? undefined : "lazy"}
+                      />
+                      {staff ? (
+                        <span className="absolute end-2 top-2">
+                          <PhotoStatusBadge status={photo.status} source={photo.source} />
+                        </span>
+                      ) : null}
+                    </div>
+                    <figcaption>
+                      {reason ? (
+                        <p className="resident-voice">{reason}</p>
+                      ) : (
+                        <p className="text-[14px] text-ink-faint">בלי מילים מהצלם.</p>
+                      )}
+                      <p className="meta">
+                        {vote ? `ציון ${scoreLabel(voteScore(vote))} מתוך 10 · ` : ""}
+                        {new Date(photo.createdAt).toLocaleDateString("he-IL")}
                       </p>
-                    )}
-                    <p className="mt-1 text-[12px] text-ink-faint">
-                      {vote ? `ציון הקול: ${scoreLabel(voteScore(vote))} מתוך 10 · ` : ""}
-                      צולמה ב־
-                      {new Date(photo.createdAt).toLocaleDateString("he-IL")}
-                    </p>
-
-                    {/* ההכרעה יושבת על נייר, מתחת לתמונה, עם פעלים מפורשים. */}
-                    {staff ? (
-                      <div className="mt-3 border-t border-line pt-3">
-                        <PhotoDecision photoId={photo.id} status={photo.status} />
-                      </div>
-                    ) : null}
-                  </div>
+                      {staff ? (
+                        <div className="mt-2 border-t border-line pt-2">
+                          <PhotoDecision photoId={photo.id} status={photo.status} />
+                        </div>
+                      ) : null}
+                    </figcaption>
+                  </figure>
                 </li>
               );
             })}
@@ -485,7 +485,7 @@ export default async function StreetPage({
                     />
                   ) : null}
                   <div className="p-3">
-                    <p className="text-[15px] text-ink">{vote.reason}</p>
+                    <p className="resident-voice">{vote.reason}</p>
                     <p className="mt-1 text-[12px] text-ink-faint">
                       ציון הקול: {scoreLabel(voteScore(vote))} מתוך 10 ·{" "}
                       {new Date(vote.updatedAt).toLocaleDateString("he-IL")}
@@ -535,42 +535,38 @@ export default async function StreetPage({
         </Card>
       </Section>
 
-      <div className="mb-6 grid gap-2">
-        {/* The street is already known here, so the flow opens on the questions. */}
-        <Link
-          href={rateHref}
-          className="flex items-center justify-center rounded-[14px] bg-accent px-5 py-3 text-[16px] font-medium text-white"
-        >
+      <div className="next-step mb-6">
+        <p className="next-step-label">מה אפשר לעשות עכשיו</p>
+        <Link href={rateHref} className="btn btn-primary btn-wide">
           לדרג את {street.name}
         </Link>
-        <Link
-          href={
-            street.quarterId
-              ? `/streets?quarter=${street.quarterId}&minVotes=0`
-              : "/streets"
-          }
-          className="flex items-center justify-center rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px] text-ink"
-        >
-          {street.quarterId
-            ? `רחובות נוספים ב${stats.quarterName}`
-            : "חזרה לרשימת הרחובות"}
-        </Link>
-        {/*
-          דיווח אינו דירוג. דירוג הוא דעה על הרחוב, ודיווח הוא בקשה לטפל
-          במשהו שקרה בו — ולכן הוא כפתור נפרד, ושם התמונה היא חובה: בלעדיה
-          אין לאגף מה לבדוק.
-        */}
-        <Link
-          href={`/report?street=${street.id}`}
-          className="flex items-center justify-center rounded-[14px] border border-line bg-surface px-5 py-3 text-[16px] text-ink"
-        >
-          לדווח לעירייה על משהו ברחוב
-        </Link>
+        <div className="flex flex-wrap gap-x-4">
+          <Link href={`/report?street=${street.id}`} className="link-btn">
+            לדווח לעירייה על תקלה ברחוב
+          </Link>
+          <Link
+            href={street.quarterId ? `/streets?quarter=${street.quarterId}&minVotes=0` : "/streets"}
+            className="link-btn"
+          >
+            {street.quarterId ? `רחובות נוספים ב${stats.quarterName}` : "לרשימת הרחובות"}
+          </Link>
+        </div>
       </div>
 
-      {!street.verified ? (
-        <Notice>הרחוב טרם אומת מול שכבת ה־GIS העירונית.</Notice>
-      ) : null}
+      <footer className="sources">
+        <p className="sources-title">מקורות ואימות</p>
+        <p>
+          סוג הרחוב:{" "}
+          {street.typology
+            ? "צוות אדריכלות העיר."
+            : typology
+              ? "הערכה לפי שכבת הרחובות של עיריית אשדוד (מידרג וסוג), עד לאישור הצוות."
+              : "טרם נקבע."}
+        </p>
+        <p>מיקום הרחוב וחתך הרחוב: OpenStreetMap.</p>
+        <p>דירוגים ותמונות: תושבים. תמונות מתפרסמות אחרי אישור הצוות.</p>
+        {!street.verified ? <p>הרחוב טרם אומת מול שכבת ה־GIS העירונית.</p> : null}
+      </footer>
     </>
   );
 }

@@ -40,7 +40,7 @@ const example = (k: CriterionKey) => {
 const he = (place: string) => place.split(" — ")[0];
 const quote = (k: CriterionKey): Creation => {
   const e = example(k);
-  return { style: "quote", quote: e.text, who: he(e.place), cite: e.source };
+  return { style: "quote", quote: e.fact ? `${e.text} ${e.fact}` : e.text, who: he(e.place), cite: e.source };
 };
 const first = (s: string) => s.split(/(?<=\.)\s+/)[0];
 const rest = (s: string) => s.split(/(?<=\.)\s+/).slice(1).join(" ");

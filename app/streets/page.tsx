@@ -4,6 +4,7 @@ import { loadCityData } from "@/lib/data";
 import { isStaff } from "@/lib/session";
 import { parseStreetFilter } from "@/lib/street-filter";
 import { DemoBanner } from "@/components/ui";
+import "./table.css";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,10 @@ export default async function StreetsPage({
       <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
 
       <h1 className="mb-1 text-[24px] font-bold text-ink">טבלת הרחובות</h1>
-      <p className="mb-4 text-[14px] text-ink-soft">
-        סננו וממיינו בחלק העליון, והתוצאות מופיעות מתחת.
+      <p className="mb-3 text-[14px] text-ink-soft">
+        בוחרים סינון, והתוצאות מתעדכנות מיד.
+        <br />
+        לחיצה על כותרת עמודה ממיינת לפיה.
       </p>
       <StreetsTable
         staff={staff}

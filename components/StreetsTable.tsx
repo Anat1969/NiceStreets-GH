@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type React from "react";
 import Link from "next/link";
 import { STATUS_MAP } from "@/lib/city";
 import type { StatusKey, TypologyKey } from "@/lib/city";
@@ -35,12 +36,116 @@ interface QuarterRow {
   streets: number;
 }
 
-const SORT_LABELS: { key: SortField; label: string }[] = [
-  { key: "votes", label: "מספר קולות" },
-  { key: "avgScore", label: "ציון ממוצע (0–10)" },
-  { key: "photos", label: "מספר תמונות" },
-  { key: "name", label: "שם הרחוב" },
-];
+/** כיוון ברירת המחדל כשלוחצים על עמודה בפעם הראשונה. */
+const FIRST_DIRECTION: Record<SortField, "asc" | "desc"> = {
+  name: "asc",
+  votes: "desc",
+  avgScore: "desc",
+  photos: "desc",
+  status: "desc",
+};
+
+/*
+ * מפת החום: גוון אחד (ירוק־האגף) בארבע דרגות, ו"אין נתון" בלי צבע.
+ * הדרגות קבועות, כדי שהמקרא יתאר בדיוק את מה שבטבלה. הדרגה הכהה ביותר
+ * היא 36% מהצבע, כך שהטקסט הכהה נשאר מעל 4.5:1 בכל דרגה.
+ */
+const HEAT_STEPS = [0, 10, 18, 27, 36];
+
+/** ציון: סולם קבוע 0–10. */
+function scoreLevel(score: number | null): number {
+  if (score === null) return 0;
+  return Math.min(4, Math.max(1, Math.ceil(score / 2.5)));
+}
+
+/** ספירה: ביחס לערך הגבוה בתוצאות, בשורש כדי שרחוב מוביל אחד לא ימחק את השאר. */
+function countLevel(value: number, max: number): number {
+  if (value <= 0 || max <= 0) return 0;
+  return Math.min(4, Math.max(1, Math.ceil(Math.sqrt(value / max) * 4)));
+}
+
+function heatStyle(level: number): React.CSSProperties | undefined {
+  if (level === 0) return undefined;
+  return {
+    background: `color-mix(in srgb, var(--brand-500) ${HEAT_STEPS[level]}%, transparent)`,
+  };
+}
+
+function SortArrows({ state }: { state: "asc" | "desc" | null }) {
+  return (
+    <svg className="sort-arrows" width="10" height="14" viewBox="0 0 10 14" aria-hidden="true">
+      <path d="M5 1 9 6H1z" className={state === "asc" ? "on" : ""} />
+      <path d="M5 13 1 8h8z" className={state === "desc" ? "on" : ""} />
+    </svg>
+  );
+}
+
+/** כותרת עמודה שהיא כפתור מיון. לחיצה חוזרת הופכת את הכיוון. */
+function SortHeader({
+  label,
+  field,
+  sort,
+  direction,
+  onSort,
+}: {
+  label: string;
+  field: string;
+  sort: string;
+  direction: "asc" | "desc";
+  onSort: (field: string) => void;
+}) {
+  const active = sort === field;
+  return (
+    <th
+      scope="col"
+      aria-sort={active ? (direction === "asc" ? "ascending" : "descending") : "none"}
+      className="sort-th"
+    >
+      <button
+        type="button"
+        onClick={() => onSort(field)}
+        className={active ? "sort-btn is-active" : "sort-btn"}
+        title={
+          active
+            ? direction === "asc"
+              ? "ממוין מהנמוך לגבוה. לחיצה הופכת."
+              : "ממוין מהגבוה לנמוך. לחיצה הופכת."
+            : `מיון לפי ${label}`
+        }
+      >
+        <span>{label}</span>
+        <SortArrows state={active ? direction : null} />
+      </button>
+    </th>
+  );
+}
+
+function HeatLegend() {
+  return (
+    <div className="heat-legend" aria-label="מקרא מפת החום">
+      <span className="heat-legend-title">מקרא</span>
+      <span className="heat-legend-scale">
+        <span className="heat-legend-end">נמוך</span>
+        {HEAT_STEPS.slice(1).map((pct) => (
+          <span
+            key={pct}
+            className="heat-swatch"
+            style={{ background: `color-mix(in srgb, var(--brand-500) ${pct}%, transparent)` }}
+          />
+        ))}
+        <span className="heat-legend-end">גבוה</span>
+      </span>
+      <span className="heat-legend-note">
+        <span className="heat-swatch heat-swatch-empty" aria-hidden="true" /> אין נתון.
+      </span>
+      <span className="heat-legend-note">
+        ציון: מתוך 10. קולות ותמונות: ביחס לרחוב המוביל בתוצאות.
+      </span>
+    </div>
+  );
+}
+
+type QuarterSort = "name" | "votes" | "avgScore" | "streets";
 
 export default function StreetsTable({
   rows,
@@ -62,11 +167,44 @@ export default function StreetsTable({
 }) {
   const [view, setView] = useState<"streets" | "quarters">("streets");
   const [filter, setFilter] = useState<StreetFilter>(initialFilter);
+  const [quarterSort, setQuarterSort] = useState<{ field: QuarterSort; direction: "asc" | "desc" }>({
+    field: "votes",
+    direction: "desc",
+  });
 
   const set = <K extends keyof StreetFilter>(key: K, value: StreetFilter[K]) =>
     setFilter((f) => ({ ...f, [key]: value }));
 
+  const sortBy = (field: string) =>
+    setFilter((f) => {
+      const key = field as SortField;
+      if (f.sort === key) return { ...f, direction: f.direction === "asc" ? "desc" : "asc" };
+      return { ...f, sort: key, direction: FIRST_DIRECTION[key] };
+    });
+
+  const sortQuartersBy = (field: string) =>
+    setQuarterSort((s) => {
+      const key = field as QuarterSort;
+      if (s.field === key) return { field: key, direction: s.direction === "asc" ? "desc" : "asc" };
+      return { field: key, direction: key === "name" ? "asc" : "desc" };
+    });
+
   const results = useMemo(() => applyStreetFilter(rows, filter), [rows, filter]);
+  const maxVotes = Math.max(0, ...results.map((r) => r.votes));
+  const maxPhotos = Math.max(0, ...results.map((r) => r.photos));
+
+  const sortedQuarters = useMemo(() => {
+    const sign = quarterSort.direction === "asc" ? 1 : -1;
+    return [...quarterRows].sort((a, b) => {
+      if (quarterSort.field === "name") return a.name.localeCompare(b.name, "he") * sign;
+      const av = quarterSort.field === "avgScore" ? (a.avgScore ?? -1) : a[quarterSort.field];
+      const bv = quarterSort.field === "avgScore" ? (b.avgScore ?? -1) : b[quarterSort.field];
+      return (av - bv) * sign || a.name.localeCompare(b.name, "he");
+    });
+  }, [quarterRows, quarterSort]);
+  const maxQuarterVotes = Math.max(0, ...quarterRows.map((r) => r.votes));
+  const maxQuarterStreets = Math.max(0, ...quarterRows.map((r) => r.streets));
+
   const exportQuery = streetFilterToQuery(filter);
   const exportSuffix = exportQuery ? `?${exportQuery}` : "";
 
@@ -75,7 +213,7 @@ export default function StreetsTable({
 
   return (
     <div>
-      <div className="mb-4 flex gap-2">
+      <div className="mb-3 flex gap-2" role="group" aria-label="תצוגה">
         <button
           type="button"
           onClick={() => setView("streets")}
@@ -103,32 +241,33 @@ export default function StreetsTable({
       </div>
 
       {view === "streets" ? (
-        <>
-          {/* The controls sit in their own panel, visually apart from results. */}
-          <section
-            aria-labelledby="filters-heading"
-            className="mb-5 rounded-[14px] border border-line bg-accent-soft/60 p-4"
-          >
-            <div className="mb-3 flex items-baseline justify-between gap-2">
-              <h2 id="filters-heading" className="text-[17px] font-semibold text-ink">
-                סינון ומיון
+        <div className="streets-layout">
+          {/*
+            קלט מימין, פלט משמאל. במחשב הסינון הוא סרגל צד צמוד, והטבלה
+            מתחילה באותו גובה, בלי גלילה. בנייד הם אחד מעל השני, והשדות
+            הקצרים יושבים שניים בשורה.
+          */}
+          <section aria-labelledby="filters-heading" className="streets-filters">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <h2 id="filters-heading" className="text-[15px] font-semibold text-ink">
+                סינון
               </h2>
               <button
                 type="button"
                 onClick={() => setFilter(DEFAULT_FILTER)}
                 disabled={isDefaultFilter(filter)}
-                className="min-h-0 rounded-[8px] border border-line bg-surface px-3 py-1 text-[13px] text-ink disabled:opacity-40"
+                className="rounded-[8px] border border-line bg-surface px-3 text-[13px] text-ink disabled:opacity-40"
               >
                 איפוס
               </button>
             </div>
 
-            <div className="grid gap-3">
+            <div className="streets-filter-grid">
               {/*
                 חיפוש שם הרחוב, ראשון: מי שיודע איזה רחוב הוא מחפש לא
                 אמור לגלול טבלה שלמה או לנחש באיזה רובע הוא נמצא.
               */}
-              <label className="text-[13px] text-ink-soft">
+              <label className="streets-filter-wide text-[13px] text-ink-soft">
                 חיפוש רחוב
                 <input
                   type="search"
@@ -199,40 +338,17 @@ export default function StreetsTable({
                   className={`mt-1 ${field}`}
                 />
               </label>
-
-              <div className="grid grid-cols-2 gap-2">
-                <label className="text-[13px] text-ink-soft">
-                  מיון לפי
-                  <select
-                    value={filter.sort}
-                    onChange={(e) => set("sort", e.target.value as SortField)}
-                    className={`mt-1 ${field}`}
-                  >
-                    {SORT_LABELS.map((s) => (
-                      <option key={s.key} value={s.key}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-                <label className="text-[13px] text-ink-soft">
-                  סדר
-                  <select
-                    value={filter.direction}
-                    onChange={(e) => set("direction", e.target.value === "asc" ? "asc" : "desc")}
-                    className={`mt-1 ${field}`}
-                  >
-                    <option value="desc">מהגבוה לנמוך</option>
-                    <option value="asc">מהנמוך לגבוה</option>
-                  </select>
-                </label>
-              </div>
             </div>
+            <p className="mt-2 text-[12px] text-ink-faint">
+              למיון: לוחצים על כותרת העמודה.
+              <br />
+              לחיצה נוספת הופכת את הסדר.
+            </p>
           </section>
 
-          <section aria-labelledby="results-heading">
+          <section aria-labelledby="results-heading" className="streets-results">
             <div className="mb-2 flex items-baseline justify-between gap-2">
-              <h2 id="results-heading" className="text-[17px] font-semibold text-ink">
+              <h2 id="results-heading" className="text-[15px] font-semibold text-ink">
                 תוצאות
               </h2>
               <p role="status" className="text-[14px] text-ink-soft">
@@ -241,27 +357,17 @@ export default function StreetsTable({
             </div>
 
             <div className="card overflow-x-auto">
-              <table className="w-full">
+              <table className="streets-table w-full">
                 <caption className="sr-only">
-                  טבלת רחובות, {streetsFoundLabel(results.length)}
+                  טבלת רחובות, {streetsFoundLabel(results.length)}. כותרות העמודות ממיינות.
                 </caption>
                 <thead>
                   <tr className="border-b border-line">
-                    <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">
-                      רחוב
-                    </th>
-                    <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">
-                      קולות
-                    </th>
-                    <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">
-                      ציון
-                    </th>
-                    <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">
-                      תמונות
-                    </th>
-                    <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">
-                      סטטוס
-                    </th>
+                    <SortHeader label="רחוב" field="name" sort={filter.sort} direction={filter.direction} onSort={sortBy} />
+                    <SortHeader label="קולות" field="votes" sort={filter.sort} direction={filter.direction} onSort={sortBy} />
+                    <SortHeader label="ציון" field="avgScore" sort={filter.sort} direction={filter.direction} onSort={sortBy} />
+                    <SortHeader label="תמונות" field="photos" sort={filter.sort} direction={filter.direction} onSort={sortBy} />
+                    <SortHeader label="סטטוס" field="status" sort={filter.sort} direction={filter.direction} onSort={sortBy} />
                   </tr>
                 </thead>
                 <tbody>
@@ -273,17 +379,21 @@ export default function StreetsTable({
                           href={`/street/${row.id}`}
                           className="block px-2 py-2 underline-offset-2 hover:underline"
                         >
-                          <span className="block text-[15px] text-ink">{row.name}</span>
+                          <span className="block text-[15px] font-medium text-ink">{row.name}</span>
                           <span className="block text-[12px] text-ink-faint">
                             {row.quarterName} · {row.typologyLabel}
                           </span>
                         </Link>
                       </th>
-                      <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.votes}</td>
-                      <td className="px-2 py-2 text-[15px] tabular-nums text-ink">
+                      <td className="heat-cell" style={heatStyle(countLevel(row.votes, maxVotes))}>
+                        {row.votes}
+                      </td>
+                      <td className="heat-cell" style={heatStyle(scoreLevel(row.avgScore))}>
                         {scoreLabel(row.avgScore)}
                       </td>
-                      <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.photos}</td>
+                      <td className="heat-cell" style={heatStyle(countLevel(row.photos, maxPhotos))}>
+                        {row.photos}
+                      </td>
                       <td className="px-2 py-2 text-[13px] text-ink-soft">
                         {row.status ? (STATUS_MAP[row.status]?.label ?? "—") : "—"}
                       </td>
@@ -299,42 +409,46 @@ export default function StreetsTable({
                 </tbody>
               </table>
             </div>
+            <HeatLegend />
           </section>
-        </>
+        </div>
       ) : (
         <section aria-labelledby="quarters-heading">
-          <h2 id="quarters-heading" className="mb-2 text-[17px] font-semibold text-ink">
+          <h2 id="quarters-heading" className="mb-2 text-[15px] font-semibold text-ink">
             רובעים
           </h2>
           <div className="card overflow-x-auto">
-            <table className="w-full">
-              <caption className="sr-only">טבלת רובעים</caption>
+            <table className="streets-table w-full">
+              <caption className="sr-only">טבלת רובעים. כותרות העמודות ממיינות.</caption>
               <thead>
                 <tr className="border-b border-line">
-                  <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">רובע</th>
-                  <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">קולות</th>
-                  <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">ציון</th>
-                  <th scope="col" className="px-2 py-2 text-right text-[13px] font-medium text-ink-soft">רחובות</th>
+                  <SortHeader label="רובע" field="name" sort={quarterSort.field} direction={quarterSort.direction} onSort={sortQuartersBy} />
+                  <SortHeader label="קולות" field="votes" sort={quarterSort.field} direction={quarterSort.direction} onSort={sortQuartersBy} />
+                  <SortHeader label="ציון" field="avgScore" sort={quarterSort.field} direction={quarterSort.direction} onSort={sortQuartersBy} />
+                  <SortHeader label="רחובות" field="streets" sort={quarterSort.field} direction={quarterSort.direction} onSort={sortQuartersBy} />
                 </tr>
               </thead>
               <tbody>
-                {[...quarterRows]
-                  .sort((a, b) => b.votes - a.votes)
-                  .map((row) => (
-                    <tr key={row.id} className="border-b border-line last:border-0">
-                      <th scope="row" className="px-2 py-2 text-right text-[15px] font-normal text-ink">
-                        {row.name}
-                      </th>
-                      <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.votes}</td>
-                      <td className="px-2 py-2 text-[15px] tabular-nums text-ink">
-                        {scoreLabel(row.avgScore)}
-                      </td>
-                      <td className="px-2 py-2 text-[15px] tabular-nums text-ink">{row.streets}</td>
-                    </tr>
-                  ))}
+                {sortedQuarters.map((row) => (
+                  <tr key={row.id} className="border-b border-line last:border-0">
+                    <th scope="row" className="px-2 py-2 text-right text-[15px] font-medium text-ink">
+                      {row.name}
+                    </th>
+                    <td className="heat-cell" style={heatStyle(countLevel(row.votes, maxQuarterVotes))}>
+                      {row.votes}
+                    </td>
+                    <td className="heat-cell" style={heatStyle(scoreLevel(row.avgScore))}>
+                      {scoreLabel(row.avgScore)}
+                    </td>
+                    <td className="heat-cell" style={heatStyle(countLevel(row.streets, maxQuarterStreets))}>
+                      {row.streets}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
+          <HeatLegend />
         </section>
       )}
 
@@ -362,7 +476,7 @@ export default function StreetsTable({
             </div>
           </>
         ) : (
-          <p className="text-[13px] text-ink-faint">
+          <p className="text-[12px] text-ink-faint">
             ייצוא הנתונים פתוח לצוות העירייה בלבד.
           </p>
         )}

@@ -14,7 +14,7 @@ export function Section({
 }) {
   return (
     <section className="mb-6">
-      <h2 className="mb-1 text-[19px] font-semibold text-ink">{title}</h2>
+      <h2 className="section-title">{title}</h2>
       {note ? <p className="mb-3 text-[14px] text-ink-soft">{note}</p> : null}
       {children}
     </section>

@@ -69,7 +69,7 @@ export default async function RootLayout({
         */}
         {/* eslint-disable-next-line @next/next/no-page-custom-font */}
         <link
-          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans+Hebrew:wght@300;400;500;600;700&family=Playpen+Sans+Hebrew:wght@500;700;800&display=swap"
           rel="stylesheet"
         />
         <Script src="https://appofapp-gh.vercel.app/ai-menu.js" strategy="beforeInteractive" />

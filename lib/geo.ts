@@ -80,6 +80,24 @@ export function loadStreetLines(): StreetLine[] {
   return lines;
 }
 
+/**
+ * שבילי האופניים מה-GIS העירוני (bike_road.shp, 05.11.2026, 139 קטעים):
+ * data/bike-paths.geojson. רשימה ריקה כשהשכבה אינה קיימת. לעולם אינה זורקת.
+ */
+export function loadBikePaths(): [number, number][][] {
+  const features = readCollection("bike-paths.geojson");
+  if (!features) return [];
+  const lines: [number, number][][] = [];
+  for (const feature of features) {
+    const g = feature.geometry;
+    if (g?.type === "LineString") lines.push(g.coordinates as [number, number][]);
+    else if (g?.type === "MultiLineString") {
+      for (const part of g.coordinates) lines.push(part as [number, number][]);
+    }
+  }
+  return lines;
+}
+
 /** האם שכבת ה-GIS של הרחובות קיימת. נאמר לתושב במפורש כשלא. */
 export function streetLinesAvailable(): boolean {
   return readCollection("streets.geojson") !== null;

@@ -7,15 +7,17 @@ import {
   PHOTO_POLICY,
   TYPOLOGY_MAP,
   TYPOLOGIES,
+  WORLD_EXAMPLES,
   criterionHref,
 } from "@/lib/city";
-import type { CriterionKey, TypologyKey } from "@/lib/city";
-import { Card, Notice } from "@/components/ui";
+import type { CriterionKey, Example, TypologyKey, WorldExample } from "@/lib/city";
+import { Notice } from "@/components/ui";
 import { getStore } from "@/lib/store";
 import ImageFrame from "@/components/ImageFrame";
 import { imageSlot } from "@/lib/content-images";
 import { isAdmin } from "@/lib/session";
 import { isPublicPhoto } from "@/lib/types";
+import "./examples.css";
 
 export const dynamic = "force-dynamic";
 
@@ -26,6 +28,66 @@ function label(count: number): string {
   return `${count} ${count === 1 ? "דוגמה" : "דוגמאות"}`;
 }
 
+/** כל משפט בשורה משלו: פיצול אחרי נקודה, סימן שאלה או קריאה. */
+function Sentences({ text, className }: { text: string; className?: string }) {
+  const parts = text.split(/(?<=[.?!])\s+/).filter(Boolean);
+  return (
+    <p className={className}>
+      {parts.map((part, i) => (
+        <span key={i} className="block">
+          {part}
+        </span>
+      ))}
+    </p>
+  );
+}
+
+/** שם הרחוב בעברית, ומתחתיו השם המלא בלועזית. */
+function PlaceName({ place }: { place: string }) {
+  const [he, en] = place.split(" — ");
+  return (
+    <>
+      <span className="ex-place-he">{he}</span>
+      {en ? (
+        <bdi className="ex-place-en" dir="ltr">
+          {en}
+        </bdi>
+      ) : null}
+    </>
+  );
+}
+
+/** עמודת הטקסט של כרטיס: כותרת, מה רואים, הידעת, ותגיות. */
+function ExampleBody({ example }: { example: Example }) {
+  return (
+    <div className="ex-body">
+      <p className="ex-eyebrow">
+        {FAMILY_MAP[example.family].title}
+        {example.typology ? ` · ${TYPOLOGY_MAP[example.typology].label}` : ""}
+      </p>
+      <h3 className="ex-title">{example.title}</h3>
+      <Sentences text={example.text} className="ex-text" />
+
+      {example.fact ? (
+        <aside className="ex-fact" aria-label="הידעת?">
+          <p className="ex-fact-label">הידעת?</p>
+          <Sentences text={example.fact} className="ex-fact-text" />
+        </aside>
+      ) : null}
+
+      <ul className="ex-tags" aria-label="קריטריונים">
+        {example.criterionKeys.map((key) => (
+          <li key={key}>
+            <Link href={criterionHref(key)} className="ex-tag">
+              {CRITERION_MAP[key].name}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export default async function ExamplesPage({
   searchParams,
 }: {
@@ -34,14 +96,14 @@ export default async function ExamplesPage({
   const params = await searchParams;
 
   const store = getStore();
-  const [slots, admin] = await Promise.all([
+  const [slots, admin, allPhotos, streets, votes] = await Promise.all([
     store.listContentImageSlots().catch(() => [] as string[]),
     isAdmin(),
-  ]);
-  const [allPhotos, streets] = await Promise.all([
     store.listPhotos().catch(() => []),
     store.listStreets().catch(() => []),
+    store.listVotes().catch(() => []),
   ]);
+  const reasonByVote = new Map(votes.map((v) => [v.id, v.reason.trim()]));
 
   /*
    * רחובות מאשדוד שנכנסו לספריית הדוגמאות.
@@ -77,21 +139,19 @@ export default async function ExamplesPage({
     ? cityStreets.filter((row) => row.street.typology === typology)
     : cityStreets;
 
-  const results = EXAMPLES.filter(
-    (e) =>
-      (!criterion || e.criterionKeys.includes(criterion)) &&
-      (!typology || e.typology === typology),
-  );
-
-  const field =
-    "mt-1 w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px] text-ink";
+  const matches = (e: Example) =>
+    (!criterion || e.criterionKeys.includes(criterion)) &&
+    (!typology || e.typology === typology);
+  const results = EXAMPLES.filter(matches);
+  const worldResults = WORLD_EXAMPLES.filter(matches);
+  const total = results.length + worldResults.length;
 
   return (
     <>
       <h1 className="mb-1 text-[24px] font-bold text-ink">דוגמאות</h1>
       <p className="mb-4 text-[15px] text-ink-soft">
-        רחובות מהארץ ומהעולם שממחישים קריטריון אחד או יותר. אפשר לסנן לפי קריטריון
-        או לפי סוג רחוב.
+        <span className="block">רחובות מאשדוד, מהארץ ומהעולם, שממחישים קריטריון אחד או יותר.</span>
+        <span className="block">אפשר לסנן לפי קריטריון או לפי סוג רחוב.</span>
       </p>
 
       {/* A plain GET form: the filter is always in the address, so a filtered
@@ -100,63 +160,51 @@ export default async function ExamplesPage({
         method="get"
         action="/examples"
         aria-labelledby="examples-filter-heading"
-        className="mb-5 rounded-[14px] border border-line bg-accent-soft/60 p-4"
+        className="ex-filter"
       >
-        <h2
-          id="examples-filter-heading"
-          className="mb-3 text-[17px] font-semibold text-ink"
-        >
+        <h2 id="examples-filter-heading" className="sr-only">
           סינון
         </h2>
+        <label className="ex-filter-field">
+          <span>קריטריון</span>
+          <select name="criterion" defaultValue={criterion}>
+            <option value="">כל הקריטריונים</option>
+            {CRITERIA_FAMILIES.map((family) => (
+              <optgroup key={family.key} label={family.title}>
+                {family.criteria.map((c) => (
+                  <option key={c.key} value={c.key}>
+                    {c.name}
+                  </option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
+        </label>
 
-        <div className="grid gap-3">
-          <label className="text-[13px] text-ink-soft">
-            קריטריון
-            <select name="criterion" defaultValue={criterion} className={field}>
-              <option value="">כל הקריטריונים</option>
-              {CRITERIA_FAMILIES.map((family) => (
-                <optgroup key={family.key} label={family.title}>
-                  {family.criteria.map((c) => (
-                    <option key={c.key} value={c.key}>
-                      {c.name}
-                    </option>
-                  ))}
-                </optgroup>
-              ))}
-            </select>
-          </label>
+        <label className="ex-filter-field">
+          <span>סוג רחוב</span>
+          <select name="typology" defaultValue={typology}>
+            <option value="">כל הסוגים</option>
+            {TYPOLOGIES.map((t) => (
+              <option key={t.key} value={t.key}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-          <label className="text-[13px] text-ink-soft">
-            סוג רחוב
-            <select name="typology" defaultValue={typology} className={field}>
-              <option value="">כל הסוגים</option>
-              {TYPOLOGIES.map((t) => (
-                <option key={t.key} value={t.key}>
-                  {t.label}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <div className="flex gap-2">
-            <button
-              type="submit"
-              className="flex-1 rounded-[12px] bg-accent px-3 py-2 text-[15px] font-medium text-white"
-            >
-              סינון
-            </button>
-            <Link
-              href="/examples"
-              className="flex flex-1 items-center justify-center rounded-[12px] border border-line bg-surface px-3 py-2 text-[15px] text-ink"
-            >
-              איפוס
-            </Link>
-          </div>
+        <div className="ex-filter-actions">
+          <button type="submit" className="ex-btn ex-btn-primary">
+            סינון
+          </button>
+          <Link href="/examples" className="ex-btn">
+            איפוס
+          </Link>
         </div>
       </form>
 
-      <p role="status" className="mb-2 text-[14px] text-ink-soft">
-        {label(results.length)}
+      <p role="status" className="mb-4 text-[14px] text-ink-soft">
+        <span className="font-semibold text-ink">{label(total)}</span>
         {criterion ? ` · ${CRITERION_MAP[criterion].name}` : ""}
         {typology ? ` · ${TYPOLOGY_MAP[typology].label}` : ""}
       </p>
@@ -167,13 +215,12 @@ export default async function ExamplesPage({
         רחוב הוא מצטמצם לסוג שנבחר.
       */}
       {!criterion ? (
-        <section aria-labelledby="city-streets" className="mb-5">
-          <h2 id="city-streets" className="mb-1 text-[17px] font-semibold text-ink">
+        <section aria-labelledby="city-streets" className="ex-section">
+          <h2 id="city-streets" className="ex-section-title">
             רחובות מאשדוד
           </h2>
-          <p className="mb-2 text-[13px] text-ink-faint">
-            רחוב נכנס לכאן אחרי {PHOTO_POLICY.photosForExample} תמונות שהצוות אישר,
-            כדי שמה שרואים יהיה הרחוב ולא רגע אחד בו.
+          <p className="ex-section-note">
+            רחוב נכנס לכאן אחרי {PHOTO_POLICY.photosForExample} תמונות שהצוות אישר.
           </p>
           {cityStreetRows.length === 0 ? (
             <Notice>
@@ -181,26 +228,11 @@ export default async function ExamplesPage({
               כל תמונה שתושב מצרף לקול שלו מקרבת רחוב לכאן.
             </Notice>
           ) : (
-            <ul className="grid gap-2">
+            <ul className="grid gap-5">
               {cityStreetRows.map(({ street, shown }) => (
-                <li key={street.id} className="overflow-hidden rounded-[12px] border border-line">
-                  <ul className="flex">
-                    {shown.slice(0, 3).map((photo) => (
-                      <li key={photo.id} className="min-w-0 flex-1">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img
-                          src={`/api/photos/${photo.id}`}
-                          alt={`${street.name}, אשדוד`}
-                          className="h-28 w-full object-cover"
-                        />
-                      </li>
-                    ))}
-                  </ul>
-                  <div className="flex items-baseline justify-between gap-2 px-3 py-2">
-                    <Link
-                      href={`/street/${street.id}`}
-                      className="inline-link text-[15px] font-medium text-accent underline underline-offset-2"
-                    >
+                <li key={street.id}>
+                  <p className="mb-2 flex items-baseline justify-between gap-2">
+                    <Link href={`/street/${street.id}`} className="ex-street-link">
                       {street.name}
                     </Link>
                     <span className="text-[13px] text-ink-faint">
@@ -208,7 +240,35 @@ export default async function ExamplesPage({
                       {shown.length === 1 ? "תמונה מאושרת" : "תמונות מאושרות"}
                       {street.typology ? ` · ${TYPOLOGY_MAP[street.typology].label}` : ""}
                     </span>
-                  </div>
+                  </p>
+                  {/* כל תמונה במסגרת משלה, והמילים של התושב מתחתיה. */}
+                  <ul className="ex-photos">
+                    {shown.slice(0, 3).map((photo) => {
+                      const reason = photo.voteId ? reasonByVote.get(photo.voteId) : "";
+                      return (
+                        <li key={photo.id}>
+                          <figure className="ex-photo">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img
+                              src={`/api/photos/${photo.id}`}
+                              alt={reason ? `${street.name}: ${reason}` : `${street.name}, אשדוד`}
+                              loading="lazy"
+                            />
+                            <figcaption>
+                              {reason ? (
+                                <span className="resident-voice ex-voice">{reason}</span>
+                              ) : (
+                                <span className="text-ink-faint">בלי מילים מהתושב</span>
+                              )}
+                              <span className="ex-photo-date">
+                                {new Date(photo.createdAt).toLocaleDateString("he-IL")}
+                              </span>
+                            </figcaption>
+                          </figure>
+                        </li>
+                      );
+                    })}
+                  </ul>
                 </li>
               ))}
             </ul>
@@ -216,71 +276,115 @@ export default async function ExamplesPage({
         </section>
       ) : null}
 
-      <div className="grid gap-3">
-        {results.map((example) => (
-          <Card key={example.key}>
-            <ImageFrame
-              className="mb-2"
-              slot={imageSlot("example", example.key)}
-              alt={`${example.title} — ${example.place}`}
-              hasImage={slots.includes(imageSlot("example", example.key))}
-              canEdit={admin}
-              ratio="16 / 9"
-              emptyLabel="אין עדיין תמונה לדוגמה"
-              fallbackSrc={`/examples/${example.key}.jpg`}
-              credit={example.source}
-              caption={
-                <>
-                  <span className="block text-[17px] font-bold leading-tight">
-                    {example.place.split(" — ")[0]}
-                  </span>
-                  <span className="block text-[12px] opacity-90">
-                    {example.place.split(" — ")[1] ?? ""}
-                  </span>
-                </>
-              }
-            />
-            <p className="text-[16px] font-semibold text-ink">{example.title}</p>
-            <p className="mt-1 text-[14px] text-ink-soft">{example.text}</p>
-
-            <p className="mt-2 text-[13px] text-ink-faint">
-              משפחה: {FAMILY_MAP[example.family].title}
-              {example.typology
-                ? ` · סוג רחוב: ${TYPOLOGY_MAP[example.typology].label}`
-                : ""}
-            </p>
-
-            <p className="mt-1 text-[13px] text-ink-soft">
-              {example.criterionKeys.map((key, i) => (
-                <span key={key}>
-                  {i > 0 ? " · " : ""}
-                  <Link
-                    href={criterionHref(key)}
-                    className="inline-link text-accent underline underline-offset-2"
-                  >
-                    {CRITERION_MAP[key].name}
-                  </Link>
-                </span>
-              ))}
-            </p>
-          </Card>
-        ))}
-      </div>
-
-      {results.length === 0 ? (
-        <Card>
-          <p className="text-[15px] text-ink-soft">
-            הספרייה עדיין קטנה. אפשר לאפס את הסינון ולראות את כל הדוגמאות.
-          </p>
-        </Card>
+      {results.length > 0 ? (
+        <section aria-labelledby="israel-examples" className="ex-section">
+          <h2 id="israel-examples" className="ex-section-title">
+            מהארץ
+          </h2>
+          <p className="ex-section-note">18 רחובות שנותחו בסקר של מינהל התכנון.</p>
+          <ul className="grid gap-4">
+            {results.map((example) => (
+              <li key={example.key} className="ex-card">
+                <figure className="ex-media">
+                  <ImageFrame
+                    slot={imageSlot("example", example.key)}
+                    alt={`${example.title} — ${example.place}`}
+                    hasImage={slots.includes(imageSlot("example", example.key))}
+                    canEdit={admin}
+                    ratio="3 / 2"
+                    emptyLabel="אין עדיין תמונה לדוגמה"
+                    fallbackSrc={`/examples/${example.key}.jpg`}
+                  />
+                  <figcaption className="ex-caption">
+                    <PlaceName place={example.place} />
+                  </figcaption>
+                </figure>
+                <ExampleBody example={example} />
+              </li>
+            ))}
+          </ul>
+        </section>
       ) : null}
 
-      <div className="mt-5">
-        <Notice>
-          כל דוגמה מתויגת רק לקריטריונים שהתיאור שלה מזכיר במפורש, וסוג הרחוב נרשם רק
-          כשהוא נאמר. לכן חלק מהקריטריונים עדיין בלי דוגמה.
-        </Notice>
-      </div>
+      {worldResults.length > 0 ? (
+        <section aria-labelledby="world-examples" className="ex-section">
+          <h2 id="world-examples" className="ex-section-title">
+            מהעולם
+          </h2>
+          <p className="ex-section-note">
+            <span className="block">רחובות שנבחרו בספר או בסקר מוכר על רחובות טובים.</span>
+            <span className="block">מי בחר בכל רחוב כתוב מתחת לתמונה.</span>
+          </p>
+          <ul className="grid gap-4">
+            {worldResults.map((example: WorldExample) => (
+              <li key={example.key} className="ex-card">
+                <figure className="ex-media">
+                  <div className="ex-world-frame">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={example.image.src}
+                      alt={`${example.title} — ${example.place}`}
+                      loading="lazy"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <figcaption className="ex-caption">
+                    <PlaceName place={example.place} />
+                    <span className="ex-survey">נבחר ב: {example.survey}</span>
+                    <span className="ex-credit">
+                      צילום:{" "}
+                      <a href={example.image.page} target="_blank" rel="noopener noreferrer">
+                        {example.image.author}
+                      </a>
+                      , <bdi dir="ltr">{example.image.license}</bdi>, ויקימדיה קומונס
+                    </span>
+                  </figcaption>
+                </figure>
+                <ExampleBody example={example} />
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      {total === 0 ? (
+        <Notice>הספרייה עדיין קטנה. אפשר לאפס את הסינון ולראות את כל הדוגמאות.</Notice>
+      ) : null}
+
+      {/* מקורות ואימות: תמיד בקטן, בסוף הדף. */}
+      <footer className="sources ex-sources">
+        <p>
+          <span className="block">
+            כל דוגמה מתויגת רק לקריטריונים שהתיאור שלה מזכיר במפורש, וסוג הרחוב נרשם רק כשהוא נאמר
+            בשם הרחוב.
+          </span>
+          <span className="block">לכן חלק מהקריטריונים עדיין בלי דוגמה.</span>
+        </p>
+        <p className="mt-2 font-semibold">מקורות — מהארץ</p>
+        <ul>
+          {results.map((e) => (
+            <li key={e.key}>
+              {e.place.split(" — ")[0]}: {e.source}
+            </li>
+          ))}
+        </ul>
+        <p className="mt-2 font-semibold">מקורות — מהעולם</p>
+        <ul>
+          {worldResults.map((e) => (
+            <li key={e.key}>
+              {e.place.split(" — ")[0]}: {e.survey}. נתונים:{" "}
+              <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer">
+                {e.source}
+              </a>
+              . תמונה:{" "}
+              <a href={e.image.page} target="_blank" rel="noopener noreferrer">
+                {e.image.author}, {e.image.license}
+              </a>
+              .
+            </li>
+          ))}
+        </ul>
+      </footer>
     </>
   );
 }

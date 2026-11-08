@@ -1749,3 +1749,789 @@ mark.insight {
 .walk-rail {
   margin-bottom: 10px;
 }
+
+/* =====================================================================
+ * סבב 08.11.2026 (ענת): היררכיה, שלביות, קלט מול פלט, כתב יד לתושב.
+ * ===================================================================== */
+
+:root {
+  --font-hand: "Playpen Sans Hebrew", "IBM Plex Sans Hebrew", cursive;
+}
+
+/* --- היררכיה: כותרת דף, כותרת פרק, תווית שדה, הסבר, פרמטר. --- */
+.page-title {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+  color: var(--color-ink);
+  margin-bottom: 12px;
+}
+.section-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-bottom: 10px;
+  padding-inline-start: 10px;
+  border-inline-start: 4px solid var(--color-accent);
+  line-height: 1.25;
+}
+
+/* --- כפתורים: גודל אחיד בכל קבוצה, בלי תלות באורך הטקסט. --- */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+  line-height: 1.25;
+  border: 1.5px solid transparent;
+  transition: transform 120ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.btn:active {
+  transform: translateY(1px);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: var(--color-accent);
+  color: #fff;
+  box-shadow: var(--shadow-1);
+}
+.btn-ghost {
+  background: var(--color-surface);
+  color: var(--color-accent);
+  border-color: var(--color-accent);
+}
+.btn-quiet {
+  background: transparent;
+  color: var(--color-ink-soft);
+  border-color: var(--color-line);
+  min-height: 44px;
+  font-weight: 500;
+  font-size: 14px;
+}
+.btn-rec {
+  background: var(--tone-problem);
+  color: #fff;
+}
+.btn-wide {
+  width: 100%;
+}
+.link-btn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.cta-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.cta-grid .btn {
+  min-height: 56px;
+}
+
+/* --- שלבים: מספר, שם, ומה עושים כאן. --- */
+.flow-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  margin-bottom: 16px;
+}
+.flow-steps li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  color: var(--color-ink-faint);
+  border-radius: 10px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+.flow-step-n {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+.flow-steps li[aria-current="step"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+  font-weight: 600;
+}
+.flow-steps li[data-done] {
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.step-guide {
+  border-inline-start: 4px solid var(--tone-insight);
+  background: var(--tone-insight-wash);
+  padding: 10px 12px;
+  border-radius: 0 10px 10px 0;
+}
+.step-guide-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #6b5a00;
+  margin-bottom: 4px;
+}
+.step-guide ol,
+.howto {
+  list-style: decimal;
+  padding-inline-start: 20px;
+  font-size: 14px;
+  color: var(--color-ink);
+  display: grid;
+  gap: 2px;
+}
+.howto {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+.next-step {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px dashed var(--color-line);
+}
+.next-step-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+.next-step-label::before {
+  content: "← ";
+}
+.progress-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--color-ink-soft);
+}
+.progress-bar {
+  flex: 1;
+  height: 6px;
+  background: var(--color-accent-soft);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.progress-bar span {
+  display: block;
+  height: 100%;
+  background: var(--color-accent);
+  transition: width 240ms ease;
+}
+
+/* --- קלט: שדות לבנים עם תווית בולטת. --- */
+.field {
+  display: grid;
+  gap: 4px;
+}
+.field-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.field-help {
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+.req {
+  color: var(--tone-problem);
+  font-weight: 700;
+}
+.opt {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--color-ink-faint);
+}
+.input {
+  width: 100%;
+  min-height: 48px;
+  border: 1.5px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 16px;
+}
+.input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+.option {
+  width: 100%;
+  min-height: 44px;
+  text-align: right;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 10px;
+  font-size: 15px;
+  color: var(--color-ink);
+}
+.option:hover {
+  border-color: var(--color-accent);
+}
+.alert-warm {
+  border: 1px solid var(--color-warm);
+  background: var(--color-warm-soft);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 14px;
+  color: var(--color-ink);
+}
+.text-warm-ink {
+  color: #8a4b0c;
+}
+
+/* --- פלט: מה נבחר ומה יצא ממנו, בלוח צבוע עם תווית. --- */
+.output-panel {
+  background: var(--brand-50);
+  border: 1px solid var(--brand-100);
+  border-inline-start: 4px solid var(--color-accent);
+  border-radius: 0 12px 12px 0;
+  padding: 10px 12px;
+}
+.output-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+}
+.output-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.output-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.output-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 6px;
+  font-size: 14px;
+}
+.output-key {
+  color: var(--color-ink-soft);
+}
+.output-val {
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.source-line {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  line-height: 1.5;
+}
+.score-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4px 12px;
+  margin-top: 6px;
+  font-size: 14px;
+}
+.score-summary li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.score-dot {
+  display: inline-grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  font-family: var(--font-mono);
+  font-weight: 700;
+  border: 1px solid rgb(0 0 0 / 15%);
+}
+.score-dot[data-v="1"] { background: var(--color-scale-1-on); }
+.score-dot[data-v="2"] { background: var(--color-scale-2-on); }
+.score-dot[data-v="3"] { background: var(--color-scale-3-on); }
+.score-dot[data-v="4"] { background: var(--color-scale-4-on); }
+.score-dot[data-v="5"] { background: var(--color-scale-5-on); }
+
+/* --- סוג הרחוב: כל הסוגים גלויים, עם הסבר. --- */
+.type-grid {
+  display: grid;
+  gap: 6px;
+  margin-top: 6px;
+}
+.type-option {
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  column-gap: 8px;
+  padding: 10px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 10px;
+  cursor: pointer;
+}
+.type-option:has(input:checked) {
+  border-color: var(--color-accent);
+  box-shadow: inset 0 0 0 1px var(--color-accent);
+  background: var(--brand-50);
+}
+.type-option input {
+  width: 18px;
+  height: 18px;
+  margin-top: 3px;
+  accent-color: var(--color-accent);
+}
+.type-option-title {
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+.type-option-text {
+  grid-column: 2;
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 1px 8px;
+  border-radius: 99px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--color-accent-soft);
+  color: var(--color-accent);
+}
+.chip-pending {
+  background: var(--color-warm-soft);
+  color: #8a4b0c;
+  margin-inline-end: 6px;
+}
+
+/* --- שאלה בדירוג. --- */
+.question-card {
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 12px;
+  padding: 12px;
+}
+.question-card[data-done] {
+  border-color: var(--brand-300);
+}
+.question-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.question-help {
+  font-size: 13px;
+  color: var(--color-ink-soft);
+  margin-bottom: 4px;
+}
+.summary-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  cursor: pointer;
+  list-style: none;
+  font-size: 13px;
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+
+/* --- תוכן התושב: כתב יד גדול, חזק, מושחר. --- */
+.resident-voice {
+  font-family: var(--font-hand);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.45;
+  color: #0b1118;
+}
+textarea.resident-voice {
+  font-size: 19px;
+}
+
+/* --- מסגרת התמונה: גרירה, הדבקה, צילום. --- */
+.photo-drop-wrap {
+  display: grid;
+  gap: 6px;
+}
+.photo-drop {
+  position: relative;
+  display: grid;
+  place-items: center;
+  aspect-ratio: 16 / 10;
+  border: 2px dashed var(--brand-300);
+  background: var(--brand-50);
+  border-radius: 12px;
+  overflow: hidden;
+  cursor: pointer;
+  color: var(--color-accent);
+}
+.photo-drop[data-over] {
+  border-color: var(--color-accent);
+  background: var(--color-accent-soft);
+}
+.photo-drop[data-filled] {
+  border-style: solid;
+  border-color: var(--color-line);
+}
+.photo-drop img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.photo-drop-empty {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  padding: 12px;
+  text-align: center;
+}
+.photo-drop-actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 6px;
+}
+
+/* --- תמונות התושבים: כל אחת במסגרת משלה, עם המילים מתחת. --- */
+.photo-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.photo-card {
+  margin: 0;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 14px;
+  padding: 8px;
+  box-shadow: var(--shadow-1);
+}
+.photo-card img {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: 8px;
+}
+.photo-card figcaption {
+  padding: 10px 4px 4px;
+}
+.photo-card .meta {
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--color-ink-faint);
+}
+@container main (min-width: 720px) {
+  .photo-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* --- מקורות, אימות והרשאות: תמיד בקטן, בסוף הדף. --- */
+.sources {
+  margin-top: 32px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-line);
+  display: grid;
+  gap: 2px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--color-ink-faint);
+}
+.sources-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+
+/* --- דף הבית: מסגרת התשובה של השכבה, באותו רוחב כמו הכפתורים. --- */
+.hero-copy {
+  display: grid;
+  align-content: start;
+}
+.layer-answer {
+  margin-top: 8px;
+  min-height: 132px;
+  padding: 12px 14px;
+  border: 1px dashed var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+  transition: border-color 180ms ease, box-shadow 180ms ease;
+}
+.layer-answer[data-open] {
+  border-style: solid;
+  border-color: var(--color-ink);
+  box-shadow: var(--shadow-2);
+  animation: answer-in 220ms ease both;
+}
+@keyframes answer-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+.layer-answer-q {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.layer-answer-a {
+  margin-top: 4px;
+  font-size: 15px;
+  color: var(--color-ink);
+}
+.layer-answer-c {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--color-ink-faint);
+}
+.layer-answer-hint {
+  font-size: 14px;
+  color: var(--color-ink-faint);
+}
+.room-swatch[data-layer="skeleton"] { background: var(--asphalt); }
+.room-swatch[data-layer="section"] { background: var(--kurkar); }
+.room-swatch[data-layer="frontage"] { background: var(--brand-500); }
+.room-swatch[data-layer="texture"] { background: var(--canopy); }
+.room-legend a {
+  min-height: 52px;
+  align-items: center;
+}
+.room-layer {
+  cursor: pointer;
+}
+
+/* --- חזון, מטרה, כלי, תהליך. --- */
+.vision-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.vision-cell {
+  padding: 12px 14px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 12px;
+}
+.vision-cell.tone-insight { background: var(--tone-insight-wash); }
+.vision-cell.tone-problem { background: var(--tone-problem-wash); }
+.vision-cell.tone-solution { background: var(--tone-solution-wash); }
+.vision-lead {
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-top: 2px;
+}
+.vision-text {
+  font-size: 14px;
+  color: var(--color-ink-soft);
+  margin-top: 2px;
+}
+.process {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 14px;
+}
+.process li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.process .num {
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-accent);
+  color: #fff;
+  font-size: 13px;
+}
+
+/* --- "מה יש כאן" קטן ובטור, "ידע, הבנה, יישום" גדול ובטור לצידו. --- */
+.home-pair {
+  display: grid;
+  gap: 24px;
+  grid-template-columns: minmax(0, 1fr);
+}
+.here-list {
+  display: grid;
+  gap: 6px;
+}
+.here-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  grid-template-rows: auto auto;
+  column-gap: 10px;
+  align-items: center;
+  height: 60px;
+  padding: 0 12px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 10px;
+  color: var(--color-ink);
+  transition: border-color 160ms ease, transform 160ms ease;
+}
+.here-item:hover {
+  border-color: var(--color-accent);
+  transform: translateX(-2px);
+}
+.here-glyph {
+  grid-row: 1 / 3;
+  color: var(--color-accent);
+  display: grid;
+  place-items: center;
+}
+.here-title {
+  font-size: 15px;
+  font-weight: 700;
+  align-self: end;
+}
+.here-key {
+  grid-row: 1 / 3;
+  grid-column: 3;
+  font-family: var(--font-mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-accent);
+}
+.here-line {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  align-self: start;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kui-list {
+  display: grid;
+  gap: 10px;
+}
+.kui-item {
+  position: relative;
+  min-height: 140px;
+  padding: 18px 20px;
+  border: 1px solid var(--color-line);
+  background: var(--color-surface);
+  border-radius: 14px;
+  box-shadow: var(--shadow-1);
+}
+.kui-glyph {
+  position: absolute;
+  inset-inline-end: 16px;
+  top: 16px;
+  color: var(--color-accent);
+  opacity: 0.85;
+}
+.kui-glyph svg {
+  width: 34px;
+  height: 34px;
+}
+.kui-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.kui-text {
+  font-size: 15px;
+  color: var(--color-ink-soft);
+  margin-top: 4px;
+  max-width: 46ch;
+}
+
+@container main (min-width: 720px) {
+  .vision-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+  .home-pair {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.6fr);
+    align-items: start;
+  }
+  .page-title {
+    font-size: 30px;
+  }
+}
+
+/*
+ * האנימציה של דף הבית (ענת, 08.11.2026: "נעלמה לי האנימציה"): הכלל הכללי
+ * למעלה מבטל כל אנימציה כשמערכת ההפעלה מבקשת "פחות תנועה" — ובמחשבים רבים
+ * ב-Windows זו ברירת המחדל כשאפקטי האנימציה כבויים. החדר העירוני הוא תוכן
+ * ולא קישוט, ולכן כאן הוא נבנה גם אז, בדהייה בלבד, בלי תזוזה.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .room-layer {
+    animation: build-fade 900ms ease backwards !important;
+    animation-delay: calc(var(--i, 0) * 260ms + 120ms) !important;
+    transition: opacity 220ms ease !important;
+  }
+  .rise {
+    animation: build-fade 500ms ease both !important;
+    animation-delay: calc(var(--i, 0) * 60ms) !important;
+  }
+}
+@keyframes build-fade {
+  from {
+    opacity: 0;
+  }
+}
+.type-details {
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+  padding: 4px 12px 10px;
+}
+.type-summary {
+  display: grid;
+  gap: 2px;
+  min-height: 52px;
+  padding: 8px 0 4px;
+  cursor: pointer;
+  list-style: none;
+}
+.type-summary::after {
+  content: "פתיחה ▾";
+  font-size: 13px;
+  color: var(--color-accent);
+  text-decoration: underline;
+}
+.type-details[open] .type-summary::after {
+  content: "סגירה ▴";
+}

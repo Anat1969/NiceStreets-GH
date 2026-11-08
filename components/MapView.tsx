@@ -53,6 +53,8 @@ interface Props {
   unplaced: { id: string; name: string; votes: number }[];
   streets: StreetFeature[];
   streetLinesAvailable: boolean;
+  /** שבילי האופניים מה-GIS העירוני, [lon, lat][] לכל קטע. */
+  bikePaths?: [number, number][][];
   canCalibrate?: boolean;
   /**
    * נעילה לתצוגת רחובות. מפת הרובעים עברה לרכיב משלה (DistrictMap), ולכן
@@ -60,6 +62,9 @@ interface Props {
    */
   lockMode?: "street";
 }
+
+/** קבוע, כדי שברירת המחדל לא תבנה את המפה מחדש בכל רינדור. */
+const NO_BIKE_PATHS: [number, number][][] = [];
 
 /** ספים קבועים לשלוש הדרגות; קבוע מחוץ לרכיב, כדי לא לבנות את המפה מחדש בכל רינדור. */
 const LEVEL_BREAKS = fixedBreaks(3);
@@ -106,6 +111,7 @@ export default function MapView({
   unplaced,
   streets,
   streetLinesAvailable,
+  bikePaths = NO_BIKE_PATHS,
   canCalibrate = false,
   lockMode,
 }: Props) {
@@ -389,6 +395,32 @@ export default function MapView({
      * אותה משמעות בדיוק כמו בתצוגת הרובעים.
      */
     function addStreetPoints() {
+      // שבילי האופניים: קו מקווקו דק מתחת לרחובות. מידע רקע, לא לחיץ.
+      if (bikePaths.length > 0 && !instance.getSource("bike-paths-src")) {
+        instance.addSource("bike-paths-src", {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: bikePaths.map((line) => ({
+              type: "Feature",
+              geometry: { type: "LineString", coordinates: line },
+              properties: {},
+            })),
+          },
+        });
+        instance.addLayer({
+          id: "bike-paths",
+          type: "line",
+          source: "bike-paths-src",
+          layout: { "line-cap": "butt", "line-join": "round" },
+          paint: {
+            "line-color": "#2f6f9f",
+            "line-width": 2,
+            "line-dasharray": [2, 1.5],
+            "line-opacity": 0.85,
+          },
+        });
+      }
       if (linedStreets.length > 0) {
         instance.addSource("street-lines-src", {
           type: "geojson",
@@ -741,6 +773,7 @@ export default function MapView({
     focusQuarter,
     quarters,
     linedStreets,
+    bikePaths,
     placedStreets,
     streetPoint,
     maxQuarterVotes,
@@ -1001,6 +1034,15 @@ export default function MapView({
           <span>· המספר בעיגול: ציון ממוצע מתוך 10</span>
           {streetLinesAvailable && mode === "street" ? (
             <span>· רחוב עם קו מה-GIS העירוני מצויר כקו</span>
+          ) : null}
+          {bikePaths.length > 0 && mode === "street" ? (
+            <span className="inline-flex items-center gap-1">
+              ·
+              <svg width="22" height="6" aria-hidden="true">
+                <line x1="0" y1="3" x2="22" y2="3" stroke="#2f6f9f" strokeWidth="2" strokeDasharray="4 3" />
+              </svg>
+              שביל אופניים (GIS עירוני)
+            </span>
           ) : null}
         </div>
       ) : null}
