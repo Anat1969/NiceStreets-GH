@@ -72,6 +72,8 @@ interface Props {
   iconIds?: Record<string, string>;
   /** פקד קטן שיושב על המפה עצמה, בפינה (למשל "לפי רובע / לפי רחוב"). */
   overlay?: React.ReactNode;
+  /** רובע לבחור בטעינה (מהחיפוש שבדף, ?quarter=), לפי המזהה בקובץ הגבולות. */
+  initialSelected?: string | null;
 }
 
 /** "+0.4" / "−0.2" / "0.0": סימן מפורש, מינוס אמיתי, ספרה אחת אחרי הנקודה. */
@@ -131,6 +133,7 @@ function recordTable(record: DistrictRecord): MapTableData {
       label: item.label,
       cells: item.cells ?? [],
       href: item.href,
+      photoId: item.photoId,
     })),
   };
 }
@@ -204,6 +207,7 @@ export default function DistrictMap({
   delta,
   iconIds,
   overlay,
+  initialSelected = null,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
@@ -405,6 +409,14 @@ export default function DistrictMap({
   }, []);
   const selectRef = useRef(select);
   selectRef.current = select;
+
+  // רובע שנבחר בחיפוש: נבחר פעם אחת, כשהמפה והגבולות מוכנים.
+  const initialDone = useRef(false);
+  useEffect(() => {
+    if (initialDone.current || !initialSelected || !mapReady || !geo) return;
+    initialDone.current = true;
+    select(initialSelected, "list");
+  }, [initialSelected, mapReady, geo, select]);
 
   // הבחירה במפה מסמנת את השורה, וגוללת אליה בתוך הרשימה בלבד — לא את העמוד.
   useEffect(() => {

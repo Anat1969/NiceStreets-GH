@@ -85,14 +85,17 @@ for (const [code, m] of [...byCode].sort((a, b) => Number(a[0]) - Number(b[0])))
     main++;
   }
   if (!id) unmapped++;
-  out[code] = { q: id, share, n: m.size, ...(note ? { note } : {}) };
+  // כל הרובעים שהרחוב עובר בהם, מהארוך לקצר (ענת, 09.11.2026: "אם הוא בכמה רובעים
+  // אז להראות את האייקון של כולם"). רק רובעים שיש להם מקביל באפליקציה.
+  const all = known.filter(([, len]) => len / total >= 0.05).map(([k]) => k);
+  out[code] = { q: id, share, n: m.size, ...(all.length > 1 ? { all } : {}), ...(note ? { note } : {}) };
 }
 
 writeFileSync(
   "lib/gis-quarter.generated.ts",
   `// נוצר ב-scripts/build-gis-quarters.mjs. לא לערוך ידנית.\n` +
     `// ${Object.keys(out).length} רחובות · ${main} צירים חוצי עיר · ${unmapped} בלי אזור מקביל באפליקציה\n` +
-    `export interface GisQuarter {\n  /** מזהה הרובע באפליקציה, או null כשאין לו מקביל. */\n  q: string | null;\n  /** אחוז מאורך הרחוב שנמצא ברובע הזה. */\n  share: number;\n  /** בכמה רובעים הרחוב עובר. */\n  n: number;\n  /** שם האזור בשכבה, כשאין לו מקביל באפליקציה. */\n  note?: string;\n}\n` +
+    `export interface GisQuarter {\n  /** מזהה הרובע באפליקציה, או null כשאין לו מקביל. */\n  q: string | null;\n  /** אחוז מאורך הרחוב שנמצא ברובע הזה. */\n  share: number;\n  /** בכמה רובעים הרחוב עובר. */\n  n: number;\n  /** שם האזור בשכבה, כשאין לו מקביל באפליקציה. */\n  note?: string;\n  /** כל הרובעים שהרחוב עובר בהם (5% מהאורך ומעלה), כשהם יותר מאחד. */\n  all?: string[];\n}\n` +
     `export const GIS_QUARTER: Record<string, GisQuarter> = ${JSON.stringify(out)};\n`,
 );
 console.log(Object.keys(out).length, "streets ·", main, "main axes ·", unmapped, "unmapped");

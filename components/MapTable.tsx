@@ -1,6 +1,17 @@
 import Link from "next/link";
 import type { CSSProperties } from "react";
-import type { MapTableData } from "@/lib/map-table";
+import type { MapTableData, MapTableRow } from "@/lib/map-table";
+import StreetThumb from "@/components/StreetThumb";
+
+function Label({ row }: { row: MapTableRow }) {
+  if (row.photoId === undefined) return <span>{row.label}</span>;
+  return (
+    <span className="district-table-label">
+      <StreetThumb photoId={row.photoId} name={row.label} width={40} height={30} />
+      {row.label}
+    </span>
+  );
+}
 
 /**
  * טבלת הפרטים בלוח שנפתח בלחיצה — אותה טבלה כמו בחלונית הריחוף
@@ -29,7 +40,7 @@ export default function MapTable({ data, className = "" }: { data: MapTableData;
       {data.rows.map((row, index) =>
         row.href ? (
           <Link key={`${row.label}-${index}`} href={row.href} className="district-table-row">
-            <span>{row.label}</span>
+            <Label row={row} />
             {data.columns.map((c, i) => (
               <span key={c} className="district-table-num">
                 {row.cells[i] ?? ""}
@@ -38,7 +49,7 @@ export default function MapTable({ data, className = "" }: { data: MapTableData;
           </Link>
         ) : (
           <div key={`${row.label}-${index}`} className="district-table-row district-table-plain">
-            <span>{row.label}</span>
+            <Label row={row} />
             {data.columns.map((c, i) => (
               <span key={c} className="district-table-num">
                 {row.cells[i] ?? ""}

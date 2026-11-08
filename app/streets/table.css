@@ -148,3 +148,17 @@
   align-items: center;
   gap: 4px;
 }
+
+/* תמונת הקול האחרון ואייקוני הרובעים בשורת הרחוב (ענת, 09.11.2026). */
+.street-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.street-cell-meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+}

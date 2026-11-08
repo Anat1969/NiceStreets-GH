@@ -3,6 +3,7 @@ import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
 import { isStaff } from "@/lib/session";
 import { parseStreetFilter } from "@/lib/street-filter";
+import { streetQuarterIds } from "@/lib/street-quarter-ids";
 import { DemoBanner } from "@/components/ui";
 import "./table.css";
 
@@ -57,6 +58,8 @@ export default async function StreetsPage({
           avgScore: s.avgScore,
           photos: s.photos,
           status: s.status?.status ?? null,
+          photoId: s.latestPhotoId,
+          quarterIds: streetQuarterIds(s.street.code, s.street.quarterId),
         }))}
         quarterRows={quarterStats.map((q) => ({
           id: q.quarter.id,

@@ -16,6 +16,8 @@ import { voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
 import { DemoBanner } from "@/components/ui";
 import QuarterIcon from "@/components/QuarterIcon";
+import MapSearch from "@/components/MapSearch";
+import { CANONICAL_STREETS } from "@/lib/streets";
 import "./map.css";
 
 export const dynamic = "force-dynamic";
@@ -137,6 +139,7 @@ export default async function MapPage({
         label: s.street.name,
         cells: [scoreOutOfTen(s.avgScore), String(s.votes)],
         href: `/street/${s.street.id}`,
+        photoId: s.latestPhotoId,
       })),
       link: {
         href: `/streets?quarter=${quarterId}&minVotes=0`,
@@ -176,6 +179,27 @@ export default async function MapPage({
 
   const iconIds = Object.fromEntries(Object.entries(ROVA_CODE_TO_QUARTER));
 
+  // חיפוש אחד לרובע ולרחוב, באותו מקום בשתי התצוגות.
+  const rovaCodeOf = new Map(Object.entries(ROVA_CODE_TO_QUARTER).map(([code, id]) => [id, code]));
+  const synonymsOf = new Map(CANONICAL_STREETS.map((c) => [c.code, c.synonyms]));
+  const searchQuarters = quarters.map((q) => ({
+    id: q.id,
+    name: q.name,
+    rovaCode: rovaCodeOf.get(q.id) ?? null,
+  }));
+  const searchStreets = streetStats
+    .filter((s) => s.votes > 0 || staff)
+    .map((s) => ({
+      id: s.street.id,
+      name: s.street.name,
+      synonyms: (s.street.code && synonymsOf.get(s.street.code)) || [],
+      quarterName: s.quarterName,
+      votes: s.votes,
+      photoId: s.latestPhotoId,
+    }));
+  const pickQuarter = typeof params.quarter === "string" ? params.quarter : null;
+  const pickStreet = typeof params.street === "string" ? params.street : null;
+
   return (
     <>
       <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
@@ -184,6 +208,8 @@ export default async function MapPage({
         <QuarterIcon id="city" size={36} className="text-accent" />
         מפה
       </h1>
+
+      <MapSearch quarters={searchQuarters} streets={searchStreets} />
 
       {view === "districts" ? (
         <>
@@ -203,6 +229,7 @@ export default async function MapPage({
             zoom={CITY.zoom}
             iconIds={iconIds}
             overlay={viewToggle}
+            initialSelected={pickQuarter}
             delta={{
               key: "delta",
               metric: "score",
@@ -232,6 +259,7 @@ export default async function MapPage({
             lockMode="street"
             cityAverage={cityAverage}
             overlay={viewToggle}
+            initialStreet={pickStreet}
             streetLinesAvailable={streetLinesAvailable()}
             bikePaths={loadBikePaths()}
             quarters={placed.map((q) => {
@@ -267,6 +295,7 @@ export default async function MapPage({
                 center: s.street.center ?? undefined,
                 centerSource: s.street.centerSource,
                 ballots: ballotsByStreet.get(s.street.id) ?? [],
+                photoId: s.latestPhotoId,
               }))}
           />
           <footer className="sources">

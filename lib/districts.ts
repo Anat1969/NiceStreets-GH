@@ -54,6 +54,8 @@ export interface DistrictItem {
   /** ערכים לעמודות (`DistrictRecord.columns`), באותו סדר. */
   cells?: string[];
   href?: string;
+  /** תמונת הקול האחרון של הרחוב, למסגרת הקטנה בטבלה. */
+  photoId?: string | null;
 }
 
 /** כל מה שידוע על רובע אחד. המפתח הוא המזהה שבקובץ הגבולות. */

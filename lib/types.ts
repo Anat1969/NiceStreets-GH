@@ -161,7 +161,10 @@ export interface StreetStats {
   photos: number;
   /** Uploaded but not yet moderated. */
   photosPending: number;
-  /** Newest approved photo, for the cards that show one. */
+  /**
+   * הפנים של הרחוב בכל המסכים: התמונה שצורפה לקול האחרון (מאושרת וציבורית),
+   * ובלעדיה התמונה המאושרת החדשה ביותר. הסדר נקבע ב-buildStreetStats.
+   */
   latestPhotoId: string | null;
   status: StreetStatus | null;
 }

@@ -6,6 +6,8 @@ import Link from "next/link";
 import { STATUS_MAP } from "@/lib/city";
 import type { StatusKey, TypologyKey } from "@/lib/city";
 import { streetsFoundLabel, votesLabel, scoreLabel } from "@/lib/hebrew";
+import QuarterIcons from "@/components/QuarterIcons";
+import StreetThumb from "@/components/StreetThumb";
 import {
   DEFAULT_FILTER,
   applyStreetFilter,
@@ -25,6 +27,10 @@ interface Row {
   avgScore: number | null;
   photos: number;
   status: StatusKey | null;
+  /** תמונת הקול האחרון (או התמונה המאושרת החדשה ביותר). */
+  photoId: string | null;
+  /** כל הרובעים שהרחוב עובר בהם, לאייקונים. */
+  quarterIds: string[];
 }
 
 interface QuarterRow {
@@ -373,11 +379,15 @@ export default function StreetsTable({
                         {/* The whole cell is the target, not just the name. */}
                         <Link
                           href={`/street/${row.id}`}
-                          className="block px-2 py-2 underline-offset-2 hover:underline"
+                          className="street-cell px-2 py-2 underline-offset-2 hover:underline"
                         >
-                          <span className="block text-[15px] font-medium text-ink">{row.name}</span>
-                          <span className="block text-[12px] text-ink-faint">
-                            {row.quarterName} · {row.typologyLabel}
+                          <StreetThumb photoId={row.photoId} name={row.name} />
+                          <span className="min-w-0">
+                            <span className="block text-[15px] font-medium text-ink">{row.name}</span>
+                            <span className="street-cell-meta text-[12px] text-ink-faint">
+                              <QuarterIcons ids={row.quarterIds} size={16} />
+                              {row.quarterName} · {row.typologyLabel}
+                            </span>
                           </span>
                         </Link>
                       </th>
@@ -428,7 +438,10 @@ export default function StreetsTable({
                 {sortedQuarters.map((row) => (
                   <tr key={row.id} className="border-b border-line last:border-0">
                     <th scope="row" className="px-2 py-2 text-right text-[15px] font-medium text-ink">
-                      {row.name}
+                      <span className="street-cell-meta">
+                        <QuarterIcons ids={[row.id]} size={22} />
+                        {row.name}
+                      </span>
                     </th>
                     <td className="heat-cell" style={heatStyle(countLevel(row.votes, maxQuarterVotes))}>
                       {row.votes}

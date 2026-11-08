@@ -152,3 +152,87 @@
     display: none;
   }
 }
+
+/* --- חיפוש רובע או רחוב (ענת, 09.11.2026) ---
+ * יושב מתחת לכותרת בשתי התצוגות, בגובה קבוע. התוצאות צפות מעל המפה
+ * (position: absolute), ולכן פתיחה וסגירה של הרשימה לא מזיזות שום דבר. */
+.map-search {
+  position: relative;
+  z-index: 30;
+  height: 48px;
+  margin-bottom: 10px;
+}
+.map-search-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 12px;
+  background: var(--color-surface);
+  font-size: 16px;
+  color: var(--color-ink);
+}
+.map-search-input:focus {
+  outline: none;
+  border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px var(--color-accent-soft);
+}
+.map-search-list {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(100% + 4px);
+  max-height: min(60vh, 360px);
+  overflow-y: auto;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  box-shadow: 0 10px 24px rgb(22 32 43 / 18%);
+  padding: 4px;
+}
+.map-search-opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  text-align: start;
+  color: var(--color-ink);
+}
+.map-search-opt:hover,
+.map-search-opt[data-active] {
+  background: var(--color-accent-soft);
+}
+.map-search-media {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 40px;
+}
+.map-search-text {
+  display: grid;
+  min-width: 0;
+}
+.map-search-name {
+  font-size: 15px;
+  font-weight: 600;
+}
+.map-search-kind {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.map-search-empty {
+  padding: 10px;
+  font-size: 13px;
+  font-style: italic;
+  color: var(--color-ink-soft);
+}
+
+/* ההסבר שמעל המפה באותו גובה בשתי התצוגות, כדי שהמפה תתחיל באותו מקום. */
+.map-how {
+  min-height: calc(1.6em * 3);
+}

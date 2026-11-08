@@ -12,6 +12,8 @@ export interface MapTableRow {
   label: string;
   cells: string[];
   href?: string;
+  /** תמונת הקול האחרון של הרחוב. undefined = השורה אינה רחוב (בלי מסגרת). */
+  photoId?: string | null;
 }
 
 export interface MapTableData {

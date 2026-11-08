@@ -6,13 +6,13 @@ import { useRouter } from "next/navigation";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
-import { normaliseForSearch } from "@/lib/street-filter";
 import { scoreOutOfTen, toTen } from "@/lib/score";
 import { QUARTER_MAP } from "@/lib/city";
 import { bothLevels, classify, fixedBreaks, legendWord } from "@/lib/districts";
 import { useBrandColor } from "@/lib/use-brand-color";
 import { tableTooltip, type MapTableData } from "@/lib/map-table";
 import MapTable from "@/components/MapTable";
+import StreetThumb from "@/components/StreetThumb";
 import QuarterIcon from "@/components/QuarterIcon";
 import { emphasis, formatDelta } from "@/components/DistrictMap";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
@@ -45,6 +45,8 @@ interface StreetFeature {
   centerSource?: string | null;
   /** כל קול ברחוב, מהחדש לישן: תאריך וציון מתוך 10, כבר מעוצבים. */
   ballots?: { date: string; score: string }[];
+  /** תמונת הקול האחרון (או התמונה המאושרת החדשה ביותר). */
+  photoId?: string | null;
 }
 
 interface Props {
@@ -67,6 +69,8 @@ interface Props {
   cityAverage?: number | null;
   /** פקד קטן שיושב על המפה עצמה, בפינה. */
   overlay?: React.ReactNode;
+  /** רחוב לפתוח בטעינה (מהחיפוש שבדף, ?street=). */
+  initialStreet?: string | null;
 }
 
 /** קבוע, כדי שברירת המחדל לא תבנה את המפה מחדש בכל רינדור. */
@@ -122,6 +126,7 @@ export default function MapView({
   lockMode,
   cityAverage = null,
   overlay,
+  initialStreet = null,
 }: Props) {
   const router = useRouter();
   const container = useRef<HTMLDivElement>(null);
@@ -146,9 +151,9 @@ export default function MapView({
   const mapBox = useRef<HTMLDivElement>(null);
   const [basemap, setBasemap] = useState<"loading" | "ready" | "none">("loading");
 
-  const [search, setSearch] = useState("");
   /** נקרא מתוך האפקט של המפה, כדי שהחיפוש יוכל להטיס אליה. */
   const focusStreetRef = useRef<(id: string) => void>(() => {});
+  const initialStreetRef = useRef<string | null>(initialStreet);
   const [geocoding, setGeocoding] = useState(false);
   const [geocodeMessage, setGeocodeMessage] = useState<string | null>(null);
   const [calibrating, setCalibrating] = useState("");
@@ -222,18 +227,11 @@ export default function MapView({
   );
   const approxCount = approx.length;
 
-  const matches = useMemo(() => {
-    const needle = normaliseForSearch(search);
-    if (!needle) return [];
-    return placedStreets.filter((s) => normaliseForSearch(s.name).includes(needle));
-  }, [search, placedStreets]);
-
   function focusStreet(id: string) {
     setMode("street");
     setFocusQuarter(null);
     setSelectedQuarter(null);
     setSelectedStreet(id);
-    setSearch("");
     focusStreetRef.current(id);
   }
 
@@ -748,6 +746,13 @@ export default function MapView({
       addData();
       addLabels();
       fitToData();
+      // רחוב שנבחר בחיפוש: טסים אליו ופותחים את הגיליון שלו.
+      if (initialStreetRef.current) {
+        const id = initialStreetRef.current;
+        initialStreetRef.current = null;
+        setSelectedStreet(id);
+        focusStreetRef.current(id);
+      }
     });
 
     instance.on("error", (event) => {
@@ -852,51 +857,7 @@ export default function MapView({
         ))}
       </div>
 
-      {/*
-        חיפוש רחוב: מי שיודע איזה רחוב הוא מחפש לא אמור לסרוק את המפה.
-        התוצאה הראשונה נבחרת, המפה טסה אליה, והגיליון נפתח עם קישור
-        לכרטיס המלא.
-      */}
-      <div className="mb-2">
-        <label className="sr-only" htmlFor="map-search">
-          חיפוש רחוב במפה
-        </label>
-        <input
-          id="map-search"
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="חיפוש רחוב במפה"
-          autoComplete="off"
-          className="w-full rounded-[12px] border border-line bg-surface px-3 py-2 text-[15px] text-ink"
-        />
-        {search.trim() && matches.length > 0 ? (
-          <ul className="mt-1 grid gap-1">
-            {matches.slice(0, 6).map((m) => (
-              <li key={m.id}>
-                <button
-                  type="button"
-                  onClick={() => focusStreet(m.id)}
-                  className="pressable w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-right text-[14px] text-ink"
-                >
-                  {m.name}
-                  <span className="text-[13px] text-ink-faint">
-                    {" · "}
-                    {votesLabel(m.votes)}
-                    {m.avgScore === null ? "" : ` · ${scoreOutOfTen(m.avgScore)}`}
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        ) : null}
-        {search.trim() && matches.length === 0 ? (
-          <p className="mt-1 text-[13px] text-ink-faint">
-            לא נמצא רחוב מוקם בשם הזה. ייתכן שהוא עדיין בלי מיקום על המפה.
-          </p>
-        ) : null}
-      </div>
-
+      {/* החיפוש עבר לדף (components/MapSearch), כדי שיישב באותו מקום בשתי התצוגות. */}
       <div ref={mapBox} className="map-canvas-wrap">
         {overlay ? <div className="map-overlay">{overlay}</div> : null}
         <div
@@ -954,7 +915,8 @@ export default function MapView({
         {sheetOpen ? (
           <div className="map-sheet card" role="dialog" aria-label="פרטים">
             <div className="flex items-start justify-between gap-2 border-b border-line p-3">
-              <div>
+              {street ? <StreetThumb photoId={street.photoId ?? null} name={street.name} width={72} height={54} /> : null}
+              <div className="min-w-0 flex-1">
                 <p className="text-[17px] font-semibold text-ink">
                   {quarter ? quarter.name : street?.name}
                 </p>
