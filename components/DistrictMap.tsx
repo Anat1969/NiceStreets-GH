@@ -17,6 +17,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DeltaLegend from "@/components/DeltaLegend";
 import Link from "next/link";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
@@ -862,6 +863,7 @@ export default function DistrictMap({
           </ul>
         </div>
       ) : null}
+      {delta && delta.metric === metric.key ? <DeltaLegend /> : null}
 
       {dataError ? (
         <p role="alert" className="mt-2 text-[14px] text-warm">

@@ -28,6 +28,9 @@ import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
 import { scoreLabel } from "@/lib/hebrew";
 import { summarise } from "@/lib/summary";
 import MyPendingPhoto from "@/components/MyPendingPhoto";
+import ResidentVsAudit from "@/components/ResidentVsAudit";
+import Legend from "@/components/Legend";
+import { loadStreetAudit } from "@/lib/audit";
 import Rich from "@/components/Rich";
 import QuarterIcon from "@/components/QuarterIcon";
 import StreetNameWiki from "@/components/StreetNameWiki";
@@ -62,6 +65,7 @@ export default async function StreetPage({
   ]);
   if (!street) notFound();
 
+  const streetAudit = await loadStreetAudit(street.id);
   const [stats] = buildStreetStats([street], votes, photos, statuses, quarters);
   const visiblePhotos = photos
     .filter((p) => isPublicPhoto(p) || staff)
@@ -262,6 +266,18 @@ export default async function StreetPage({
         )}
       </section>
 
+      <Section
+        title="קול התושבים מול הבדיקה האמפירית"
+        note="דירוג התושבים מתעדכן עם כל קול. הבדיקה לפי מקורות המידע היא נקודת הייחוס."
+      >
+        <ResidentVsAudit
+          audit={streetAudit.audit}
+          criteria={streetAudit.criteria}
+          residentAvg={stats.avgScore}
+          staff={staff}
+        />
+      </Section>
+
       {street.center ? (
         <Section
           title="חתך הרחוב"
@@ -423,6 +439,16 @@ export default async function StreetPage({
               })}
             </tbody>
           </table>
+          <Legend
+            items={[
+              { swatch: "var(--tone-solution)", label: "בטווח הייחוס" },
+              { swatch: "var(--tone-problem)", label: "מחוץ לטווח, באחוזים מהגבול" },
+              { swatch: "var(--color-ink-faint)", label: "טרם נמדד" },
+              { mark: <FamilyMark family="section" fill="solid" size={14} />, label: "נמדד בנתונים" },
+              { mark: <FamilyMark family="section" fill="outline" size={14} />, label: "נשאל את התושבים" },
+              { mark: <FamilyMark family="section" fill="dashed" size={14} />, label: "עדיין בלי מקור" },
+            ]}
+          />
           <p className="mt-2 text-[13px]">
             {typeExampleCount > 0 ? (
               <Link href={`/examples?typology=${typology.key}`} className="inline-link text-accent underline underline-offset-2">

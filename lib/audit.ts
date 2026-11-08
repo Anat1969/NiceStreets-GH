@@ -62,6 +62,8 @@ export interface StreetAudit {
   proposed_status: string | null;
   proposed_note_he: string | null;
   note_source: string | null;
+  /** ציון המדידה הכולל, 0..1 (null כשאין אף קריטריון שנמדד). */
+  objective_score?: number | null;
   results: AuditResult[];
 }
 
@@ -228,4 +230,45 @@ export async function loadAuditOverview(): Promise<AuditOverview> {
       error: error instanceof Error ? error.message : String(error),
     };
   }
+}
+
+/**
+ * הבדיקה האחרונה של רחוב אחד, להשוואה מול דירוג התושבים.
+ * RLS מחליט מה חוזר: לציבור — רק בדיקה שאושרה ותוצאות שאינן לצוות בלבד;
+ * לצוות — הגרסה האחרונה בכל מצב. כך אותה פונקציה משרתת את שניהם בבטחה.
+ */
+export async function loadStreetAudit(
+  streetId: string,
+): Promise<{ audit: StreetAudit | null; criteria: CriterionRow[]; error: string | null }> {
+  try {
+    const db = await supabaseServer();
+    const [audits, criteria] = await Promise.all([
+      db.from("street_audits").select("*").eq("street_id", streetId)
+        .order("version", { ascending: false }).limit(1),
+      db.from("criteria").select("*").order("sort"),
+    ]);
+    if (audits.error) throw new Error(audits.error.message);
+    if (criteria.error) throw new Error(criteria.error.message);
+    const a = audits.data?.[0];
+    if (!a) return { audit: null, criteria: (criteria.data ?? []) as CriterionRow[], error: null };
+    const results = await db.from("audit_results").select("*").eq("audit_id", a.id);
+    if (results.error) throw new Error(results.error.message);
+    return {
+      audit: { ...(a as Omit<StreetAudit, "results">), results: (results.data ?? []) as AuditResult[] },
+      criteria: (criteria.data ?? []) as CriterionRow[],
+      error: null,
+    };
+  } catch (error) {
+    return { audit: null, criteria: [], error: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+/** ציון תושבים 1..5 לאחוזים, באותו נרמול שבו המנוע משווה ((x-1)/4). */
+export function residentPct(avg: number | null | undefined): number | null {
+  return avg === null || avg === undefined ? null : Math.round(((avg - 1) / 4) * 100);
+}
+
+/** פסק המדידה לאחוזים, כמו m_score במנוע: עומד 100, חלקי 50, מתחת 0. */
+export function verdictPct(v: Verdict): number | null {
+  return v === "meets" ? 100 : v === "partial" ? 50 : v === "below" ? 0 : null;
 }

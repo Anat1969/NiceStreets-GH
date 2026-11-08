@@ -2,6 +2,7 @@ import Link from "next/link";
 import { TYPOLOGY_MAP } from "@/lib/city";
 import { Notice, Section } from "@/components/ui";
 import AuditRunButton from "@/components/AuditRunButton";
+import ResidentVsAudit from "@/components/ResidentVsAudit";
 import {
   CONFIDENCE_LABELS,
   FAMILY_LABELS,
@@ -464,6 +465,13 @@ function StreetCard({
               })}
             </table>
           </div>
+        </details>
+      ) : null}
+
+      {audit ? (
+        <details className="mb-3">
+          <summary className="summary-link">התושבים מול המדידה, באחוזים</summary>
+          <ResidentVsAudit audit={audit} criteria={criteria} residentAvg={null} staff compact />
         </details>
       ) : null}
 

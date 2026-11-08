@@ -85,24 +85,38 @@ export default function Leaders({ lists }: { lists: Record<By, LeaderRow[]> }) {
                   avgScore={row.avgScore}
                   photoId={row.photoId}
                 />
-                <span className="flex flex-1 items-center gap-3 py-3 pl-3">
+                <span className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3">
                   <span className="score-hand w-7 shrink-0 text-[22px] text-accent">{index + 1}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-[16px] font-semibold text-ink">{row.name}</span>
-                    <span className="block text-[13px] text-ink-faint">{row.quarterName}</span>
-                    <span className="mt-0.5 block text-[13px] text-ink-soft">
-                      <span className="font-semibold tabular-nums text-ink">
-                        {row.votes.toLocaleString("he-IL")}
-                      </span>{" "}
-                      {row.votes === 1 ? "קול" : "קולות"}
+                    <span className="block truncate text-[16px] font-semibold text-ink">{row.name}</span>
+                    <span className="block truncate text-[13px] text-ink-faint">{row.quarterName}</span>
+                    {/* שני הנתונים שאינם המיון — קטנים ושקטים. */}
+                    <span className="leader-minor">
+                      {by !== "votes" ? (
+                        <span>
+                          <bdi className="num">{row.votes.toLocaleString("he-IL")}</bdi> {row.votes === 1 ? "קול" : "קולות"}
+                        </span>
+                      ) : null}
+                      {by !== "score" ? (
+                        <span>
+                          ציון <bdi className="num">{row.score}</bdi>
+                        </span>
+                      ) : null}
+                      {by !== "weighted" ? (
+                        <span>
+                          משוקלל <bdi className="num">{row.weighted}</bdi>
+                        </span>
+                      ) : null}
                     </span>
                   </span>
-                  <span className="shrink-0 text-center">
-                    <span className="score-hand block text-[30px]" data-on={by !== "votes" || undefined}>
-                      {by === "weighted" ? row.weighted : row.score}
+                  {/* הנתון שלפיו ממוינת הרשימה — גדול, בכתב יד, עם תווית. */}
+                  <span className="leader-key shrink-0 text-center">
+                    <span className="leader-key-label">ממוין לפי</span>
+                    <span className="score-hand block text-[32px]" data-on>
+                      {by === "votes" ? row.votes.toLocaleString("he-IL") : by === "score" ? row.score : row.weighted}
                     </span>
                     <span className="block text-[11px] text-ink-faint">
-                      {by === "weighted" ? "משוקלל, מ-10" : "ציון מ-10"}
+                      {by === "votes" ? (row.votes === 1 ? "קול" : "קולות") : by === "score" ? "ציון מ-10" : "משוקלל, מ-10"}
                     </span>
                   </span>
                 </span>

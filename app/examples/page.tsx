@@ -91,9 +91,38 @@ function ExampleBody({ example }: { example: Example }) {
 export default async function ExamplesPage({
   searchParams,
 }: {
-  searchParams: Promise<{ criterion?: string; typology?: string }>;
+  searchParams: Promise<{
+    criterion?: string;
+    typology?: string;
+    cat?: string;
+    sort?: string;
+    all?: string;
+  }>;
 }) {
   const params = await searchParams;
+
+  /*
+   * שלוש קטגוריות שאפשר להדליק ולכבות (ענת, 09.11.2026, סעיף 11):
+   * כמה דלוקות — עד 3 מכל אחת, שורה לכל קטגוריה. אחת בלבד — עד 5, בתמונות
+   * גדולות. "הכול" — כל הדוגמאות, בשורות ובתמונות גדולות. המצב כולו בכתובת,
+   * כדי שאפשר יהיה לשלוח תצוגה כקישור.
+   */
+  const CATS = ["ashdod", "israel", "world"] as const;
+  type Cat = (typeof CATS)[number];
+  const CAT_LABEL: Record<Cat, string> = {
+    ashdod: "רחובות באשדוד",
+    israel: "מהארץ",
+    world: "מהעולם",
+  };
+  const parsedCats = (params.cat ?? "")
+    .split(",")
+    .filter((c): c is Cat => (CATS as readonly string[]).includes(c));
+  const cats = new Set<Cat>(parsedCats.length ? parsedCats : CATS);
+  const sortByName = params.sort === "name";
+  const showAll = params.all === "1";
+  const single = cats.size === 1;
+  const cap = showAll ? Infinity : single ? 5 : 3;
+  const compact = !showAll && !single;
 
   const store = getStore();
   const [slots, admin, allPhotos, streets, votes] = await Promise.all([
@@ -142,9 +171,47 @@ export default async function ExamplesPage({
   const matches = (e: Example) =>
     (!criterion || e.criterionKeys.includes(criterion)) &&
     (!typology || e.typology === typology);
-  const results = EXAMPLES.filter(matches);
-  const worldResults = WORLD_EXAMPLES.filter(matches);
-  const total = results.length + worldResults.length;
+  const byPlace = <T extends { place: string }>(list: T[]) =>
+    sortByName ? [...list].sort((a, b) => a.place.localeCompare(b.place, "he")) : list;
+  const allIsrael = byPlace(EXAMPLES.filter(matches));
+  const allWorld = byPlace(WORLD_EXAMPLES.filter(matches));
+  const allCity = sortByName
+    ? [...cityStreetRows].sort((a, b) => a.street.name.localeCompare(b.street.name, "he"))
+    : cityStreetRows;
+  const results = cats.has("israel") ? allIsrael.slice(0, cap) : [];
+  const worldResults = cats.has("world") ? allWorld.slice(0, cap) : [];
+  const cityShown = cats.has("ashdod") && !criterion ? allCity.slice(0, cap) : [];
+  const total = results.length + worldResults.length + cityShown.length;
+  const available: Record<Cat, number> = {
+    ashdod: criterion ? 0 : allCity.length,
+    israel: allIsrael.length,
+    world: allWorld.length,
+  };
+
+  /** כתובת שמשמרת את הסינון, ומשנה רק את מה שביקשו. */
+  const href = (next: { cats?: Set<Cat>; sort?: boolean; all?: boolean }) => {
+    const q = new URLSearchParams();
+    if (criterion) q.set("criterion", criterion);
+    if (typology) q.set("typology", typology);
+    const c = next.cats ?? cats;
+    if (c.size < CATS.length) q.set("cat", CATS.filter((x) => c.has(x)).join(","));
+    if (next.sort ?? sortByName) q.set("sort", "name");
+    if (next.all ?? showAll) q.set("all", "1");
+    const s = q.toString();
+    return s ? `/examples?${s}` : "/examples";
+  };
+  const toggle = (c: Cat) => {
+    const n = new Set(cats);
+    if (n.has(c)) n.delete(c);
+    else n.add(c);
+    return n.size === 0 ? new Set<Cat>([c]) : n;
+  };
+  const more = (c: Cat) =>
+    available[c] > cap ? (
+      <Link href={href({ cats: new Set<Cat>([c]) })} className="ex-more">
+        לכל {available[c]} הדוגמאות ב{CAT_LABEL[c]}
+      </Link>
+    ) : null;
 
   return (
     <>
@@ -193,6 +260,11 @@ export default async function ExamplesPage({
           </select>
         </label>
 
+        {cats.size < CATS.length ? (
+          <input type="hidden" name="cat" value={CATS.filter((x) => cats.has(x)).join(",")} />
+        ) : null}
+        {sortByName ? <input type="hidden" name="sort" value="name" /> : null}
+        {showAll ? <input type="hidden" name="all" value="1" /> : null}
         <div className="ex-filter-actions">
           <button type="submit" className="ex-btn ex-btn-primary">
             סינון
@@ -202,6 +274,36 @@ export default async function ExamplesPage({
           </Link>
         </div>
       </form>
+
+      <nav className="ex-cats" aria-label="קטגוריות ותצוגה">
+        <div className="ex-cat-group" role="group" aria-label="קטגוריות">
+          {CATS.map((c) => (
+            <Link
+              key={c}
+              href={href({ cats: toggle(c), all: false })}
+              className="ex-chip"
+              aria-pressed={cats.has(c)}
+            >
+              {CAT_LABEL[c]} <bdi className="num">{available[c]}</bdi>
+            </Link>
+          ))}
+        </div>
+        <div className="ex-cat-group" role="group" aria-label="מיון ותצוגה">
+          <Link href={href({ sort: !sortByName })} className="ex-chip" aria-pressed={sortByName}>
+            {sortByName ? "ממוין לפי שם" : "ללא מיון"}
+          </Link>
+          <Link href={href({ all: !showAll })} className="ex-chip" aria-pressed={showAll}>
+            הכול
+          </Link>
+        </div>
+      </nav>
+      <p className="how mb-3">
+        {showAll
+          ? "כל הדוגמאות בקטגוריות שנבחרו, בתמונות גדולות."
+          : single
+            ? "קטגוריה אחת: עד 5 דוגמאות, בתמונות גדולות. לחיצה על קטגוריה נוספת מחזירה לשורות."
+            : "עד 3 דוגמאות מכל קטגוריה, שורה לכל אחת. לחיצה על קטגוריה מדליקה או מכבה אותה; קטגוריה אחת לבד מציגה 5 בגדול."}
+      </p>
 
       <p role="status" className="mb-4 text-[14px] text-ink-soft">
         <span className="font-semibold text-ink">{label(total)}</span>
@@ -214,7 +316,7 @@ export default async function ExamplesPage({
         תג קריטריון אחד — ולכן בסינון כזה החלק הזה נסגר, ובסינון לפי סוג
         רחוב הוא מצטמצם לסוג שנבחר.
       */}
-      {!criterion ? (
+      {cats.has("ashdod") && !criterion ? (
         <section aria-labelledby="city-streets" className="ex-section">
           <h2 id="city-streets" className="ex-section-title">
             רחובות מאשדוד
@@ -222,14 +324,14 @@ export default async function ExamplesPage({
           <p className="ex-section-note">
             רחוב נכנס לכאן אחרי {PHOTO_POLICY.photosForExample} תמונות שהצוות אישר.
           </p>
-          {cityStreetRows.length === 0 ? (
+          {cityShown.length === 0 ? (
             <Notice>
               עדיין אין רחוב באשדוד עם {PHOTO_POLICY.photosForExample} תמונות מאושרות.
               כל תמונה שתושב מצרף לקול שלו מקרבת רחוב לכאן.
             </Notice>
           ) : (
-            <ul className="grid gap-5">
-              {cityStreetRows.map(({ street, shown }) => (
+            <ul className={compact ? "ex-grid ex-grid-compact" : "grid gap-5"}>
+              {cityShown.map(({ street, shown }) => (
                 <li key={street.id}>
                   <p className="mb-2 flex items-baseline justify-between gap-2">
                     <Link href={`/street/${street.id}`} className="ex-street-link">
@@ -242,8 +344,8 @@ export default async function ExamplesPage({
                     </span>
                   </p>
                   {/* כל תמונה במסגרת משלה, והמילים של התושב מתחתיה. */}
-                  <ul className="ex-photos">
-                    {shown.slice(0, 3).map((photo) => {
+                  <ul className={compact ? "ex-photos ex-photos-one" : "ex-photos"}>
+                    {shown.slice(0, compact ? 1 : 3).map((photo) => {
                       const reason = photo.voteId ? reasonByVote.get(photo.voteId) : "";
                       return (
                         <li key={photo.id}>
@@ -273,6 +375,7 @@ export default async function ExamplesPage({
               ))}
             </ul>
           )}
+          {more("ashdod")}
         </section>
       ) : null}
 
@@ -282,7 +385,7 @@ export default async function ExamplesPage({
             מהארץ
           </h2>
           <p className="ex-section-note">18 רחובות שנותחו בסקר של מינהל התכנון.</p>
-          <ul className="grid gap-4">
+          <ul className={compact ? "ex-grid ex-grid-compact" : "grid gap-4 ex-grid-large"}>
             {results.map((example) => (
               <li key={example.key} className="ex-card">
                 <figure className="ex-media">
@@ -303,6 +406,7 @@ export default async function ExamplesPage({
               </li>
             ))}
           </ul>
+          {more("israel")}
         </section>
       ) : null}
 
@@ -315,7 +419,7 @@ export default async function ExamplesPage({
             <span className="block">רחובות שנבחרו בספר או בסקר מוכר על רחובות טובים.</span>
             <span className="block">מי בחר בכל רחוב כתוב מתחת לתמונה.</span>
           </p>
-          <ul className="grid gap-4">
+          <ul className={compact ? "ex-grid ex-grid-compact" : "grid gap-4 ex-grid-large"}>
             {worldResults.map((example: WorldExample) => (
               <li key={example.key} className="ex-card">
                 <figure className="ex-media">
@@ -344,6 +448,7 @@ export default async function ExamplesPage({
               </li>
             ))}
           </ul>
+          {more("world")}
         </section>
       ) : null}
 
@@ -362,7 +467,7 @@ export default async function ExamplesPage({
         </p>
         <p className="mt-2 font-semibold">מקורות — מהארץ</p>
         <ul>
-          {results.map((e) => (
+          {allIsrael.map((e) => (
             <li key={e.key}>
               {e.place.split(" — ")[0]}: {e.source}
             </li>
@@ -370,7 +475,7 @@ export default async function ExamplesPage({
         </ul>
         <p className="mt-2 font-semibold">מקורות — מהעולם</p>
         <ul>
-          {worldResults.map((e) => (
+          {allWorld.map((e) => (
             <li key={e.key}>
               {e.place.split(" — ")[0]}: {e.survey}. נתונים:{" "}
               <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer">

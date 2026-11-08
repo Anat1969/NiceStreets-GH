@@ -1,0 +1,200 @@
+/*
+ * טקסט לא בורח ממסגרת (ענת, 09.11.2026, סעיף 6).
+ * כללי בטיחות גלובליים: מילה ארוכה (שם רחוב, כתובת, מקור באנגלית) נשברת
+ * בתוך הכרטיס במקום לדחוף אותו; ילדי flex ו-grid מורשים להתכווץ; תוויות
+ * של שורה אחת נחתכות בשלוש נקודות במקום לגלוש.
+ */
+
+.card,
+.photo-card,
+.output-panel,
+.step-guide,
+.question-card,
+.voices,
+.wiki-blurb,
+.vision-step,
+.kui-item,
+.here-item,
+.layer-answer,
+.legend,
+.sources,
+.param-table td,
+.param-table th,
+.type-option,
+.tone {
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+main :where(p, li, h1, h2, h3, h4, dd, dt, figcaption, blockquote, td, th, label, legend, summary) {
+  overflow-wrap: break-word;
+}
+
+main :where(.flex, .grid, [class*="grid"]) > * {
+  min-width: 0;
+}
+
+main img,
+main svg,
+main video {
+  max-width: 100%;
+}
+
+.truncate,
+.here-line,
+.room-legend-title,
+.leader-minor span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* טבלה רחבה גוללת בתוך המסגרת שלה, ולא את כל הדף. */
+.rva-table-wrap,
+.table-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+/* ---------------------------------------------------------- מקרא אחיד */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 14px;
+  margin: 8px 0 4px;
+  padding: 6px 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-size: 12.5px;
+  color: var(--color-ink-soft);
+}
+.legend-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-ink);
+}
+.legend-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.legend-items li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.legend-swatch {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  border: 1px solid rgb(0 0 0 / 15%);
+}
+.legend-note {
+  flex-basis: 100%;
+  font-size: 12px;
+  margin: 0;
+}
+
+/* ---------------------------------- התושבים מול הבדיקה האמפירית (סעיף 5) */
+.rva {
+  display: grid;
+  gap: 10px;
+}
+.rva-overall {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 12px;
+  background: var(--brand-50);
+  border: 1px solid var(--brand-100);
+}
+.rva-side {
+  display: grid;
+  gap: 2px;
+  text-align: center;
+}
+.rva-muted {
+  opacity: 0.75;
+}
+.rva-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+}
+.rva-num {
+  font-size: 38px;
+}
+.rva-num-audit {
+  color: var(--color-accent);
+}
+.rva-num-small {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  padding-top: 10px;
+}
+.rva-gap {
+  grid-column: 1 / -1;
+  text-align: center;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--color-ink);
+}
+.rva-gap[data-dir="up"],
+.rva-table td[data-dir="up"] {
+  color: var(--tone-solution);
+}
+.rva-gap[data-dir="down"],
+.rva-table td[data-dir="down"] {
+  color: #8a4b0c;
+}
+.rva-table td[data-dir] {
+  font-weight: 700;
+}
+.rva-n {
+  font-size: 11px;
+  color: var(--color-ink-faint);
+}
+.rva-draft {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8a4b0c;
+  background: var(--color-warm-soft);
+  border-radius: 8px;
+  padding: 6px 10px;
+}
+
+/* ------------------------------------------------- 5 המובילים (סעיף 1) */
+.leader-key {
+  display: grid;
+  justify-items: center;
+  padding: 4px 10px;
+  border-radius: 10px;
+  background: var(--brand-50);
+  border: 1px solid var(--brand-100);
+  min-width: 64px;
+}
+.leader-key-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--color-accent);
+}
+.leader-minor {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 10px;
+  margin-top: 2px;
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  opacity: 0.85;
+}

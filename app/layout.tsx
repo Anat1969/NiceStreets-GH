@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import "./safety.css";
 import { CITY } from "@/lib/city";
 import TabBar from "@/components/TabBar";
 import AIMenu from "@/components/AIMenu";

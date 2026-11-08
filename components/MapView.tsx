@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import DeltaLegend from "@/components/DeltaLegend";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
@@ -1011,6 +1012,7 @@ export default function MapView({
           {streetLinesAvailable && mode === "street" ? (
             <span>· רחוב עם קו מה-GIS העירוני מצויר כקו</span>
           ) : null}
+      {cityAverage !== null ? <DeltaLegend average={scoreOutOfTen(cityAverage)} /> : null}
           {bikePaths.length > 0 && mode === "street" ? (
             <span className="inline-flex items-center gap-1">
               ·
@@ -1041,9 +1043,9 @@ export default function MapView({
             דירוג הרחובות לפי {rankBy === "votes" ? "מספר קולות" : "ציון ממוצע"}
           </h2>
           {rankBy !== "votes" && cityAverage !== null ? (
-            <p className="map-how mb-2">
-              הציונים של התושבים. המספר הקטן ליד כל ציון הוא ההפרש מהממוצע העירוני ({scoreOutOfTen(cityAverage)}): + מעליו, − מתחתיו. אין עדיין היסטוריה לפי תקופות, ולכן זה הפרש מהממוצע ולא שינוי בזמן.
-            </p>
+            <>
+              <p className="map-how mb-2">הציונים של התושבים, עם ההפרש מממוצע העיר.</p>
+            </>
           ) : null}
           <div className="mb-2 flex gap-2" role="group" aria-label="לפי מה לדרג">
             {(

@@ -267,3 +267,85 @@
     grid-template-columns: repeat(2, 96px);
   }
 }
+
+/* ---- קטגוריות (ענת, 09.11.2026, סעיף 11) ---- */
+.ex-cats {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.ex-cat-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.ex-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 14px;
+  border: 1.5px solid var(--color-line);
+  border-radius: 99px;
+  background: var(--color-surface);
+  color: var(--color-ink-soft);
+  font-size: 14px;
+  font-weight: 600;
+}
+.ex-chip[aria-pressed="true"] {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+  color: #fff;
+}
+.ex-more {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  margin-top: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* שורה: עד 3 כרטיסים קטנים זה לצד זה. יחס קבוע לתמונה, כדי שהדף לא יקפוץ. */
+.ex-grid {
+  display: grid;
+  gap: 12px;
+}
+.ex-grid-compact {
+  grid-template-columns: minmax(0, 1fr);
+}
+.ex-grid-compact > li.ex-card {
+  grid-template-columns: minmax(0, 1fr) !important;
+  align-content: start;
+}
+.ex-grid-compact .ex-text,
+.ex-grid-compact .ex-fact,
+.ex-grid-compact .ex-tags {
+  display: none;
+}
+.ex-grid-compact .ex-media img,
+.ex-grid-compact .ex-world-frame img,
+.ex-grid-compact .ex-photo img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  height: auto;
+  max-height: none;
+  object-fit: cover;
+}
+.ex-photos-one {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+@container main (min-width: 720px) {
+  .ex-grid-compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  /* קטגוריה אחת או "הכול": תמונה גדולה, 60/40. */
+  .ex-grid-large > li.ex-card {
+    grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  }
+}
