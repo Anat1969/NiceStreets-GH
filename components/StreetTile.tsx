@@ -50,11 +50,8 @@ export function StreetTile({
           >
             {name}
           </span>
-          {quarterName ? (
-            <span className={`block ${hero ? "text-[14px] opacity-95" : "sr-only"}`}>
-              {quarterName}
-            </span>
-          ) : null}
+          {/* על התמונה רק שם הרחוב (ענת, 09.11.2026); הרובע והסוג מתחת לה. */}
+          {quarterName ? <span className="sr-only">{quarterName}</span> : null}
         </span>
       </span>
     );

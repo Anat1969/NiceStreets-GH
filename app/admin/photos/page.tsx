@@ -19,6 +19,7 @@ export default async function PhotoQueuePage() {
     store.listVotes().catch(() => []),
   ]);
   const streetName = new Map(streets.map((s) => [s.id, s.name]));
+  const streetCenter = new Map(streets.map((s) => [s.id, s.center]));
   const reasonByVote = new Map(votes.map((v) => [v.id, v.reason]));
   const reasonOf = (voteId: string) =>
     (reasonByVote.get(voteId) ?? "").trim() || undefined;
@@ -34,8 +35,8 @@ export default async function PhotoQueuePage() {
   return (
     <>
       <p className="mb-1 text-[13px] text-ink-faint">
-        <Link href="/admin" className="inline-link underline underline-offset-2">
-          לוח בקרה
+        <Link href="/staff" className="inline-link underline underline-offset-2">
+          שולחן העבודה של הצוות
         </Link>{" "}
         · תור תמונות
       </p>
@@ -55,6 +56,7 @@ export default async function PhotoQueuePage() {
             streetName: streetName.get(p.streetId) ?? "רחוב לא ידוע",
             createdAt: p.createdAt,
             reason: reasonOf(p.voteId),
+            center: streetCenter.get(p.streetId) ?? null,
           }))}
         />
       </Section>
@@ -73,6 +75,7 @@ export default async function PhotoQueuePage() {
               streetName: streetName.get(p.streetId) ?? "רחוב לא ידוע",
               createdAt: p.createdAt,
               reason: reasonOf(p.voteId),
+              center: streetCenter.get(p.streetId) ?? null,
               status: p.status,
             }))}
           />

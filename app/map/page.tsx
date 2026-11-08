@@ -14,7 +14,9 @@ import { scoreOutOfTen, toTen } from "@/lib/score";
 import { getStore } from "@/lib/store";
 import { voteScore } from "@/lib/stats";
 import { isStaff } from "@/lib/session";
-import { DemoBanner, Notice } from "@/components/ui";
+import { DemoBanner } from "@/components/ui";
+import QuarterIcon from "@/components/QuarterIcon";
+import "./map.css";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +78,16 @@ export default async function MapPage({
   }
 
   const statsByQuarter = new Map(quarterStats.map((s) => [s.quarter.id, s]));
+
+  /*
+   * הממוצע העירוני, משוקלל לפי קולות (בסולם השמור 1–5). אין עדיין היסטוריה
+   * לפי תקופות, ולכן "השינוי" שמוצג ליד כל ציון הוא ההפרש מהממוצע הזה,
+   * וכך זה גם כתוב במסך.
+   */
+  const rated = streetStats.filter((s) => s.votes > 0 && s.avgScore !== null);
+  const voteSum = rated.reduce((n, s) => n + s.votes, 0);
+  const cityAverage =
+    voteSum > 0 ? rated.reduce((n, s) => n + (s.avgScore as number) * s.votes, 0) / voteSum : null;
   const quarterById = new Map(quarters.map((q) => [q.id, q]));
 
   /*
@@ -105,6 +117,11 @@ export default async function MapPage({
       values: {
         score: score === null ? null : Number(score.toFixed(2)),
         votes,
+        // ההפרש מהממוצע העירוני, בסולם 0–10. מוצג גם כשהוא קטן.
+        delta:
+          score === null || cityAverage === null
+            ? null
+            : Number((score - toTen(cityAverage)).toFixed(2)),
         // 1..3, או null כשאין קולות.
         level: levelOf.has(quarterId) ? (levelOf.get(quarterId) as number) + 1 : null,
       },
@@ -141,40 +158,41 @@ export default async function MapPage({
   const longest = (lines?: [number, number][][]) =>
     lines?.reduce((a, b) => (b.length > a.length ? b : a));
 
+  /* הבורר יושב על המפה עצמה, בפינה, ולא מעליה (ענת, 09.11.2026). */
+  const viewToggle = (
+    <nav className="map-seg" aria-label="מה מוצג על המפה">
+      {(
+        [
+          ["districts", "לפי רובע", "/map"],
+          ["streets", "לפי רחוב", "/map?view=streets"],
+        ] as const
+      ).map(([value, label, href]) => (
+        <Link key={value} href={href} aria-current={view === value ? "page" : undefined}>
+          {label}
+        </Link>
+      ))}
+    </nav>
+  );
+
+  const iconIds = Object.fromEntries(Object.entries(ROVA_CODE_TO_QUARTER));
+
   return (
     <>
       <DemoBanner demoVotes={totals.demoVotes} totalVotes={totals.votes} />
 
-      <h1 className="mb-1 text-[24px] font-bold text-ink">מפה</h1>
-
-      <div className="mb-3 flex gap-2" role="group" aria-label="מה מוצג על המפה">
-        {(
-          [
-            ["districts", "לפי רובע", "/map"],
-            ["streets", "לפי רחוב", "/map?view=streets"],
-          ] as const
-        ).map(([value, label, href]) => (
-          <Link
-            key={value}
-            href={href}
-            aria-current={view === value ? "true" : undefined}
-            className={`pressable flex flex-1 items-center justify-center rounded-[12px] px-3 py-2 text-[14px] ${
-              view === value
-                ? "bg-accent font-semibold text-white"
-                : "border border-line bg-surface text-ink"
-            }`}
-          >
-            {label}
-          </Link>
-        ))}
-      </div>
+      <h1 className="map-title">
+        <QuarterIcon id="city" size={36} className="text-accent" />
+        מפה
+      </h1>
 
       {view === "districts" ? (
         <>
-          <p className="mb-3 text-[14px] text-ink-soft">
-            רובע כהה הוא רובע עם ציון גבוה שנשען על הרבה קולות. ציון גבוה מקולות
-            בודדים נשאר בהיר. המספר על הרובע הוא הציון הממוצע. ריחוף או לחיצה על רובע מציגים את הרחובות שדורגו בו, ולכל
-            רחוב את מספר הקולות והציון.
+          <p className="map-how mb-3">
+            רובע כהה הוא רובע עם ציון גבוה שנשען על הרבה קולות.
+            <br />
+            המספר בכתב יד הוא הציון של התושבים: גדול וכהה יותר כשהוא גבוה יותר.
+            <br />
+            ריחוף או לחיצה על רובע מציגים את הרחובות שדורגו בו.
           </p>
           <DistrictMap
             geojsonUrl={DISTRICT_GEOJSON_URL}
@@ -183,26 +201,37 @@ export default async function MapPage({
             shade={SHADE}
             center={CITY.center}
             zoom={CITY.zoom}
+            iconIds={iconIds}
+            overlay={viewToggle}
+            delta={{
+              key: "delta",
+              metric: "score",
+              note: `המספר הקטן ליד כל ציון הוא ההפרש מהממוצע העירוני${
+                cityAverage === null ? "" : ` (${toTen(cityAverage).toFixed(1)})`
+              }: + מעליו, − מתחתיו. אין עדיין היסטוריה לפי תקופות, ולכן זה הפרש מהממוצע ולא שינוי בזמן.`,
+            }}
           />
-          <div className="mt-4">
-            <Notice>
-              גבולות הרובעים מקובץ הרובעים של העירייה. לרובע ז&apos; ולרובע י&quot;ד
-              עדיין אין גבול בקובץ, ולכן הם מופיעים בדירוג בלבד. מפת הרקע:
-              OpenStreetMap (רישיון ODbL).
-            </Notice>
-          </div>
+          <footer className="sources">
+            <p className="sources-title">מקורות ואימות</p>
+            <p>גבולות הרובעים: קובץ הרובעים של העירייה. לרובע ז׳ ולרובע י״ד עדיין אין גבול בקובץ, ולכן הם מופיעים בדירוג בלבד.</p>
+            <p>אייקון הרובע: קו המתאר שלו והצירים הראשיים והמשניים משכבת הרחובות של העירייה. אייקון בקו מקווקו הוא מתאר משוער, לפי הרחובות.</p>
+            <p>מפת הרקע: OpenStreetMap (רישיון ODbL).</p>
+          </footer>
         </>
       ) : (
         <>
-          <p className="mb-3 text-[14px] text-ink-soft">
-            כמו במפת הרובעים: עיגול כהה הוא רחוב עם ציון גבוה שנשען על הרבה
-            קולות. המספר בעיגול הוא הציון הממוצע.
+          <p className="map-how mb-3">
+            כמו במפת הרובעים: עיגול כהה הוא רחוב עם ציון גבוה שנשען על הרבה קולות.
+            <br />
+            המספר בעיגול, בכתב יד, הוא הציון של התושבים.
           </p>
           <MapView
             center={CITY.center}
             zoom={CITY.zoom}
             canCalibrate={staff}
             lockMode="street"
+            cityAverage={cityAverage}
+            overlay={viewToggle}
             streetLinesAvailable={streetLinesAvailable()}
             bikePaths={loadBikePaths()}
             quarters={placed.map((q) => {
@@ -240,13 +269,11 @@ export default async function MapPage({
                 ballots: ballotsByStreet.get(s.street.id) ?? [],
               }))}
           />
-          <div className="mt-4">
-            <Notice>
-              מפת הרקע והמיקומים מבוססים OpenStreetMap (רישיון ODbL). מיקום הרחוב
-              נשלף משם לפי השם, ואינו שכבת ה-GIS של העירייה: הוא נקודה אחת, לא קו
-              לאורך הרחוב. כששכבת העירייה תיטען, היא תגבר עליו.
-            </Notice>
-          </div>
+          <footer className="sources">
+            <p className="sources-title">מקורות ואימות</p>
+            <p>קווי הרחובות: שכבת הרחובות של העירייה. רחוב בלי קו בשכבה ממוקם לפי OpenStreetMap, כנקודה אחת לפי השם.</p>
+            <p>שבילי אופניים: שכבת העירייה. מפת הרקע: OpenStreetMap (רישיון ODbL).</p>
+          </footer>
         </>
       )}
     </>

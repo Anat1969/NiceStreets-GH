@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import type { FamilyKey } from "@/lib/city";
+import { FamilyMark } from "@/components/CriteriaMark";
 
 /**
  * החדר העירוני: רחוב אחד בהטלה איזומטרית, בנוי מארבע השכבות שבהן
@@ -21,12 +22,6 @@ export interface RoomLayer {
   count: number;
 }
 
-const COLOR: Record<FamilyKey, string> = {
-  skeleton: "var(--asphalt)",
-  section: "var(--kurkar)",
-  frontage: "var(--brand-500)",
-  texture: "var(--canopy)",
-};
 
 const K = 3.1;
 const COS = Math.cos(Math.PI / 6);
@@ -142,11 +137,14 @@ export default function StreetRoom({
   layers,
   active: controlled,
   onActive,
+  showLegend = true,
 }: {
   layers: RoomLayer[];
   /** כשהמצב מנוהל מבחוץ (דף הבית), כדי שמסגרת התשובה תדע איזו שכבה פעילה. */
   active?: FamilyKey | null;
   onActive?: (key: FamilyKey | null) => void;
+  /** false כשהמקרא מוצג בנפרד (דף הבית: באותה שורה כמו מסגרת התשובה). */
+  showLegend?: boolean;
 }) {
   const [own, setOwn] = useState<FamilyKey | null>(null);
   const active = controlled !== undefined ? controlled : own;
@@ -257,7 +255,23 @@ export default function StreetRoom({
         </svg>
       </div>
 
-      <ul className="room-legend">
+      {showLegend ? <RoomLegend layers={layers} active={active} on={on} /> : null}
+    </div>
+  );
+}
+
+/** ארבעת הכפתורים של השכבות. כל אחד מוביל לעמוד השכבה, וריחוף מדליק אותה. */
+export function RoomLegend({
+  layers,
+  active,
+  on,
+}: {
+  layers: RoomLayer[];
+  active: FamilyKey | null;
+  on: (key: FamilyKey | null) => () => void;
+}) {
+  return (
+    <ul className="room-legend">
         {layers.map((layer) => (
           <li key={layer.key}>
             <Link
@@ -269,7 +283,9 @@ export default function StreetRoom({
               onFocus={on(layer.key)}
               onBlur={on(null)}
             >
-              <span className="room-swatch" data-layer={layer.key} style={{ background: COLOR[layer.key] }} aria-hidden="true" />
+              <span className="room-swatch-shape" aria-hidden="true">
+                <FamilyMark family={layer.key} size={18} />
+              </span>
               <span className="room-legend-title">
                 {layer.title} <bdi className="num text-[12px] text-ink-faint">{layer.count}</bdi>
               </span>
@@ -277,6 +293,5 @@ export default function StreetRoom({
           </li>
         ))}
       </ul>
-    </div>
   );
 }

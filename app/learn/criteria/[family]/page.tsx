@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { CriteriaLegend, FamilyMark, criterionFill } from "@/components/CriteriaMark";
 import {
   CRITERIA_FAMILIES,
   EXAMPLES,
@@ -70,7 +71,8 @@ export default async function FamilyPage({
     <>
       <BackLink href="/learn/criteria" label="ארבע המשפחות" />
       <h1 className="mb-1 text-[24px] font-bold text-ink">{family.title}</h1>
-      <p className="mb-5 text-[15px] text-ink-soft">{family.text}</p>
+      <p className="mb-3 text-[15px] text-ink-soft">{family.text}</p>
+      <CriteriaLegend />
 
       <ul className="grid gap-3">
         {family.criteria.map((criterion) => {
@@ -84,7 +86,10 @@ export default async function FamilyPage({
                 <Glyph />
               </span>
               <div className="min-w-0 flex-1">
-                <p className="text-[16px] font-semibold text-ink">{criterion.name}</p>
+                <p className="flex items-center gap-2 text-[16px] font-semibold text-ink">
+                  <FamilyMark family={criterion.familyKey} fill={criterionFill(criterion.key)} size={18} />
+                  {criterion.name}
+                </p>
                 <p className="mb-1 text-[14px] text-ink-soft">{criterion.text}</p>
                 <Source criterion={criterion} />
                 {examples > 0 ? (

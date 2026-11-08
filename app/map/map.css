@@ -1,0 +1,154 @@
+/*
+ * המפה (ענת, 09.11.2026): המספרים הם הבחירה של התושבים, ולכן הם בכתב יד,
+ * גדולים ומושחרים, וגדלים עם הציון. הבורר "לפי רובע / לפי רחוב" יושב על
+ * המפה עצמה, בפינה. כל הסבר על אופן הפעולה בנטוי.
+ */
+
+.map-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--color-ink);
+  margin-bottom: 6px;
+}
+
+.map-how {
+  font-style: italic;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--color-ink-soft);
+}
+
+/* --- הבורר על המפה --- */
+.map-overlay {
+  position: absolute;
+  top: 10px;
+  inset-inline-start: 10px;
+  z-index: 5;
+}
+
+.map-seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  border-radius: 12px;
+  background: rgb(255 255 255 / 92%);
+  border: 1px solid var(--color-line);
+  box-shadow: 0 2px 8px rgb(22 32 43 / 16%);
+  backdrop-filter: blur(4px);
+}
+
+.map-seg a {
+  display: inline-flex;
+  align-items: center;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 9px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+  white-space: nowrap;
+}
+
+/* המטרה בגובה 44: הריפוד של הבורר משלים את הקישור. */
+.map-seg a {
+  position: relative;
+}
+.map-seg a::after {
+  content: "";
+  position: absolute;
+  inset: -3px 0;
+}
+
+.map-seg a[aria-current="page"] {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* --- התוויות על הרובעים --- */
+.district-label-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+}
+
+.district-label-value {
+  font-family: var(--font-hand, "Playpen Sans Hebrew", cursive);
+  font-weight: 800;
+  line-height: 1.05;
+  /* הגודל והצבע נקבעים לכל רובע לפי הציון שלו (emphasis ב-DistrictMap). */
+}
+
+.district-label-delta {
+  display: inline-block;
+  margin-top: 1px;
+  padding: 0 5px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.5;
+  direction: ltr;
+  unicode-bidi: isolate;
+  text-shadow: none;
+  background: #fff;
+  border: 1px solid var(--color-line);
+}
+
+.district-label-delta[data-sign="up"] {
+  color: var(--tone-solution, #1f6f5c);
+  border-color: var(--tone-solution, #1f6f5c);
+}
+
+.district-label-delta[data-sign="down"] {
+  color: var(--tone-problem, #a8322a);
+  border-color: var(--tone-problem, #a8322a);
+}
+
+.district-label-delta[data-sign="flat"] {
+  color: var(--color-ink-faint);
+}
+
+/* --- העיגול של הרחוב --- */
+.map-mark-disc {
+  font-family: var(--font-hand, "Playpen Sans Hebrew", cursive);
+  font-weight: 800;
+}
+
+/* --- רשימת הדירוג: הציון בכתב יד, גדול --- */
+.rank-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: none;
+}
+
+.rank-value {
+  font-family: var(--font-hand, "Playpen Sans Hebrew", cursive);
+  font-size: 24px;
+  font-weight: 800;
+  line-height: 1;
+  color: var(--brand-900, #0c322b);
+  font-variant-numeric: tabular-nums;
+}
+
+.rank-unit {
+  font-size: 11px;
+  color: var(--color-ink-faint);
+}
+
+.district-rank-row .quarter-icon {
+  flex: none;
+}
+
+@media (max-width: 420px) {
+  .rank-value {
+    font-size: 21px;
+  }
+  .rank-unit {
+    display: none;
+  }
+}

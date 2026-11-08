@@ -63,7 +63,7 @@ export function IconCard({
   icon: IconComponent,
 }: {
   href: string;
-  title: string;
+  title: React.ReactNode;
   text: string;
   icon: () => React.ReactElement;
 }) {

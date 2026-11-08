@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { EXAMPLES, QUESTIONS, TYPOLOGY_MAP, STATUS_MAP } from "@/lib/city";
+import { CRITERION_MAP, EXAMPLES, QUESTIONS, TYPOLOGY_MAP, STATUS_MAP } from "@/lib/city";
 import type { CriterionKey } from "@/lib/city";
 import { getStore } from "@/lib/store";
 import { buildStreetStats, voteScore } from "@/lib/stats";
@@ -11,7 +11,6 @@ import type { Photo } from "@/lib/types";
 import { confirmedTheme } from "@/lib/themes";
 import {
   Card,
-  Datum,
   DemoBanner,
   ScoreBar,
   Section,
@@ -24,11 +23,19 @@ import { StreetTile } from "@/components/StreetTile";
 import StreetSection from "@/components/StreetSection";
 import StreetWalk from "@/components/StreetWalk";
 import { layerReadings } from "@/lib/street-layers";
-import { QUESTION_ICONS, CRITERION_ICONS } from "@/components/icons";
+import { QUESTION_ICONS } from "@/components/icons";
 import { LOCAL_QUESTION_KEYS, CITY } from "@/lib/city";
 import { scoreLabel } from "@/lib/hebrew";
 import { summarise } from "@/lib/summary";
 import MyPendingPhoto from "@/components/MyPendingPhoto";
+import Rich from "@/components/Rich";
+import QuarterIcon from "@/components/QuarterIcon";
+import StreetNameWiki from "@/components/StreetNameWiki";
+import RateCta from "@/components/RateCta";
+import { FamilyMark, criterionFill } from "@/components/CriteriaMark";
+import BenchmarkModel, { deviation, parseMetersRange } from "@/components/BenchmarkModel";
+import { CANONICAL_STREETS } from "@/lib/streets";
+import { parseRatioRange, FLOOR_HEIGHT_M } from "@/lib/street-section";
 import { GIS_TYPOLOGY } from "@/lib/gis-typology.generated";
 
 export const dynamic = "force-dynamic";
@@ -85,6 +92,17 @@ export default async function StreetPage({
       ? TYPOLOGY_MAP[gisType as keyof typeof TYPOLOGY_MAP]
       : null;
   const typologyIsEstimate = !street.typology && Boolean(typology);
+  /*
+   * מה נמדד ברחוב עצמו: חתך שהצוות אישר, ובלעדיו ערך ה-GIS העירוני.
+   * יחס = רוחב לגובה 1, כמו ערכי הייחוס. גובה = ממוצע הקומות בשני הצדדים.
+   */
+  const section = street.gis?.section ?? null;
+  const measuredWidth = section?.facadeWidthM ?? street.gis?.rowWidthM ?? null;
+  const measuredHeight = section ? ((section.floorsA + section.floorsB) / 2) * FLOOR_HEIGHT_M : null;
+  const measuredRatio =
+    section && measuredHeight ? section.facadeWidthM / measuredHeight
+    : street.gis?.heightToWidth ? 1 / street.gis.heightToWidth
+    : null;
   const summary = summarise(stats, reasons.length);
   /* התמונה שפותחת את הדף: החדשה מבין המאושרות. */
   const heroPhoto = visiblePhotos.filter(isPublicPhoto)[0] ?? null;
@@ -154,24 +172,38 @@ export default async function StreetPage({
       <StreetTile
         className="mb-3 block aspect-[16/10] w-full rounded-[16px] border border-line"
         name={street.name}
-        quarterName={`${stats.quarterName} · ${typology ? `${typology.label}${typologyIsEstimate ? " (הערכה)" : ""}` : "טרם סווג"}`}
+        quarterName={stats.quarterName}
         avgScore={stats.avgScore}
         photoId={heroPhoto?.id ?? null}
         size="hero"
       />
 
-      {!heroPhoto ? (
+      <p className="street-meta">
+        {street.quarterId ? <QuarterIcon id={street.quarterId} size={22} className="text-accent" /> : null}
+        <span>{stats.quarterName}</span>
+        <span aria-hidden="true">·</span>
+        <span>
+          {typology ? typology.label : "סוג טרם נקבע"}
+          {typologyIsEstimate ? <span className="chip ms-1">הערכה</span> : null}
+        </span>
+      </p>
+
+      <StreetNameWiki
+        name={street.name}
+        synonyms={CANONICAL_STREETS.find((c) => c.code === street.code)?.synonyms ?? []}
+      />
+
+      {!heroPhoto && !saved ? (
         <p className="mb-2 text-[14px] text-ink-soft">
           אין עדיין תמונה של {street.name}. התמונה הראשונה שתאושר תופיע כאן,
           בראש הדף.
         </p>
       ) : null}
 
-      <StreetPhotoActions
-        streetId={street.id}
-        streetName={street.name}
-        city={CITY.name}
-      />
+      {/* אחרי שמירה — לא מבקשים שוב תמונה: היא כבר נשלחה וממתינה לצוות. */}
+      {saved ? null : (
+        <StreetPhotoActions streetId={street.id} streetName={street.name} city={CITY.name} />
+      )}
 
       <div className="mb-4 flex gap-2">
         <div className="card flex-1 p-3 text-center">
@@ -182,9 +214,7 @@ export default async function StreetPage({
           <div className="mt-1 text-[11px] text-ink-faint">תושבים שדירגו</div>
         </div>
         <div className="card flex-1 p-3 text-center">
-          <div className="text-[24px] font-bold tabular-nums text-accent">
-            {scoreLabel(stats.avgScore)}
-          </div>
+          <div className="score-hand text-[34px]">{scoreLabel(stats.avgScore)}</div>
           <div className="text-[13px] font-medium text-ink">ציון ממוצע</div>
           <div className="mt-1 text-[11px] text-ink-faint">מתוך 10</div>
         </div>
@@ -213,12 +243,24 @@ export default async function StreetPage({
         סיכום במשפטים: מי שמגיע לכאן מרשימת המובילים רוצה לדעת מה חשבו
         על הרחוב, לא לקרוא שבעה מדדים ולהרכיב את התמונה בעצמו.
       */}
-      <Card className="mb-5">
-        <p className="mb-1 text-[13px] font-semibold text-ink-faint">
-          מה התושבים חושבים על הרחוב
-        </p>
-        <p className="text-[15px] leading-relaxed text-ink">{summary}</p>
-      </Card>
+      <section className="voices mb-6" aria-labelledby="voices-title">
+        <h2 id="voices-title" className="voices-title">מה התושבים חושבים על {street.name}</h2>
+        <Rich as="p" className="voices-summary">{summary}</Rich>
+        {reasons.length > 0 ? (
+          <ul className="voices-quotes">
+            {reasons.slice(0, 3).map((vote) => (
+              <li key={vote.id}>
+                <blockquote className="resident-voice">{vote.reason}</blockquote>
+                <span className="voices-score">
+                  <span className="score-hand">{scoreLabel(voteScore(vote))}</span> מ-10
+                </span>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p className="how">עדיין אין מילים מהתושבים. הדירוג הבא יכול להיות הראשון.</p>
+        )}
+      </section>
 
       {street.center ? (
         <Section
@@ -260,11 +302,10 @@ export default async function StreetPage({
             רוב שמות הרחובות ב{stats.quarterName} נקבעו סביב נושא אחד:{" "}
             <span className="font-semibold">{theme}</span>.
           </p>
-          <p className="mt-1 text-[13px] text-ink-soft">
-            זה הכלל, לא חוק: כמעט בכל רובע יש רחוב אחד או שניים שנקראו על שם
-            אחר — לרוב מוקדם יותר מקביעת הנושא, או לציון אדם או אירוע שהעירייה
-            ביקשה להנציח. רחוב שאינו מתאים לנושא אינו טעות; הוא בדרך כלל
-            הסיפור המעניין יותר.
+          <p className="mt-1 text-[14px] text-ink-soft">
+            גרעין של רחובות ברובע נקרא סביב הנושא הזה.
+            <br />
+            עם השנים נוספו שמות אחרים, לזכרם של אנשים ואירועים, והם שכבה נוספת בסיפור של המקום.
           </p>
         </div>
       ) : null}
@@ -327,60 +368,72 @@ export default async function StreetPage({
       </Section>
 
       {typology ? (
-        <Section title={`ערכי ייחוס ל${typology.label}`} note={typology.description}>
-          <Card>
-            <dl className="grid grid-cols-2 gap-x-3 gap-y-3 [&_svg]:h-4 [&_svg]:w-4">
+        <Section
+          title={`ערכי ייחוס ל${typology.label}${typologyIsEstimate ? " (סוג מוערך)" : ""}`}
+          note={typology.description}
+        >
+          <BenchmarkModel
+            rowWidth={typology.benchmarks.rowWidth}
+            ratio={typology.benchmarks.ratio}
+            typologyLabel={typology.label}
+            measured={{ widthM: measuredWidth, heightM: measuredHeight }}
+          />
+          <table className="param-table">
+            <thead>
+              <tr>
+                <th scope="col">פרמטר</th>
+                <th scope="col">ערך ייחוס</th>
+                <th scope="col">נמדד ברחוב</th>
+                <th scope="col">סטייה</th>
+              </tr>
+            </thead>
+            <tbody>
               {(
                 [
-                  ["רוחב זכות דרך", typology.benchmarks.rowWidth, "row_width"],
-                  ["חלק המדרכה", typology.benchmarks.sidewalk, "row_split"],
-                  ["יחס רוחב לגובה", typology.benchmarks.ratio, "proportions"],
-                  ["בניינים ל-100 מ'", typology.benchmarks.buildings, "building_rhythm"],
-                  ["חופת עצים", typology.benchmarks.canopy, "tree_canopy"],
-                  [
-                    "מרחק בין צמתים",
-                    typology.benchmarks.intersections,
-                    "intersection_density",
-                  ],
-                ] as [string, string, CriterionKey][]
-              ).map(([label, value, criterionKey]) => {
-                const Mark = CRITERION_ICONS[criterionKey];
-                return <Datum key={label} label={label} value={value} icon={<Mark />} />;
+                  ["רוחב זכות דרך", typology.benchmarks.rowWidth, "row_width", measuredWidth, parseMetersRange(typology.benchmarks.rowWidth), " מ'"],
+                  ["יחס רוחב לגובה", typology.benchmarks.ratio, "proportions", measuredRatio, parseRatioRange(typology.benchmarks.ratio), ""],
+                  ["חלק המדרכה", typology.benchmarks.sidewalk, "row_split", null, null, ""],
+                  ["בניינים ל-100 מ'", typology.benchmarks.buildings, "building_rhythm", null, null, ""],
+                  ["חופת עצים", typology.benchmarks.canopy, "tree_canopy", street.gis?.canopyPct ?? null, parseMetersRange(typology.benchmarks.canopy), "%"],
+                  ["מרחק בין צמתים", typology.benchmarks.intersections, "intersection_density", street.gis?.intersectionDistanceM ?? null, parseMetersRange(typology.benchmarks.intersections), " מ'"],
+                ] as [string, string, CriterionKey, number | null, [number, number] | null, string][]
+              ).map(([label, value, criterionKey, measured, range, unit]) => {
+                const dev = deviation(measured, range);
+                return (
+                  <tr key={label}>
+                    <th scope="row">
+                      <span className="param-icon" aria-hidden="true">
+                        <FamilyMark family={CRITERION_MAP[criterionKey].familyKey} fill={criterionFill(criterionKey)} size={16} />
+                      </span>
+                      {label}
+                    </th>
+                    <td className="num">{value}</td>
+                    <td className="num">
+                      {measured === null ? (
+                        <span className="text-ink-faint">טרם נמדד</span>
+                      ) : (
+                        <span className="score-hand text-[19px]">
+                          {unit === "" ? `1:${measured.toFixed(1)}` : `${measured.toFixed(measured < 10 ? 1 : 0)}${unit}`}
+                        </span>
+                      )}
+                    </td>
+                    <td data-dev={dev === "בטווח" ? "ok" : dev === "—" ? "none" : "off"}>{dev}</td>
+                  </tr>
+                );
               })}
-            </dl>
-            {street.gis ? (
-              <p className="mt-2 border-t border-line pt-2 text-[13px] text-ink-soft">
-                נתוני GIS לרחוב:
-                {street.gis.rowWidthM ? ` רוחב ${street.gis.rowWidthM} מ'` : ""}
-                {street.gis.canopyPct ? ` · חופת עצים ${street.gis.canopyPct}%` : ""}
-                {street.gis.intersectionDistanceM
-                  ? ` · מרחק בין צמתים ${street.gis.intersectionDistanceM} מ'`
-                  : ""}
-              </p>
-            ) : null}
-            <p className="mt-2 text-[13px]">
-              {/*
-                קישור מסונן רק כשיש מה להראות. המסמך אינו מסווג את
-                רחובות הדוגמה שלו לטיפולוגיות, ולכן לרוב הסוגים אין
-                עדיין דוגמה — ושליחה לעמוד ריק גרועה מאמירה ישרה.
-              */}
-              {typeExampleCount > 0 ? (
-                <Link
-                  href={`/examples?typology=${typology.key}`}
-                  className="inline-link text-accent underline underline-offset-2"
-                >
-                  {typeExampleCount} דוגמאות ל{typology.label}
-                </Link>
-              ) : (
-                <Link
-                  href="/examples"
-                  className="inline-link text-accent underline underline-offset-2"
-                >
-                  ספריית הדוגמאות
-                </Link>
-              )}
-            </p>
-          </Card>
+            </tbody>
+          </table>
+          <p className="mt-2 text-[13px]">
+            {typeExampleCount > 0 ? (
+              <Link href={`/examples?typology=${typology.key}`} className="inline-link text-accent underline underline-offset-2">
+                {typeExampleCount} דוגמאות ל{typology.label}
+              </Link>
+            ) : (
+              <Link href="/examples" className="inline-link text-accent underline underline-offset-2">
+                ספריית הדוגמאות
+              </Link>
+            )}
+          </p>
         </Section>
       ) : null}
 
@@ -536,10 +589,7 @@ export default async function StreetPage({
       </Section>
 
       <div className="next-step mb-6">
-        <p className="next-step-label">מה אפשר לעשות עכשיו</p>
-        <Link href={rateHref} className="btn btn-primary btn-wide">
-          לדרג את {street.name}
-        </Link>
+        <RateCta streetId={street.id} streetName={street.name} rateHref={rateHref} justSaved={Boolean(saved)} />
         <div className="flex flex-wrap gap-x-4">
           <Link href={`/report?street=${street.id}`} className="link-btn">
             לדווח לעירייה על תקלה ברחוב

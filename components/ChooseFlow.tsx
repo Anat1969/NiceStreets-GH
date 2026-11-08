@@ -10,6 +10,9 @@ import ScaleInput, { SCALE_STEPS } from "@/components/ScaleInput";
 import PhotoDrop from "@/components/PhotoDrop";
 import VoiceText from "@/components/VoiceText";
 import { pendingPhotoKey } from "@/components/MyPendingPhoto";
+import { ratedKey } from "@/components/RateCta";
+import { FamilyMark, criterionFill } from "@/components/CriteriaMark";
+import { CRITERION_MAP, type CriterionKey } from "@/lib/city";
 
 interface StreetOption {
   code: string;
@@ -131,6 +134,11 @@ export default function ChooseFlow({
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error ?? "שמירה נכשלה");
+      try {
+        localStorage.setItem(ratedKey(data.streetId), new Date().toISOString());
+      } catch {
+        /* אין אחסון — הכפתור "לדרג" פשוט יוצג שוב. */
+      }
       if (photo) {
         try {
           sessionStorage.setItem(
@@ -400,7 +408,11 @@ export default function ChooseFlow({
                       <div className="mt-1 border-e-2 border-line pe-2">
                         {question.criteria.map((criterion) => (
                           <p key={criterion.key} className="text-[13px] text-ink-soft">
-                            <span className="font-semibold text-ink">{criterion.name}.</span> {criterion.text}
+                            <span className="inline-flex items-center gap-1 font-semibold text-ink">
+                              <FamilyMark family={CRITERION_MAP[criterion.key as CriterionKey].familyKey} fill={criterionFill(criterion.key as CriterionKey)} size={14} />
+                              {criterion.name}.
+                            </span>{" "}
+                            {criterion.text}
                           </p>
                         ))}
                       </div>

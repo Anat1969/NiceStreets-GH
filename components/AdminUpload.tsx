@@ -13,8 +13,8 @@ interface StreetOption {
 const SOURCES: { value: PhotoSource; label: string; help: string }[] = [
   {
     value: "example",
-    label: "דוגמה",
-    help: "מתפרסמת מיד לציבור, ומופיעה גם בספריית הדוגמאות.",
+    label: "תמונה של האגף",
+    help: "מתפרסמת מיד לציבור, בכרטיס הרחוב ובספריית הדוגמאות. גם התמונה החלופית כשתמונת תושב נפסלה.",
   },
   {
     value: "test",
@@ -29,11 +29,19 @@ const SOURCES: { value: PhotoSource; label: string; help: string }[] = [
  * The source is chosen before the upload and not after, because it decides who
  * will see the photo — and that is not something to discover afterwards.
  */
-export default function AdminUpload({ streets }: { streets: StreetOption[] }) {
+export default function AdminUpload({
+  streets,
+  admin = false,
+}: {
+  streets: StreetOption[];
+  /** "בדיקה" שמורה למנהלת; לשאר הצוות יש רק תמונה של האגף. */
+  admin?: boolean;
+}) {
   const router = useRouter();
   const fileInput = useRef<HTMLInputElement>(null);
   const [streetId, setStreetId] = useState("");
-  const [source, setSource] = useState<PhotoSource | "">("");
+  const [source, setSource] = useState<PhotoSource | "">(admin ? "" : "example");
+  const sources = admin ? SOURCES : SOURCES.filter((s) => s.value === "example");
   const [photo, setPhoto] = useState<string | null>(null);
   const [photoName, setPhotoName] = useState("");
   const [busy, setBusy] = useState(false);
@@ -101,7 +109,7 @@ export default function AdminUpload({ streets }: { streets: StreetOption[] }) {
         <fieldset>
           <legend className="text-[13px] text-ink-soft">סוג התמונה</legend>
           <div className="mt-1 grid gap-2">
-            {SOURCES.map((option) => (
+            {sources.map((option) => (
               <label
                 key={option.value}
                 className="flex items-start gap-2 rounded-[10px] border border-line p-2"
@@ -143,7 +151,7 @@ export default function AdminUpload({ streets }: { streets: StreetOption[] }) {
           type="button"
           disabled={busy || !streetId || !source || !photo}
           onClick={submit}
-          className="rounded-[12px] bg-accent px-4 py-3 text-[16px] font-medium text-white disabled:opacity-40"
+          className="min-h-12 rounded-[12px] bg-accent px-4 py-3 text-[16px] font-medium text-white disabled:opacity-40"
         >
           {busy ? "מעלה…" : "העלאה ופרסום"}
         </button>

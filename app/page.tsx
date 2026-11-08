@@ -12,9 +12,9 @@ import {
   STATUSES,
 } from "@/lib/city";
 import { loadCityData } from "@/lib/data";
-import { topStreets } from "@/lib/stats";
+import { topStreets, weightedScore, type RankBy } from "@/lib/stats";
+import Leaders, { type LeaderRow } from "@/components/Leaders";
 import { scoreLabel } from "@/lib/hebrew";
-import { StreetTile } from "@/components/StreetTile";
 import HomeHero from "@/components/HomeHero";
 import Rich from "@/components/Rich";
 import { GLYPHS, type GlyphKey } from "@/components/glyphs";
@@ -44,7 +44,26 @@ function sectionFilesCount(): number {
 
 export default async function HomePage() {
   const { streetStats, totals, error } = await loadCityData();
-  const leaders = topStreets(streetStats, 5);
+  const rated = streetStats.filter((r) => r.votes > 0);
+  const ratedVotes = rated.reduce((a, r) => a + r.votes, 0);
+  const cityAvg = ratedVotes ? rated.reduce((a, r) => a + (r.avgScore ?? 0) * r.votes, 0) / ratedVotes : 0;
+  const leaderLists = Object.fromEntries(
+    (["votes", "score", "weighted"] as RankBy[]).map((by) => [
+      by,
+      topStreets(streetStats, 5, by).map(
+        (row): LeaderRow => ({
+          id: row.street.id,
+          name: row.street.name,
+          quarterName: row.quarterName,
+          votes: row.votes,
+          score: scoreLabel(row.avgScore),
+          weighted: scoreLabel(weightedScore(row, cityAvg)),
+          avgScore: row.avgScore,
+          photoId: row.latestPhotoId,
+        }),
+      ),
+    ]),
+  ) as Record<RankBy, LeaderRow[]>;
 
   // The municipal feed: every street the staff has given a status, newest first.
   const updates = streetStats
@@ -78,39 +97,40 @@ export default async function HomePage() {
             question: q + "?",
             answer: rest.join("?").trim(),
             count: family.criteria.length,
-            criteria: family.criteria.map((c) => c.name),
+            criteria: family.criteria.map((c) => ({ key: c.key, name: c.name })),
           };
         })}
       />
 
       <section className="vision mb-8" aria-labelledby="vision-title">
-        <h2 id="vision-title" className="section-title">החזון, המטרה, הכלי והתהליך</h2>
-        <div className="vision-grid">
-          <div className="vision-cell tone-insight">
-            <p className="tone-label">החזון</p>
+        <h2 id="vision-title" className="section-title">מהרעיון לביצוע</h2>
+        <p className="how mb-3">ארבעה שלבים של אותו מהלך, מהרחוק לקרוב: החזון שאליו שואפים, המטרה, הכלי, והתהליך שקורה בפועל.</p>
+        <ol className="vision-flow">
+          <li className="vision-step" data-step="0" style={{ "--step": 0 } as React.CSSProperties}>
+            <p className="vision-kicker"><span className="num">1</span> החזון</p>
             <Rich as="p" className="vision-lead">{"אשדוד של **רחובות שרוצים ללכת בהם**."}</Rich>
             <p className="vision-text">רחוב שהוא מקום, לא רק מעבר.</p>
-          </div>
-          <div className="vision-cell tone-problem">
-            <p className="tone-label">המטרה</p>
+          </li>
+          <li className="vision-step" data-step="1" style={{ "--step": 1 } as React.CSSProperties}>
+            <p className="vision-kicker"><span className="num">2</span> המטרה</p>
             <Rich as="p" className="vision-lead">{"למדוד רחוב ב**הליכה**, לא רק ב**תנועה**."}</Rich>
             <p className="vision-text">צל, חזית פעילה וצמתים קרובים לא נספרים בספירת רכבים.</p>
-          </div>
-          <div className="vision-cell tone-solution">
-            <p className="tone-label">הכלי</p>
-            <Rich as="p" className="vision-lead">{`**מדידה עירונית** ו**קול התושבים** יחד.`}</Rich>
+          </li>
+          <li className="vision-step" data-step="2" style={{ "--step": 2 } as React.CSSProperties}>
+            <p className="vision-kicker"><span className="num">3</span> הכלי</p>
+            <Rich as="p" className="vision-lead">{"**מדידה עירונית** ו**קול התושבים** יחד."}</Rich>
             <p className="vision-text">{`${QUESTIONS.length} שאלות לתושבים, ${CRITERIA.length} קריטריונים מקצועיים, מול רחובות מאותו סוג.`}</p>
-          </div>
-          <div className="vision-cell vision-process">
-            <p className="tone-label">התהליך</p>
+          </li>
+          <li className="vision-step" data-step="3" style={{ "--step": 3 } as React.CSSProperties}>
+            <p className="vision-kicker"><span className="num">4</span> התהליך</p>
             <ol className="process">
-              <li><span className="num">1</span>אתם בוחרים רחוב ומדרגים.</li>
-              <li><span className="num">2</span>הצוות בודק מול הנתונים.</li>
-              <li><span className="num">3</span>לרחוב נקבע סטטוס עירוני.</li>
-              <li><span className="num">4</span>הסטטוס מופיע במפה ובכרטיס.</li>
+              <li>אתם בוחרים רחוב ומדרגים.</li>
+              <li>הצוות בודק מול הנתונים.</li>
+              <li>לרחוב נקבע סטטוס עירוני.</li>
+              <li>הסטטוס מופיע במפה ובכרטיס.</li>
             </ol>
-          </div>
-        </div>
+          </li>
+        </ol>
       </section>
 
       <div className="home-pair mb-8">
@@ -189,68 +209,7 @@ export default async function HomePage() {
         </p>
       </Section>
 
-      <Section
-        title="5 המובילים"
-        note="מדורגים לפי מספר הקולות, ובשוויון לפי הציון הממוצע."
-      >
-        {leaders.length === 0 ? (
-          <Card>
-            <p className="text-[15px] text-ink-soft">
-              עדיין אין קולות. הרחוב הראשון שתבחרו יופיע כאן.
-            </p>
-          </Card>
-        ) : (
-          <ol className="grid gap-2">
-            {leaders.map((row, index) => (
-              <li key={row.street.id}>
-                <Link
-                  href={`/street/${row.street.id}`}
-                  className="card flex items-stretch gap-3 overflow-hidden p-0"
-                >
-                  {/*
-                    התמונה נושאת את שם הרחוב עליה, על גרדיאנט שקוף שנולד
-                    מהמסגרת עצמה. השם הוא הדבר החשוב בשורה, ולכן הוא
-                    מודגש ויושב על הכהה ביותר בגרדיאנט.
-                  */}
-                  <StreetTile
-                    className="h-[88px] w-[112px] shrink-0"
-                    name={row.street.name}
-                    quarterName={row.quarterName}
-                    avgScore={row.avgScore}
-                    photoId={row.latestPhotoId}
-                  />
-
-                  <span className="flex flex-1 items-center gap-3 py-3 pl-3">
-                    <span className="w-7 shrink-0 text-[18px] font-bold tabular-nums text-accent">
-                      {index + 1}.
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[16px] font-semibold text-ink">
-                        {row.street.name}
-                      </span>
-                      <span className="block text-[13px] text-ink-faint">
-                        {row.quarterName}
-                      </span>
-                      <span className="mt-0.5 block text-[13px] text-ink-soft">
-                        <span className="font-semibold tabular-nums text-ink">
-                          {row.votes.toLocaleString("he-IL")}
-                        </span>{" "}
-                        {row.votes === 1 ? "קול" : "קולות"}
-                      </span>
-                    </span>
-                    <span className="shrink-0 text-center">
-                      <span className="block text-[19px] font-bold tabular-nums text-ink">
-                        {scoreLabel(row.avgScore)}
-                      </span>
-                      <span className="block text-[11px] text-ink-faint">ציון מ-10</span>
-                    </span>
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ol>
-        )}
-      </Section>
+      <Leaders lists={leaderLists} />
 
       <Section title="מה העירייה עושה" note="עדכוני הסטטוס האחרונים, מהחדש לישן.">
         {updates.length === 0 ? (

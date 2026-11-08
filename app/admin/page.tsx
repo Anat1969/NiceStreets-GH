@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { QUARTERS, STATUSES, TYPOLOGIES, TYPOLOGY_MAP } from "@/lib/city";
+import { QUARTERS, STATUSES } from "@/lib/city";
 import { getStore, getStoreConfigError, storeIsDurable } from "@/lib/store";
 import { loadCityData } from "@/lib/data";
 import { photoShareByQuarter } from "@/lib/stats";
@@ -11,12 +11,8 @@ import DemoControls from "@/components/DemoControls";
 import PhotoModeration from "@/components/PhotoModeration";
 import { QUARTER_MAP } from "@/lib/city";
 import { contestedThemes } from "@/lib/themes";
-import AdminUpload from "@/components/AdminUpload";
 import AuditRunButton from "@/components/AuditRunButton";
 import { loadAuditOverview } from "@/lib/audit";
-import StreetAssignment from "@/components/StreetAssignment";
-import ImageFrame from "@/components/ImageFrame";
-import { imageSlot } from "@/lib/content-images";
 
 export const dynamic = "force-dynamic";
 
@@ -66,13 +62,11 @@ export default async function AdminPage({
     { streetStats, totals, error: dataError },
     allVotes,
     everyPhoto,
-    imageSlots,
     openReports,
   ] = await Promise.all([
     loadCityData(),
     store.listVotes().catch(() => []),
     store.listPhotos().catch(() => []),
-    store.listContentImageSlots().catch(() => [] as string[]),
     store
       .listReports({ handled: false })
       .catch(() => [] as Awaited<ReturnType<typeof store.listReports>>),
@@ -101,16 +95,6 @@ export default async function AdminPage({
       reason: (reasonByVote.get(p.voteId) ?? "").trim() || undefined,
     }));
 
-  // Residents' opinions that a street is of a different kind, per street.
-  const suggestionsByStreet = new Map<string, Map<string, number>>();
-  for (const vote of allVotes) {
-    if (!vote.typologySuggestion) continue;
-    if (!suggestionsByStreet.has(vote.streetId)) {
-      suggestionsByStreet.set(vote.streetId, new Map());
-    }
-    const counts = suggestionsByStreet.get(vote.streetId)!;
-    counts.set(vote.typologySuggestion, (counts.get(vote.typologySuggestion) ?? 0) + 1);
-  }
   const unverified = streetStats.filter((s) => !s.street.verified && s.votes > 0);
   const audits = await loadAuditOverview();
 
@@ -121,11 +105,14 @@ export default async function AdminPage({
         אגף אדריכלות העיר, עיריית אשדוד.{" "}
         {role === "admin" ? "מחוברת כמנהלת." : "מחובר כצוות."}
       </p>
+      <p className="mb-3 text-[13px] italic text-ink-soft">
+        כל עבודת הצוות מרוכזת בשולחן העבודה. כאן נשארו מצב המערכת, הרצת הבדיקה ונתוני ההדגמה.
+      </p>
       <Link
         href="/staff"
         className="pressable mb-6 flex min-h-11 items-center justify-between gap-2 rounded-[12px] bg-accent px-4 py-3 text-[16px] font-medium text-white"
       >
-        <span>לשולחן העבודה: מה מחכה לטיפול</span>
+        <span>לשולחן העבודה של הצוות: כל מה שמחכה לטיפול, השיוך, התמונות והייצוא</span>
         <span className="text-[13px] font-normal opacity-90">
           {totals.photosPending + openReports.length > 0
             ? `${totals.photosPending + openReports.length} ממתינים`
@@ -323,58 +310,6 @@ export default async function AdminPage({
         </div>
       </Section>
 
-      {role === "admin" ? (
-        <Section
-          title="לוגו העירייה"
-          note="המסגרת עצמה היא ההעלאה. הלוגו מופיע בראש כל מסך."
-        >
-          <ImageFrame
-            slot={imageSlot("logo")}
-            alt="לוגו עיריית אשדוד"
-            hasImage={imageSlots.includes(imageSlot("logo"))}
-            canEdit
-            ratio="13 / 8"
-            emptyLabel="אין עדיין לוגו"
-            className="max-w-[240px]"
-            fit="contain"
-          />
-        </Section>
-      ) : null}
-
-      {role === "admin" ? (
-        <Section
-          title="העלאת תמונה"
-          note="התמונה מתפרסמת מיד, בלי תור אישור. שמור למנהלת."
-        >
-          <AdminUpload
-            streets={streetStats
-              .map((row) => ({ id: row.street.id, name: row.street.name }))
-              .sort((a, b) => a.name.localeCompare(b.name, "he"))}
-          />
-        </Section>
-      ) : null}
-
-      <Section
-        title="שיוך רחובות"
-        note="רובע וסוג רחוב אינם מופיעים ברישום הארצי, ולכן הם נקבעים כאן. התושבים רואים אותם לקריאה בלבד."
-      >
-        <StreetAssignment
-          quarters={QUARTERS.map((q) => ({ id: q.id, name: q.name }))}
-          typologies={TYPOLOGIES.map((t) => ({ key: t.key, label: t.label }))}
-          rows={streetStats.map((row) => ({
-            id: row.street.id,
-            name: row.street.name,
-            code: row.street.code,
-            quarterId: row.street.quarterId,
-            typology: row.street.typology,
-            votes: row.votes,
-            suggestions: [...(suggestionsByStreet.get(row.street.id) ?? new Map()).entries()].map(
-              ([key, count]) => ({ label: TYPOLOGY_MAP[key]?.label ?? key, count }),
-            ),
-          }))}
-        />
-      </Section>
-
       <Section
         title="נושאי שמות שדורשים הכרעה"
         note="בכל אחד מאלה, מילון הנושאים שנמסר סותר את רשימת הרחובות. עד להכרעה לא מוצג 'הידעת' ברובעים האלה."
@@ -431,36 +366,6 @@ export default async function AdminPage({
           </Card>
         </Section>
       ) : null}
-
-      {/*
-        שם הפורמט לבדו ("CSV") אינו אומר למי שאינו מתכנת מה ייפתח אצלו.
-        קודם מה זה בעברית, ואחר כך הפורמט בקטן בסוגריים — מי שיודע מה
-        הוא מחפש עדיין מוצא אותו.
-      */}
-      <Section title="ייצוא נתונים">
-        <div className="grid gap-2">
-          <a
-            href="/api/export/streets.csv"
-            className="pressable rounded-[12px] border border-line bg-surface px-4 py-3 text-[15px] text-ink"
-          >
-            <span className="block font-medium">טבלה לאקסל</span>
-            <span className="block text-[12px] text-ink-faint">
-              כל הרחובות, הקולות והציונים, שורה לכל רחוב. נפתח באקסל, בגוגל
-              שיטס ובנאמברס (CSV)
-            </span>
-          </a>
-          <a
-            href="/api/export/streets.geojson"
-            className="pressable rounded-[12px] border border-line bg-surface px-4 py-3 text-[15px] text-ink"
-          >
-            <span className="block font-medium">שכבת מפה למערכת ה-GIS</span>
-            <span className="block text-[12px] text-ink-faint">
-              אותם נתונים עם המיקום של כל רחוב. נפתח ב-QGIS, ב-ArcGIS ובמערכות
-              מפות אחרות (GeoJSON)
-            </span>
-          </a>
-        </div>
-      </Section>
 
       <Section title="נתוני הדגמה">
         <DemoControls />

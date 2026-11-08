@@ -225,9 +225,36 @@ export function photoShareByQuarter(
   return rows.sort((a, b) => b.votes - a.votes);
 }
 
-export function topStreets(streetStats: StreetStats[], limit = 5): StreetStats[] {
-  return [...streetStats]
-    .filter((s) => s.votes > 0)
-    .sort((a, b) => b.votes - a.votes || (b.avgScore ?? 0) - (a.avgScore ?? 0))
+export type RankBy = "votes" | "score" | "weighted";
+
+/** כמה קולות "מדומים" של ממוצע העיר מצטרפים לכל רחוב בשקלול. */
+export const WEIGHT_PRIOR_VOTES = 5;
+
+/**
+ * שקלול (ממוצע בייסיאני): ציון הרחוב נמשך אל ממוצע העיר, וככל שיש לו
+ * יותר קולות — פחות. כך רחוב עם קול אחד של 10 לא עוקף רחוב עם 40 קולות של 8.5.
+ *   משוקלל = (n·ציון + m·ממוצע העיר) / (n + m),  m = WEIGHT_PRIOR_VOTES
+ */
+export function weightedScore(s: StreetStats, cityAvg: number): number | null {
+  if (s.avgScore === null) return null;
+  const n = s.votes;
+  const m = WEIGHT_PRIOR_VOTES;
+  return (n * s.avgScore + m * cityAvg) / (n + m);
+}
+
+export function topStreets(
+  streetStats: StreetStats[],
+  limit = 5,
+  by: RankBy = "votes",
+): StreetStats[] {
+  const rated = streetStats.filter((s) => s.votes > 0);
+  const totalVotes = rated.reduce((a, s) => a + s.votes, 0);
+  const cityAvg = totalVotes
+    ? rated.reduce((a, s) => a + (s.avgScore ?? 0) * s.votes, 0) / totalVotes
+    : 0;
+  const key = (s: StreetStats) =>
+    by === "votes" ? s.votes : by === "score" ? (s.avgScore ?? 0) : (weightedScore(s, cityAvg) ?? 0);
+  return [...rated]
+    .sort((a, b) => key(b) - key(a) || b.votes - a.votes || (b.avgScore ?? 0) - (a.avgScore ?? 0))
     .slice(0, limit);
 }

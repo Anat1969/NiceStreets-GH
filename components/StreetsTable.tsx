@@ -10,7 +10,6 @@ import {
   DEFAULT_FILTER,
   applyStreetFilter,
   isDefaultFilter,
-  streetFilterToQuery,
   type SortField,
   type StreetFilter,
 } from "@/lib/street-filter";
@@ -153,7 +152,6 @@ export default function StreetsTable({
   quarters,
   typologies,
   statuses,
-  staff,
   initialFilter = DEFAULT_FILTER,
 }: {
   rows: Row[];
@@ -161,7 +159,8 @@ export default function StreetsTable({
   quarters: { id: string; name: string }[];
   typologies: { key: string; label: string }[];
   statuses: { key: string; label: string }[];
-  staff: boolean;
+  /** Export moved to /staff (Anat, item 14); kept so callers need no change. */
+  staff?: boolean;
   /** Set from the address, so a link can open the table already narrowed. */
   initialFilter?: StreetFilter;
 }) {
@@ -204,9 +203,6 @@ export default function StreetsTable({
   }, [quarterRows, quarterSort]);
   const maxQuarterVotes = Math.max(0, ...quarterRows.map((r) => r.votes));
   const maxQuarterStreets = Math.max(0, ...quarterRows.map((r) => r.streets));
-
-  const exportQuery = streetFilterToQuery(filter);
-  const exportSuffix = exportQuery ? `?${exportQuery}` : "";
 
   const field =
     "w-full rounded-[10px] border border-line bg-surface px-3 py-2 text-[15px] text-ink";
@@ -451,36 +447,6 @@ export default function StreetsTable({
           <HeatLegend />
         </section>
       )}
-
-      <div className="mt-4">
-        {staff ? (
-          <>
-            <p className="mb-2 text-[13px] text-ink-soft">
-              {view === "streets"
-                ? `הייצוא כולל בדיוק את התוצאות המסוננות. ${streetsFoundLabel(results.length)}.`
-                : "הייצוא כולל את כל הרחובות."}
-            </p>
-            <div className="flex gap-2">
-              <a
-                href={`/api/export/streets.csv${view === "streets" ? exportSuffix : ""}`}
-                className="flex-1 rounded-[12px] border border-line bg-surface px-3 py-3 text-center text-[15px] text-ink"
-              >
-                ייצוא CSV
-              </a>
-              <a
-                href={`/api/export/streets.geojson${view === "streets" ? exportSuffix : ""}`}
-                className="flex-1 rounded-[12px] border border-line bg-surface px-3 py-3 text-center text-[15px] text-ink"
-              >
-                ייצוא GeoJSON
-              </a>
-            </div>
-          </>
-        ) : (
-          <p className="text-[12px] text-ink-faint">
-            ייצוא הנתונים פתוח לצוות העירייה בלבד.
-          </p>
-        )}
-      </div>
 
       <p className="mt-3 text-[12px] text-ink-faint">
         סך הכול {votesLabel(rows.reduce((sum, r) => sum + r.votes, 0))} על{" "}

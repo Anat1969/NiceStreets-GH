@@ -70,8 +70,8 @@ export default async function ReportsPage() {
   return (
     <>
       <p className="mb-1 text-[13px] text-ink-faint">
-        <Link href="/admin" className="inline-link underline underline-offset-2">
-          לוח בקרה
+        <Link href="/staff" className="inline-link underline underline-offset-2">
+          שולחן העבודה של הצוות
         </Link>{" "}
         · דיווחים והצעות
       </p>

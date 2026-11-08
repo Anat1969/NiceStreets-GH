@@ -43,6 +43,7 @@ import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 import { useBrandColor } from "@/lib/use-brand-color";
 import { tableTooltip, type MapTableData } from "@/lib/map-table";
 import MapTable from "@/components/MapTable";
+import QuarterIcon from "@/components/QuarterIcon";
 
 interface Props {
   /** כתובת קובץ הגבולות (GeoJSON FeatureCollection של פוליגונים). */
@@ -62,6 +63,31 @@ interface Props {
   shade: ShadeDef;
   center: [number, number];
   zoom: number;
+  /**
+   * הסטייה של כל רובע מערך ייחוס (למשל הממוצע העירוני), כמפתח ב-values.
+   * מוצגת ליד המספר, עם סימן, גם כשהיא קטנה.
+   */
+  delta?: { key: string; metric: string; note: string };
+  /** מזהה האזור באפליקציה לכל מזהה בקובץ, כדי לצייר את האייקון של הרובע. */
+  iconIds?: Record<string, string>;
+  /** פקד קטן שיושב על המפה עצמה, בפינה (למשל "לפי רובע / לפי רחוב"). */
+  overlay?: React.ReactNode;
+}
+
+/** "+0.4" / "−0.2" / "0.0": סימן מפורש, מינוס אמיתי, ספרה אחת אחרי הנקודה. */
+export function formatDelta(d: number): string {
+  const v = Math.round(d * 10) / 10;
+  if (v === 0) return "0.0";
+  return `${v > 0 ? "+" : "\u2212"}${Math.abs(v).toFixed(1)}`;
+}
+
+/** גודל וצבע לפי מיקום הערך בטווח: גבוה = גדול וכהה. t בין 0 ל-1. */
+export function emphasis(t: number): { fontSize: string; color: string } {
+  const c = Math.max(0, Math.min(1, t));
+  return {
+    fontSize: `${Math.round(17 + c * 13)}px`,
+    color: `color-mix(in srgb, var(--brand-900, #0c322b) ${Math.round(55 + c * 45)}%, var(--brand-500, #1f6f5c))`,
+  };
 }
 
 interface DistrictRow {
@@ -175,6 +201,9 @@ export default function DistrictMap({
   shade,
   center,
   zoom,
+  delta,
+  iconIds,
+  overlay,
 }: Props) {
   const container = useRef<HTMLDivElement>(null);
   const wrap = useRef<HTMLDivElement>(null);
@@ -570,6 +599,9 @@ export default function DistrictMap({
 
     labels.current.forEach((m) => m.remove());
     labels.current = [];
+    const valued = rows.map((r) => r.value).filter((v): v is number => v !== null);
+    const lo = valued.length ? Math.min(...valued) : 0;
+    const span = valued.length ? Math.max(...valued) - lo : 0;
     for (const row of rows) {
       if (!row.centroid || !metric) continue;
       const element = document.createElement("div");
@@ -577,13 +609,25 @@ export default function DistrictMap({
       element.setAttribute("aria-hidden", "true");
       const name = document.createElement("span");
       name.className = "district-label-name";
-      name.textContent = row.mapLabel;
+      // בלי אייקון כאן: הפוליגון של הרובע עצמו כבר על המפה. האייקון מופיע בדירוג ובלוח.
+      name.append(document.createTextNode(row.mapLabel));
       element.append(name);
       if (row.value !== null) {
         const value = document.createElement("span");
         value.className = "district-label-value";
         value.textContent = row.value.toFixed(metric.decimals ?? 1);
+        const look = emphasis(span > 0 ? (row.value - lo) / span : 1);
+        value.style.fontSize = look.fontSize;
+        value.style.color = look.color;
         element.append(value);
+        const d = delta && delta.metric === metric.key ? records[row.id]?.values[delta.key] : null;
+        if (typeof d === "number") {
+          const chip = document.createElement("span");
+          chip.className = "district-label-delta";
+          chip.dataset.sign = d > 0.05 ? "up" : d < -0.05 ? "down" : "flat";
+          chip.textContent = formatDelta(d);
+          element.append(chip);
+        }
       }
       labels.current.push(
         new maplibregl.Marker({ element, anchor: "center" })
@@ -591,7 +635,7 @@ export default function DistrictMap({
           .addTo(instance),
       );
     }
-  }, [rows, mapReady, geo, idProperty, metric, activeLevels]);
+  }, [rows, mapReady, geo, idProperty, metric, activeLevels, delta, records]);
 
   // צבע אחר בכותרת: רק הגוון מתחלף, בלי לבנות את המפה מחדש.
   useEffect(() => {
@@ -645,6 +689,8 @@ export default function DistrictMap({
       <div ref={wrap} className="map-canvas-wrap district-canvas-wrap">
         <div ref={container} className="map-canvas" />
 
+        {overlay ? <div className="map-overlay">{overlay}</div> : null}
+
         {geoError ? (
           <div className="map-empty card" role="alert">
             <p className="text-[14px] text-ink">גבולות הרובעים לא נטענו.</p>
@@ -666,7 +712,10 @@ export default function DistrictMap({
           >
             <div className="flex items-start justify-between gap-2 border-b border-line p-3">
               <div>
-                <p className="text-[17px] font-semibold text-ink">{selectedRow.name}</p>
+                <p className="flex items-center gap-2 text-[17px] font-semibold text-ink">
+                  {iconIds?.[selectedRow.id] ? <QuarterIcon id={iconIds[selectedRow.id]} size={28} className="text-accent" /> : null}
+                  {selectedRow.name}
+                </p>
                 <p className="text-[13px] text-ink-faint">
                   {rankOf.has(selectedRow.id)
                     ? `מקום ${rankOf.get(selectedRow.id)} מתוך ${withValue}`
@@ -814,6 +863,7 @@ export default function DistrictMap({
           <h2 className="mb-1 text-[17px] font-semibold text-ink">
             דירוג הרובעים לפי {metric.label}
           </h2>
+          {delta && delta.metric === metric.key ? <p className="map-how mb-2">{delta.note}</p> : null}
           {metrics.length > 1 ? (
             <div className="mb-2 flex flex-wrap gap-2" role="group" aria-label="לפי מה לדרג">
               {metrics.map((m) => (
@@ -852,14 +902,36 @@ export default function DistrictMap({
                     >
                       {rank ?? "–"}
                     </span>
+                    {iconIds?.[row.id] ? (
+                      <QuarterIcon id={iconIds[row.id]} size={26} className="text-accent" />
+                    ) : (
+                      <span className="w-[26px] shrink-0" aria-hidden="true" />
+                    )}
                     <span className="flex-1 text-right">
                       {row.name}
                       {row.bounds || !geo ? null : (
                         <span className="block text-[12px] text-ink-faint">אין גבול במפה</span>
                       )}
                     </span>
-                    <span className="text-[14px] tabular-nums text-ink-soft">
-                      {formatMetric(row.value, metric)}
+                    <span className="rank-score">
+                      <span className="rank-value">
+                        {row.value === null ? "–" : row.value.toFixed(metric.decimals ?? 1)}
+                      </span>
+                      {row.value !== null && delta && delta.metric === metric.key && typeof records[row.id]?.values[delta.key] === "number" ? (
+                        <span
+                          className="district-label-delta"
+                          data-sign={
+                            (records[row.id].values[delta.key] as number) > 0.05
+                              ? "up"
+                              : (records[row.id].values[delta.key] as number) < -0.05
+                                ? "down"
+                                : "flat"
+                          }
+                        >
+                          {formatDelta(records[row.id].values[delta.key] as number)}
+                        </span>
+                      ) : null}
+                      {metric.unit ? <span className="rank-unit">{metric.unit}</span> : null}
                     </span>
                   </button>
                 </li>

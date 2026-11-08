@@ -7,12 +7,14 @@ import maplibregl, { type Map as MapLibreMap } from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { votesLabel } from "@/lib/hebrew";
 import { normaliseForSearch } from "@/lib/street-filter";
-import { scoreOutOfTen } from "@/lib/score";
+import { scoreOutOfTen, toTen } from "@/lib/score";
 import { QUARTER_MAP } from "@/lib/city";
 import { bothLevels, classify, fixedBreaks, legendWord } from "@/lib/districts";
 import { useBrandColor } from "@/lib/use-brand-color";
 import { tableTooltip, type MapTableData } from "@/lib/map-table";
 import MapTable from "@/components/MapTable";
+import QuarterIcon from "@/components/QuarterIcon";
+import { emphasis, formatDelta } from "@/components/DistrictMap";
 import { BLANK_STYLE, ensureRtlTextPlugin, mapStyleUrl } from "@/lib/map-style";
 
 interface QuarterPoint {
@@ -61,6 +63,10 @@ interface Props {
    * לתושב אין כאן מתג. הצוות מקבל את מצב הנקודות לכיול אזורים בלי גבול.
    */
   lockMode?: "street";
+  /** הממוצע העירוני (בסולם השמור 1–5), כדי להראות לכל רחוב כמה הוא מעליו או מתחתיו. */
+  cityAverage?: number | null;
+  /** פקד קטן שיושב על המפה עצמה, בפינה. */
+  overlay?: React.ReactNode;
 }
 
 /** קבוע, כדי שברירת המחדל לא תבנה את המפה מחדש בכל רינדור. */
@@ -114,6 +120,8 @@ export default function MapView({
   bikePaths = NO_BIKE_PATHS,
   canCalibrate = false,
   lockMode,
+  cityAverage = null,
+  overlay,
 }: Props) {
   const router = useRouter();
   const container = useRef<HTMLDivElement>(null);
@@ -657,6 +665,11 @@ export default function MapView({
         disc.style.background = fill;
         // המספר בעיגול הוא הציון, כמו התווית על הרובע. הקולות הם הגוון.
         disc.textContent = item.avgScore === null ? "–" : scoreOutOfTen(item.avgScore);
+        if (item.avgScore !== null) {
+          // ציון גבוה = מספר גדול וכהה יותר; הצבע של העיגול נשאר הגוון של הקולות.
+          const t = Math.max(0, Math.min(1, (toTen(item.avgScore) - 2) / 8));
+          disc.style.fontSize = `${Math.round(13 + t * 7)}px`;
+        }
         disc.setAttribute("aria-hidden", "true");
 
         const name = document.createElement("span");
@@ -885,6 +898,7 @@ export default function MapView({
       </div>
 
       <div ref={mapBox} className="map-canvas-wrap">
+        {overlay ? <div className="map-overlay">{overlay}</div> : null}
         <div
           ref={container}
           role="application"
@@ -1064,6 +1078,11 @@ export default function MapView({
           <h2 className="mb-1 text-[17px] font-semibold text-ink">
             דירוג הרחובות לפי {rankBy === "votes" ? "מספר קולות" : "ציון ממוצע"}
           </h2>
+          {rankBy !== "votes" && cityAverage !== null ? (
+            <p className="map-how mb-2">
+              הציונים של התושבים. המספר הקטן ליד כל ציון הוא ההפרש מהממוצע העירוני ({scoreOutOfTen(cityAverage)}): + מעליו, − מתחתיו. אין עדיין היסטוריה לפי תקופות, ולכן זה הפרש מהממוצע ולא שינוי בזמן.
+            </p>
+          ) : null}
           <div className="mb-2 flex gap-2" role="group" aria-label="לפי מה לדרג">
             {(
               [
@@ -1110,16 +1129,44 @@ export default function MapView({
                     >
                       {index + 1}
                     </span>
+                    <QuarterIcon id={s.quarterId} size={24} className="text-accent" />
                     <span className="flex-1 text-right">
                       {s.name}
                       {placed ? null : (
                         <span className="block text-[12px] text-ink-faint">אין מיקום במפה</span>
                       )}
                     </span>
-                    <span className="text-[14px] tabular-nums text-ink-soft">
-                      {rankBy === "votes"
-                        ? `${s.votes} קולות`
-                        : `${scoreOutOfTen(s.avgScore)} מתוך 10`}
+                    <span className="rank-score">
+                      {rankBy === "votes" ? (
+                        <>
+                          <span className="rank-value">{s.votes}</span>
+                          <span className="rank-unit">קולות</span>
+                        </>
+                      ) : (
+                        <>
+                          <span
+                            className="rank-value"
+                            style={s.avgScore === null ? undefined : { color: emphasis((toTen(s.avgScore) - 2) / 8).color }}
+                          >
+                            {scoreOutOfTen(s.avgScore)}
+                          </span>
+                          {s.avgScore !== null && cityAverage !== null ? (
+                            <span
+                              className="district-label-delta"
+                              data-sign={
+                                toTen(s.avgScore - cityAverage) > 0.05
+                                  ? "up"
+                                  : toTen(s.avgScore - cityAverage) < -0.05
+                                    ? "down"
+                                    : "flat"
+                              }
+                            >
+                              {formatDelta(toTen(s.avgScore - cityAverage))}
+                            </span>
+                          ) : null}
+                          <span className="rank-unit">מתוך 10</span>
+                        </>
+                      )}
                     </span>
                   </button>
                 </li>

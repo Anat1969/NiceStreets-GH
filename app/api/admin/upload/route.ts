@@ -1,28 +1,35 @@
 import { NextResponse } from "next/server";
 import { getStore } from "@/lib/store";
-import { isAdmin } from "@/lib/session";
+import { isAdmin, isStaff } from "@/lib/session";
 import type { PhotoSource } from "@/lib/types";
 
 export const dynamic = "force-dynamic";
 
-/** The admin's own sources. "resident" is not one of them: that comes with a vote. */
+/** The department's own sources. "resident" is not one of them: that comes with a vote. */
 const ADMIN_SOURCES: PhotoSource[] = ["example", "test"];
 
 /**
- * Upload by the admin, published without moderation.
+ * Upload by the department, published without moderation.
  *
- * Only the admin: staff moderate what residents send, the admin also publishes
- * directly. The check is `isAdmin`, not `isStaff`, on purpose.
+ * "example" — the department's photo, also the replacement when a resident's
+ * photo was rejected (Anat, 08.11.2026, item 24): any staff member.
+ * "test" stays with the admin.
+ *
+ * The database decides in the end (RLS). Until migration
+ * 20261108120000_staff_replacement_photo.sql is applied, only the admin can
+ * insert; a staff member then gets the clear message below.
  */
 export async function POST(request: Request) {
-  if (!(await isAdmin())) {
+  const body = await request.json().catch(() => null);
+  const wanted = body?.source as PhotoSource | undefined;
+  const allowed = wanted === "test" ? await isAdmin() : await isStaff();
+  if (!allowed) {
     return NextResponse.json(
-      { error: "העלאה ישירה שמורה למנהלת" },
+      { error: wanted === "test" ? "תמונת בדיקה שמורה למנהלת" : "ההעלאה שמורה לצוות" },
       { status: 403 },
     );
   }
 
-  const body = await request.json().catch(() => null);
   const streetId = body?.streetId as string | undefined;
   const dataUrl = body?.dataUrl as string | undefined;
   const source = body?.source as PhotoSource | undefined;
@@ -52,6 +59,15 @@ export async function POST(request: Request) {
       PHOTO_FORMAT: "פורמט התמונה אינו נתמך",
       PHOTO_TOO_LARGE: "התמונה גדולה מדי",
     };
+    if (/row-level security|violates/i.test(code)) {
+      return NextResponse.json(
+        {
+          error:
+            "מסד הנתונים עדיין מתיר העלאה כזאת רק למנהלת. היא תיפתח לכל הצוות אחרי עדכון ההרשאות.",
+        },
+        { status: 403 },
+      );
+    }
     return NextResponse.json(
       { error: messages[code] ?? "ההעלאה נכשלה" },
       { status: code in messages ? 400 : 500 },

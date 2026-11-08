@@ -745,10 +745,9 @@ a.inline-link:hover {
   pointer-events: none;
   background: linear-gradient(
     to top,
-    rgb(0 0 0 / 72%) 0%,
-    rgb(0 0 0 / 46%) 22%,
-    rgb(0 0 0 / 12%) 45%,
-    rgb(0 0 0 / 0%) 68%
+    rgb(0 0 0 / 58%) 0%,
+    rgb(0 0 0 / 26%) 16%,
+    rgb(0 0 0 / 0%) 34%
   );
 }
 
@@ -2534,4 +2533,502 @@ textarea.resident-voice {
 }
 .type-details[open] .type-summary::after {
   content: "סגירה ▴";
+}
+
+/* =====================================================================
+ * סבב 09.11.2026 (ענת).
+ * ===================================================================== */
+
+/* 18. הסבר על אופן הפעולה — נטוי, כדי להבדיל אותו מהתוכן. */
+.how,
+.step-guide ol,
+.howto,
+.field-help,
+.section-note,
+.layer-answer .how {
+  font-style: italic;
+}
+.how {
+  font-size: 14px;
+  color: var(--color-ink-soft);
+  line-height: 1.55;
+}
+
+/* 19. ציונים — בכתב יד, גדולים, מושחרים. */
+.score-hand {
+  font-family: var(--font-hand);
+  font-weight: 800;
+  line-height: 1;
+  color: #0b1118;
+  font-variant-numeric: tabular-nums;
+}
+.score-hand[data-on] {
+  color: var(--color-accent);
+}
+
+/* 5. מתג קטן ליד כותרת. */
+.leaders-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.leaders-head .section-title {
+  margin-bottom: 0;
+}
+.seg {
+  display: inline-flex;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  padding: 2px;
+}
+.seg button {
+  min-height: 44px;
+  min-width: 56px;
+  padding: 0 12px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+.seg button[aria-checked="true"] {
+  background: var(--color-accent);
+  color: #fff;
+}
+
+/* 1. מהרעיון לביצוע: גרדיאנט אחד, לא רמזור. מחול בהיר (רעיון) לירוק־אגף עמוק (ביצוע). */
+.vision-flow {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  counter-reset: none;
+}
+.vision-step {
+  --mix: calc(var(--step) * 30%);
+  position: relative;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: color-mix(in oklab, var(--brand-700) var(--mix), var(--sand));
+  color: var(--color-ink);
+}
+.vision-step[data-step="2"],
+.vision-step[data-step="3"] {
+  color: #fff;
+}
+.vision-step[data-step="2"] .vision-text,
+.vision-step[data-step="3"] .vision-text,
+.vision-step[data-step="3"] .process {
+  color: rgb(255 255 255 / 88%);
+}
+.vision-kicker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+}
+.vision-kicker .num {
+  display: inline-grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+}
+.vision-step .vision-lead {
+  color: inherit;
+}
+.vision-step .process {
+  list-style: decimal;
+  padding-inline-start: 18px;
+  display: grid;
+  gap: 2px;
+}
+.vision-step .process li {
+  display: list-item;
+}
+@container main (min-width: 720px) {
+  .vision-flow {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 14px;
+  }
+  .vision-step:not(:last-child)::after {
+    content: "";
+    position: absolute;
+    inset-inline-end: -12px;
+    top: 50%;
+    width: 10px;
+    height: 10px;
+    border-top: 2px solid var(--brand-500);
+    border-left: 2px solid var(--brand-500);
+    transform: translateY(-50%) rotate(-45deg);
+  }
+}
+
+/* 2-3. מסגרת התשובה של השכבה: גדולה, ובאותה שורה של כפתורי השכבות. */
+.hero-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "copy" "room" "legend" "answer";
+  gap: 12px;
+  align-items: stretch;
+}
+.hero-copy { grid-area: copy; align-self: center; }
+.hero-room { grid-area: room; }
+.hero-legend { grid-area: legend; }
+.hero-answer { grid-area: answer; }
+.hero-legend .room-legend {
+  margin-top: 0;
+  height: 100%;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-auto-rows: 1fr;
+}
+.hero-legend .room-legend a {
+  height: 100%;
+  min-height: 64px;
+  font-size: 17px;
+}
+.hero-legend .room-legend-title {
+  font-size: 18px;
+}
+.hero-answer.layer-answer {
+  margin-top: 0;
+  min-height: 176px;
+  padding: 16px 18px;
+  display: grid;
+  align-content: start;
+  gap: 8px;
+}
+.hero-answer[data-open] {
+  border-inline-start-width: 6px;
+}
+.hero-answer[data-layer="skeleton"] { border-inline-start-color: var(--asphalt); }
+.hero-answer[data-layer="section"] { border-inline-start-color: var(--kurkar); }
+.hero-answer[data-layer="frontage"] { border-inline-start-color: var(--brand-500); }
+.hero-answer[data-layer="texture"] { border-inline-start-color: var(--canopy); }
+.hero-answer .layer-answer-q {
+  align-items: flex-start;
+  font-size: 22px;
+  line-height: 1.3;
+}
+.hero-answer .layer-answer-q .room-swatch {
+  width: 18px;
+  height: 18px;
+  margin-top: 6px;
+  flex: none;
+}
+.layer-answer-name {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: var(--color-ink-soft);
+}
+.hero-answer .layer-answer-a {
+  font-size: 18px;
+  line-height: 1.5;
+  margin-top: 0;
+}
+.hero-answer .layer-answer-c {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 2px;
+  font-size: 13px;
+}
+.hero-answer .layer-answer-c li {
+  padding: 3px 10px;
+  border-radius: 99px;
+  background: var(--color-paper);
+  border: 1px solid var(--color-line);
+  color: var(--color-ink);
+}
+@container main (min-width: 720px) {
+  .hero-grid {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+    grid-template-areas: "copy room" "answer legend";
+    column-gap: 28px;
+    row-gap: 12px;
+  }
+}
+
+/* 6. הדירוג שלכם — טור אחד: שאלה, ציון. המבנה הגרפי משקף רשימה של שבע תשובות. */
+.score-summary {
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
+}
+.score-summary li {
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--brand-100);
+}
+.score-summary li:last-child {
+  border-bottom: 0;
+}
+.score-summary .score-dot {
+  font-family: var(--font-hand);
+  font-size: 17px;
+  width: 32px;
+  height: 32px;
+}
+
+/* 4. יישור שדות: כל בלוק בטופס מתחיל ונגמר באותו קו, ואותו ריפוד פנימי. */
+.flow > section > * {
+  margin-inline: 0;
+}
+.flow .step-guide,
+.flow .output-panel,
+.flow .type-details,
+.flow .question-card {
+  padding-inline: 14px;
+}
+.flow .field > .input,
+.flow .field > textarea {
+  margin: 0;
+}
+.question-card > .flex {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  column-gap: 12px;
+}
+.question-card [role="group"] {
+  margin-inline-start: -56px;
+  margin-top: 8px;
+}
+
+/* דף הרחוב */
+.street-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: -4px 0 10px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--color-ink-soft);
+}
+.wiki-blurb {
+  margin-bottom: 14px;
+  padding: 10px 14px;
+  border-inline-start: 3px solid var(--kurkar);
+  background: color-mix(in oklab, var(--sand) 55%, transparent);
+  border-radius: 0 10px 10px 0;
+}
+.wiki-kicker {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #7a5a24;
+}
+.wiki-text {
+  font-size: 15px;
+  color: var(--color-ink);
+  margin: 2px 0 4px;
+}
+
+/* 9. מה התושבים חושבים — הקול של הרחוב, בהבלטה. */
+.voices {
+  padding: 18px 18px 14px;
+  border-radius: 16px;
+  background: var(--tone-insight-wash);
+  border: 1px solid color-mix(in oklab, var(--tone-insight) 40%, transparent);
+}
+.voices-title {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #6b5a00;
+  margin-bottom: 6px;
+}
+.voices-summary {
+  font-size: 21px;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.voices-quotes {
+  display: grid;
+  gap: 10px;
+  margin-top: 14px;
+}
+.voices-quotes li {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--color-surface);
+  border-radius: 12px;
+  box-shadow: var(--shadow-1);
+}
+.voices-quotes blockquote::before {
+  content: "״";
+  color: var(--kurkar);
+  margin-inline-end: 2px;
+}
+.voices-score {
+  font-size: 12px;
+  color: var(--color-ink-faint);
+  white-space: nowrap;
+}
+.voices-score .score-hand {
+  font-size: 26px;
+}
+
+/* 11. ערכי הייחוס: מודל תלת־ממדי וטבלת פרמטרים בטור. */
+.bm {
+  margin: 0 0 12px;
+  padding: 10px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  background: linear-gradient(to bottom, var(--color-surface), var(--color-paper));
+}
+.bm svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 320px;
+}
+.bm-ground { fill: var(--sand); }
+.bm-ideal-floor { fill: color-mix(in oklab, var(--brand-300) 35%, transparent); }
+.bm-ideal-floor-core { fill: color-mix(in oklab, var(--brand-300) 55%, transparent); }
+.bm-ideal-wall {
+  fill: color-mix(in oklab, var(--brand-300) 22%, transparent);
+  stroke: var(--brand-300);
+  stroke-dasharray: 4 3;
+  stroke-width: 1;
+}
+.bm-ideal-wall-core {
+  fill: color-mix(in oklab, var(--brand-500) 30%, transparent);
+  stroke: var(--brand-500);
+  stroke-width: 1;
+}
+.bm-measured {
+  fill: color-mix(in oklab, var(--asphalt) 12%, transparent);
+  stroke: var(--color-ink);
+  stroke-width: 2.2;
+}
+.bm-measure-line {
+  stroke: var(--tone-problem);
+  stroke-width: 2.5;
+}
+.bm-tag {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--color-ink);
+  paint-order: stroke;
+  stroke: #fff;
+  stroke-width: 3px;
+}
+.bm-tag-strong {
+  font-family: var(--font-hand);
+  font-size: 16px;
+  font-weight: 800;
+  fill: var(--tone-problem);
+}
+.bm-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  font-size: 13px;
+  color: var(--color-ink);
+  margin: 6px 0 2px;
+}
+.bm-key {
+  display: inline-block;
+  width: 14px;
+  height: 10px;
+  margin-inline-end: 4px;
+  vertical-align: middle;
+}
+.bm-key-ideal { background: color-mix(in oklab, var(--brand-500) 35%, transparent); border: 1px solid var(--brand-500); }
+.bm-key-measured { border: 2px solid var(--color-ink); }
+.param-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--color-surface);
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  overflow: hidden;
+  font-size: 14px;
+}
+.param-table th,
+.param-table td {
+  padding: 9px 10px;
+  text-align: start;
+  border-bottom: 1px solid var(--color-line);
+  vertical-align: middle;
+}
+.param-table thead th {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--color-ink-soft);
+  background: var(--color-paper);
+}
+.param-table tbody th {
+  font-weight: 600;
+  white-space: nowrap;
+}
+.param-icon {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  margin-inline-end: 6px;
+  vertical-align: -3px;
+  color: var(--color-accent);
+}
+.param-icon svg { width: 16px; height: 16px; }
+.param-table td[data-dev="ok"] { color: var(--tone-solution); font-weight: 700; }
+.param-table td[data-dev="off"] { color: var(--tone-problem); font-weight: 700; }
+.param-table td[data-dev="none"] { color: var(--color-ink-faint); }
+@media (max-width: 480px) {
+  .param-table { font-size: 12.5px; }
+  .param-table th, .param-table td { padding: 8px 5px; }
+  .param-table tbody th { white-space: normal; }
+}
+
+/* 20. השפה הגרפית של הקריטריונים. */
+.crit-mark {
+  display: inline-block;
+  flex: none;
+  vertical-align: -3px;
+}
+.crit-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.crit-legend {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-line);
+  border-radius: 10px;
+  background: var(--color-surface);
+  font-size: 13px;
+  color: var(--color-ink-soft);
+}
+.crit-legend-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+.crit-legend-row span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+.hero-answer .layer-answer-c li {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
 }
