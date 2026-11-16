@@ -228,7 +228,8 @@ begin
     elsif c.measure = 'canopyPct' and (prof ->> 'canopy_pct') is not null then
       val := (prof ->> 'canopy_pct')::numeric;
       src := 'שכבת העצים: ' || (prof ->> 'trees') || ' עצים, ל-' || (prof ->> 'trees_with_canopy') || ' מהם קוטר צמרת מדוד';
-      conf := case when (prof ->> 'trees')::int > 0 and (prof ->> 'trees_with_canopy')::numeric / (prof ->> 'trees')::numeric >= 0.6 then 'medium' else 'low' end;
+      -- Low until the unit of canopy_dia is confirmed (diameter, radius or a size class): every street came out 0-13%.
+      conf := 'low';
       select source_date into ddate from shchuna_gis_layers where id = 'trees';
     elsif c.measure like 'moked106:%' then
       staffonly := true;
