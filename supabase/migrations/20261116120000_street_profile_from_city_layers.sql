@@ -8,7 +8,8 @@
 --                 (ייעוד שמתחיל ב"דרך"). החציון, כדי שצומת או מפרץ לא יטו את התוצאה.
 --                 גיבוי: השדה F_STRT_WID בשכבת רוחבי הרחוב, ממוצע לפי אורך.
 --   sidewalk_pct  שיעור המדרכה מזכות הדרך: שטח המדרכות בתוך תחום הדרך לאורך הרחוב, חלקי שטח
---                 תחום הדרך. רק כשהרחוב בתחום סקר המדרכות (מדרכה עד 25 מ' מקו האמצע); אחרת null.
+--                 תחום הדרך. שכבת המדרכות (סקר 08.2021) חלקית, ולכן נמדד רק כשהסקר מכסה לפחות 60%
+--                 מאורך הרחוב (sidewalk_coverage). אחרת null: אין נתון, לא אפס.
 --   plot_frontage_m  רוחב חזית מגרש: אורך הגבול של כל מגרש שאינו דרך, הנוגע בתחום הדרך. חציון.
 --   lights_per_100m, signal_junctions  נתוני הקשר (תאורה ורמזורים), לא נשפטים מול יעד.
 
@@ -24,7 +25,7 @@ declare
   road geometry;  -- road lots near the street
   corridor geometry;
   w_lots numeric; w_layer numeric; n_samples int;
-  sw numeric; v_front numeric; n_plots int; lights numeric; signals int;
+  sw numeric; sw_cov numeric; v_front numeric; n_plots int; lights numeric; signals int;
 begin
   select ST_Transform(ST_LineMerge(geom), 2039) into g from streets where id = p_street_id and geom is not null;
   if g is null then return null; end if;
@@ -68,8 +69,11 @@ begin
     corridor := ST_Intersection(road, ST_Buffer(g, coalesce(w_lots, w_layer, 20) / 2 + 3, 'endcap=flat'));
   end if;
 
-  if corridor is not null and not ST_IsEmpty(corridor)
-     and exists (select 1 from shchuna_gis_features f where f.layer = 'sidewalks' and ST_DWithin(f.geom, g, 25)) then
+  select round((ST_Length(ST_Intersection(g, ST_Buffer(ST_Union(f.geom), coalesce(w_lots, w_layer, 20) / 2 + 2))) / len)::numeric, 2)
+  into sw_cov from shchuna_gis_features f
+  where f.layer = 'sidewalks' and ST_DWithin(f.geom, g, coalesce(w_lots, w_layer, 20) / 2 + 2);
+
+  if corridor is not null and not ST_IsEmpty(corridor) and coalesce(sw_cov, 0) >= 0.6 then
     select round((coalesce(sum(ST_Area(ST_Intersection(f.geom, corridor))), 0) / nullif(ST_Area(corridor), 0) * 100)::numeric, 1)
     into sw from shchuna_gis_features f
     where f.layer = 'sidewalks' and ST_Intersects(f.geom, corridor);
@@ -96,6 +100,7 @@ begin
     'row_samples', n_samples,
     'row_width_layer_m', round(w_layer::numeric, 1),
     'sidewalk_pct', sw,
+    'sidewalk_coverage', coalesce(sw_cov, 0),
     'plot_frontage_m', round(v_front::numeric, 1),
     'plots', n_plots,
     'lights_per_100m', lights,
