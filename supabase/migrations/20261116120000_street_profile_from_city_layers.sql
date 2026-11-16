@@ -40,7 +40,7 @@ begin
       select l, ST_LineInterpolatePoint(l, fr) p,
              ST_LineInterpolatePoint(l, greatest(0, fr - 2 / ST_Length(l))) a,
              ST_LineInterpolatePoint(l, least(1, fr + 2 / ST_Length(l))) b
-      from lines, generate_series(12.5::float8, greatest(12.5, ST_Length(l) - 12.5)::float8, 25::float8) d, lateral (select d / ST_Length(l) fr) x
+      from lines, generate_series(12.5::numeric, greatest(12.5, ST_Length(l) - 12.5)::numeric, 25::numeric) d, lateral (select d::float8 / ST_Length(l) fr) x
       where ST_Length(l) >= 25
     ), tr as (
       select p, ST_MakeLine(
