@@ -24,7 +24,7 @@ declare
   road geometry;  -- road lots near the street
   corridor geometry;
   w_lots numeric; w_layer numeric; n_samples int;
-  sw numeric; fr numeric; n_plots int; lights numeric; signals int;
+  sw numeric; v_front numeric; n_plots int; lights numeric; signals int;
 begin
   select ST_Transform(ST_LineMerge(geom), 2039) into g from streets where id = p_street_id and geom is not null;
   if g is null then return null; end if;
@@ -76,7 +76,7 @@ begin
   end if;
 
   if corridor is not null and not ST_IsEmpty(corridor) then
-    select percentile_cont(0.5) within group (order by fl), count(*) into fr, n_plots from (
+    select percentile_cont(0.5) within group (order by fl), count(*) into v_front, n_plots from (
       select ST_Length(ST_Intersection(ST_Boundary(f.geom), ST_Buffer(corridor, 1.5))) fl
       from shchuna_gis_features f
       where f.layer = 'lots' and coalesce(f.props->>'use', '') not like 'דרך%'
@@ -96,7 +96,7 @@ begin
     'row_samples', n_samples,
     'row_width_layer_m', round(w_layer::numeric, 1),
     'sidewalk_pct', sw,
-    'plot_frontage_m', round(fr::numeric, 1),
+    'plot_frontage_m', round(v_front::numeric, 1),
     'plots', n_plots,
     'lights_per_100m', lights,
     'signal_junctions', signals);
