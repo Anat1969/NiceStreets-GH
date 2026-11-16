@@ -232,3 +232,11 @@ begin
   return v_audit;
 end;
 $function$;
+
+-- The latest-audit view carries the layer profile too (a new column goes last in "create or replace view").
+create or replace view public.street_audit_latest with (security_invoker = true) as
+select distinct on (street_id) id, street_id, version, run_at, run_by, engine_version, state, errors, warnings,
+  proposed_status, proposed_note_he, note_source, final_status, final_note_he, reviewed_by, reviewed_at,
+  return_reason, acknowledged_warnings, objective_score, profile
+from public.street_audits a
+order by street_id, version desc;
