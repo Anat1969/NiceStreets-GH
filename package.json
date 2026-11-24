@@ -10,7 +10,6 @@
     "typecheck": "tsc --noEmit",
     "import:gis": "node scripts/import-gis.mjs",
     "assign:quarters": "node scripts/assign-quarters.mjs",
-    "sync": "node scripts/sync-deploy.mjs",
     "build:icons": "node scripts/build-icons.mjs",
     "build:palettes": "node scripts/build-palettes.mjs",
     "build:audit-seed": "node scripts/build-audit-seed.mjs"

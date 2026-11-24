@@ -72,20 +72,12 @@ Supabase. **כל שינוי סכמה = קובץ migration ב-`supabase/migration
 דפדפן על האתר החי. אם ייפתח `*.vercel.app` בהרשאות הרשת של הסביבה, גם זה
 ייבדק מכאן.
 
-## שני מאגרי GitHub — לדחוף לשניהם
+## מאגר אחד, פריסה אחת (מ-24.11.2026)
 
-| מאגר | תפקיד |
-|---|---|
-| `Anat1969/NiceStreets-GH` | המאגר הראשי, כאן מתפתחים |
-| `Anat1969/nicestreets-vercal` | **זה המאגר ש-Vercel פורסת ממנו** |
-
-**אותה אפליקציה בדיוק** (בדיקה 24.11.2026: עץ הקבצים של `nicestreets-vercal` זהה לקומיט `e0bbd3d` כאן). מאגר הפריסה הוא מראה,
-ואין לפתח בו. האיחוד המלא מחכה לפעולה אחת של ענת ב-Vercel: Settings → Git → חיבור הפרויקט `nicestreets-vercal` ל-`NiceStreets-GH`.
-אין לכך כלי ב-Vercel MCP. אחרי החיבור: `npm run sync` מיותר, ואת המאגר `nicestreets-vercal` מעבירים לארכיון.
-
-כפתור Deploy של Vercel יצר מאגר נפרד משלו. דחיפה למאגר הראשי בלבד לא
-מגיעה לאוויר. **`npm run sync` דוחף לשניהם בפקודה אחת, ומדפיס את מזהה
-הגרסה שאמור להופיע בתחתית המסך.**
+Vercel (פרויקט `nicestreets-vercal`) מחובר ישירות ל-`Anat1969/NiceStreets-GH`, ענף `main`. כל דחיפה ל-`main` נפרסת.
+המאגר הכפול `nicestreets-vercal` נוצר בעבר בכפתור Deploy של Vercel והיה מראה בלבד. ענת חיברה מחדש ב-24.11.2026, הסקריפט
+`npm run sync` נמחק, והמאגר הכפול עובר לארכיון. שם הפרויקט והכתובת ב-Vercel נשארו `nicestreets-vercal`, כדי שקישורים לא יישברו.
+- אם Vercel לא רואה מאגר: ההרשאה ניתנת ב-GitHub (Settings → Applications → Vercel → Configure → Repository access), לא ב-Vercel.
 
 הכתובת היחידה שזזה קדימה עם כל עדכון:
 <https://nicestreets-vercal.vercel.app>. לכל פריסה יש גם כתובת קבועה משלה,
@@ -109,7 +101,7 @@ Supabase. **כל שינוי סכמה = קובץ migration ב-`supabase/migration
 - **נתונים שמורים, לא חיים** (תקלה אצל ענת, 03.11.2026: "שרת המפות הפתוח לא ענה"): כל שרתי Overpass החזירו
   502 באותה שעה. לכן הנתונים לכל רחוב נשמרים ב-`public/geo/sections/<id>.json`, ונשלפים ב-Action
   `fetch-sections.yml` (הפעלה ידנית, ופעם בשבוע לרחובות חדשים) דרך `scripts/fetch-sections.mjs`, עם ניסיונות חוזרים.
-  מקור ראשון בסקריפט: ה-API הרשמי של OSM (`api/0.6/map`, תיבה של כ-180 מ'), כי Overpass לא נגיש מ-GitHub Actions (03.11.2026). Overpass הוא גיבוי. הרכיב קורא קודם את הקובץ, ורק בלעדיו פונה לשרת החי (`lz4.overpass-api.de` ואז השאר). אחרי שה-Action מוסיף קבצים: `npm run sync`.
+  מקור ראשון בסקריפט: ה-API הרשמי של OSM (`api/0.6/map`, תיבה של כ-180 מ'), כי Overpass לא נגיש מ-GitHub Actions (03.11.2026). Overpass הוא גיבוי. הרכיב קורא קודם את הקובץ, ורק בלעדיו פונה לשרת החי (`lz4.overpass-api.de` ואז השאר). אחרי שה-Action מוסיף קבצים ל-`main`, Vercel פורס מעצמו.
 - **מקום בדף:** החתך מופיע מיד אחרי "מה התושבים חושבים", במסך הראשון, ויש לו כרטיס בדף הבית (ענת, 03.11.2026: "לא רואה שום דבר").
 - **בדיקה מכאן:** הסביבה חסומה ל-Overpass, אבל מסד הנתונים לא: `http_get` עם
   `http_set_curlopt('CURLOPT_TIMEOUT_MS','45000')`.
