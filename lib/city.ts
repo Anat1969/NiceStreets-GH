@@ -248,7 +248,7 @@ export const QUESTIONS: Question[] = [
   {
     key: "intersection_density",
     label: "צפיפות צמתים",
-    help: "עד כמה יש לרחוב הזה הרבה צמתים, כך שיש כמה דרכים להגיע אליו ולהמשיך ממנו?",
+    help: "עד כמה קל לפנות מהרחוב הזה לכמה כיוונים, בלי לחזור על אותה דרך?",
     alsoCovers: [],
     local: false,
   },
@@ -269,7 +269,7 @@ export const QUESTIONS: Question[] = [
   {
     key: "proportions",
     label: "פרופורציות",
-    help: "עד כמה הרחוב מרגיש מוגדר ונעים, ביחס לגובה הבניינים והעצים מסביבו?",
+    help: "עד כמה הרחוב מרגיש כמו חלל נעים, לא פתוח מדי ולא סגור מדי?",
     alsoCovers: [],
     local: false,
   },
