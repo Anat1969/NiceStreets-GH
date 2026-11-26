@@ -418,10 +418,10 @@ const QSafety = () => (
 );
 
 export const QUESTION_ICONS: Record<string, () => React.ReactElement> = {
-  shade: TreeCanopy,
-  walking: RowSplit,
-  frontages: Transparency,
-  mix: MixedUse,
+  tree_canopy: TreeCanopy,
+  row_split: RowSplit,
+  transparency: Transparency,
+  mixed_use: MixedUse,
   staying: QStaying,
   maintenance: QMaintenance,
   safety: QSafety,

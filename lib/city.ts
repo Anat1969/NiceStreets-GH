@@ -15,12 +15,13 @@ import { STREET_QUARTERS } from "./street-quarters.generated";
 
 export type Scale = 1 | 2 | 3 | 4 | 5;
 
+/**
+ * שתים־עשרה שאלות קריטריון (מפתח השאלה = מפתח הקריטריון) ושלוש שאלות מקומיות.
+ * הנוסח של שאלות הקריטריון הוא טיוטה, וממתין לאישור של אד' ענת.
+ */
 export type QuestionKey =
-  | "shade"
-  | "walking"
-  | "frontages"
+  | CriterionKey
   | "staying"
-  | "mix"
   | "maintenance"
   | "safety";
 
@@ -232,26 +233,93 @@ export const PRINCIPLES = [
   },
 ];
 
+/**
+ * שאלות לתושבים: אחת לכל קריטריון, ושלוש מקומיות. סדר המערך הוא סדר המסך.
+ * הניסוחים הם טיוטה לאישור של אד' ענת.
+ */
 export const QUESTIONS: Question[] = [
   {
-    key: "shade",
-    label: "צל",
-    help: "האם יש חופת עצים או הצללה שמאפשרת ללכת ברחוב גם בקיץ?",
-    alsoCovers: ["אקלים מקומי"],
+    key: "place_and_movement",
+    label: "מקום ותנועה",
+    help: "האם הרחוב מזמין לשבת בו ולהישאר, ולא רק לעבור דרכו?",
+    alsoCovers: [],
     local: false,
   },
   {
-    key: "walking",
-    label: "הליכה וחצייה",
-    help: "האם המדרכה רחבה ורציפה, והאם קל ובטוח לחצות?",
+    key: "intersection_density",
+    label: "צפיפות צמתים",
+    help: "האם יש צמתים קרובים זה לזה, כך שיש כמה דרכים להגיע ליעד?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "mixed_use",
+    label: "עירוב שימושים",
+    help: "האם יש במקום מסחר, שירותים ומגורים, ופעילות לאורך היום?",
+    alsoCovers: ["פעילות לאורך היום"],
+    local: false,
+  },
+  {
+    key: "row_width",
+    label: "רוחב זכות הדרך",
+    help: "האם הרחוב צר מספיק כדי לחצות בקלות ולראות את הצד השני?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "proportions",
+    label: "פרופורציות",
+    help: "האם הרחוב מרגיש כמו חדר נעים, ביחס לגובה הבניינים והעצים?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "row_split",
+    label: "חלוקת זכות הדרך",
+    help: "האם הרחוב מחולק הוגן בין הולכי רגל, רכב, חניה ואופניים?",
     alsoCovers: ["מעברי חצייה"],
     local: false,
   },
   {
-    key: "frontages",
-    label: "חזיתות",
-    help: "האם חזיתות המבנים פתוחות לרחוב, עם חלונות וכניסות, ולא קירות אטומים?",
+    key: "plot_street_meeting",
+    label: "מפגש מגרש–רחוב",
+    help: "האם הבניינים פונים אל הרחוב דרך חזית או כניסה, ולא דרך גדר?",
     alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "transparency",
+    label: "שקיפות וחזית פעילה",
+    help: "האם החזיתות פתוחות לרחוב, עם חלונות, כניסות וחנויות?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "building_rhythm",
+    label: "מקצב בניינים",
+    help: "האם יש הרבה בניינים קטנים לאורך הרחוב, כך שההליכה מעניינת?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "shared_language",
+    label: "שפה משותפת עם מגוון",
+    help: "האם יש מסגרת אחידה לרחוב, עם מגוון של סגנונות בתוכה?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "small_plots",
+    label: "מגרשים קטנים",
+    help: "האם המגרשים לאורך הרחוב קטנים ומגוונים, כך שהרחוב יכול להתחדש בהדרגה?",
+    alsoCovers: [],
+    local: false,
+  },
+  {
+    key: "tree_canopy",
+    label: "חופת עצים והצללה",
+    help: "האם יש חופת עצים או הצללה שמאפשרת ללכת ברחוב גם בקיץ?",
+    alsoCovers: ["אקלים מקומי"],
     local: false,
   },
   {
@@ -259,13 +327,6 @@ export const QUESTIONS: Question[] = [
     label: "מקום לשהות",
     help: "האם יש ספסל, כיכר קטנה או פינה שאפשר לעצור בה — ולא רק לעבור?",
     alsoCovers: ["יחס שהייה לתנועה"],
-    local: false,
-  },
-  {
-    key: "mix",
-    label: "עירוב שימושים",
-    help: "האם יש מסחר, שירותים ומגורים באותו רחוב, ופעילות לאורך היום?",
-    alsoCovers: ["פעילות לאורך היום"],
     local: false,
   },
   {
@@ -342,7 +403,7 @@ export const CRITERIA_FAMILIES: CriteriaFamily[] = [
           "רחוב \"חי\" הוא רחוב שיש סיבה להגיע אליו בכל שעה. נמדד היחס בין " +
           "שטחים סחירים לשטחים ציבוריים, וקומת קרקע פעילה.",
         familyKey: "skeleton",
-        link: { kind: "question", questionKey: "mix" },
+        link: { kind: "question", questionKey: "mixed_use" },
       },
     ],
   },
@@ -376,7 +437,7 @@ export const CRITERIA_FAMILIES: CriteriaFamily[] = [
           "השאלה היא למי שייך הרחוב: לרכב או לאדם. נמדדת חלוקת הרוחב בין " +
           "מדרכה, מיסעה, חניה ושביל אופניים.",
         familyKey: "section",
-        link: { kind: "question", questionKey: "walking" },
+        link: { kind: "question", questionKey: "row_split" },
       },
     ],
   },
@@ -406,7 +467,7 @@ export const CRITERIA_FAMILIES: CriteriaFamily[] = [
           "חזית שקופה מזמינה סקרנות וביטחון; חזית אטומה מנתקת. נבדקים חלונות " +
           "ראווה, פתחים וכניסות מול קירות אטומים וקומות חניה.",
         familyKey: "frontage",
-        link: { kind: "question", questionKey: "frontages" },
+        link: { kind: "question", questionKey: "transparency" },
       },
       {
         key: "building_rhythm",
@@ -454,7 +515,7 @@ export const CRITERIA_FAMILIES: CriteriaFamily[] = [
           "באקלים הישראלי הצל הוא תנאי להליכה, לא קישוט. נמדד אחוז שטח הרחוב " +
           "שמכוסה בחופת עצים, וההצללה מהבינוי.",
         familyKey: "texture",
-        link: { kind: "question", questionKey: "shade" },
+        link: { kind: "question", questionKey: "tree_canopy" },
       },
     ],
   },

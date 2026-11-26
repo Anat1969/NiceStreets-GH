@@ -150,7 +150,7 @@ export default function ChooseFlow({
       </h1>
       <p className="mb-4 text-[14px] text-ink-soft">
         {selected && step > 1
-          ? "שבע שאלות, ואז נימוק ותמונה — לא חובה."
+          ? "חמש־עשרה שאלות, ואז נימוק ותמונה — לא חובה."
           : "שלושה שלבים, פחות משתי דקות."}
       </p>
 

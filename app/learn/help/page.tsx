@@ -18,7 +18,7 @@ export default function LearnHelpPage() {
           <li>
             <span className="font-medium">אתם בוחרים רחוב ומדרגים אותו</span>
             <span className="block text-[14px] text-ink-soft">
-              שבע שאלות, ואם בא לכם גם נימוק ותמונה.
+              חמש־עשרה שאלות, ואם בא לכם גם נימוק ותמונה.
             </span>
           </li>
           <li>

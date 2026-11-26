@@ -45,7 +45,7 @@ export default function LearnPage() {
         />
         <IconCard
           href="/learn/help"
-          title="7 השאלות — איך אתם עוזרים"
+          title="15 השאלות — איך אתם עוזרים"
           text="מה קורה לקול שלכם אחרי שהוא נשמר, ולמה נשאלות דווקא השאלות האלה."
           icon={HUB_ICONS.help}
         />

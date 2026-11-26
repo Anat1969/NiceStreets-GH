@@ -45,7 +45,7 @@ export async function POST(request: Request) {
   const scores = parseScores(body.scores);
   if (!scores) {
     return NextResponse.json(
-      { error: "יש לדרג את כל שבע השאלות בסולם 1–5" },
+      { error: `יש לדרג את כל ${QUESTIONS.length} השאלות בסולם 1–5` },
       { status: 400 },
     );
   }
